@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recipe Box</title>
+<style>
+  :root { --accent:#c98a4b; --accent-dark:#9a5b22; --soft:#fbf1e4; --line:#ecd3b5; --hdr:#c98a4b; --hdr-fg:#fff; --dbl:#fdf6ee; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color:#3b2a1e; background:#fffaf4; font-size:16px; line-height:1.45; }
+  button { font: inherit; cursor: pointer; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 18px 16px 60px; }
+  /* Home */
+  .home h1 { font-size: 34px; margin: 10px 0 2px; color:#5a3417; }
+  .home .lead { color:#8a6a50; margin: 0 0 20px; }
+  .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap:16px; }
+  .card { display:block; text-decoration:none; color:inherit; border-radius:18px; overflow:hidden; background:#fff; border:1px solid #f0e3d3; box-shadow: 0 2px 10px rgba(90,52,23,.08); transition: transform .12s, box-shadow .12s; }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(90,52,23,.15); }
+  .card .art { height: 150px; display:flex; align-items:center; justify-content:center; background: var(--hdr); }
+  .card .art svg { width: 110px; height: 110px; }
+  .card .txt { padding: 12px 16px 16px; }
+  .card h2 { margin:0 0 2px; font-size:20px; border:none; padding:0; color: var(--accent-dark); }
+  .card .meta { color:#8a6a50; font-size:14px; }
+  .card .meta b { color:#3b2a1e; }
+  /* Recipe */
+  .back { background:none; border:none; color: var(--accent-dark); font-weight:700; padding: 6px 0; margin-bottom: 8px; }
+  .hero { background: var(--hdr); color: var(--hdr-fg); border-radius: 20px; padding: 18px 20px; display:flex; align-items:center; gap:16px; flex-wrap: wrap; }
+  .hero .pic { flex:none; width: 92px; height: 92px; border-radius: 50%; background: rgba(255,255,255,.85); display:flex; align-items:center; justify-content:center; }
+  .hero .pic svg { width: 76px; height: 76px; }
+  .hero .ttl { flex: 1 1 220px; min-width: 0; }
+  .hero h1 { margin:0; font-size: 28px; line-height:1.15; }
+  .hero .sub { opacity:.95; }
+  .facts { display:flex; gap:8px; }
+  .fact { background: rgba(255,255,255,.25); border-radius: 12px; padding: 6px 12px; text-align:center; }
+  .fact b { display:block; font-size: 20px; }
+  .fact span { font-size: 11px; text-transform: uppercase; letter-spacing:.5px; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin: 14px 0 4px; }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius: 999px; overflow:hidden; background:#fff; }
+  .seg button { border:none; background:none; padding: 7px 14px; color: var(--accent-dark); font-weight:600; }
+  .seg button.on { background: var(--accent); color:#fff; }
+  .reset { border:1px solid var(--line); background:#fff; color: var(--accent-dark); border-radius:999px; padding:7px 14px; font-weight:600; }
+  .times { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top: 12px; }
+  .time { background: var(--soft); border:1px solid var(--line); border-radius:999px; padding: 3px 11px; font-size: 14px; }
+  .time b { color: var(--accent-dark); }
+  .time.total { background: var(--accent); border-color: var(--accent); color:#fff; }
+  .time.total b { color:#fff; }
+  .plus { color:#b08865; font-weight:700; }
+  .tip { display:block; font-size: 13px; color:#8a6a50; }
+  h2 { color: var(--accent-dark); font-size: 21px; margin: 22px 0 6px; border-bottom: 2px solid var(--line); padding-bottom: 3px; }
+  .cols { display:grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  table { width:100%; border-collapse: collapse; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing:.4px; color: var(--accent-dark); text-align:right; padding: 2px 6px; }
+  th:first-child { text-align:left; }
+  td { padding: 7px 6px; border-bottom: 1px solid #f0e3d3; vertical-align: top; }
+  td.amt { text-align:right; white-space:nowrap; font-weight:600; width:1%; padding-left: 14px; }
+  td.dbl { color:#8a5a2e; background: var(--dbl); }
+  .main .tip { display:inline; margin-left: 8px; }
+  .main .tip::before { content:"· "; }
+  .show-single td.dbl, .show-single th:nth-child(3) { display:none; }
+  .show-double td.amt:not(.dbl), .show-double th:nth-child(2) { display:none; }
+  tr.row { cursor:pointer; }
+  tr.row td:first-child { padding-left: 32px; position: relative; }
+  tr.row td:first-child::before, .tools li::before { content:""; position:absolute; left:6px; top: 10px; width: 16px; height: 16px; border: 2px solid var(--accent); border-radius: 4px; background:#fff; }
+  tr.row.got td:first-child::before, .tools li.got::before { background: var(--accent); box-shadow: inset 0 0 0 2px #fff; }
+  tr.row.got td { color:#b5a393; text-decoration: line-through; }
+  tr.row.got .tip { text-decoration: none; }
+  .tools { list-style:none; padding:0; margin: 6px 0 0; display:grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: 4px 14px; }
+  .tools li { position:relative; padding: 5px 0 5px 28px; cursor:pointer; }
+  .tools li::before { left: 0; top: 8px; }
+  .tools li.got { color:#b5a393; text-decoration: line-through; }
+  .tools .wide { grid-column: 1 / -1; }
+  .tools .box { display:none; }
+  .sizes { color:#8a6a50; }
+  ol.steps { padding:0; margin: 8px 0 0; list-style:none; counter-reset: s; }
+  ol.steps > li { counter-increment: s; position:relative; padding: 12px 12px 12px 52px; margin-bottom: 8px; background:#fff; border:1px solid #f0e3d3; border-radius: 14px; cursor:pointer; }
+  ol.steps > li::before { content: counter(s); position:absolute; left: 12px; top: 12px; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; font-size: 14px; }
+  ol.steps > li.done { background: #f3f7f0; border-color:#cfe2c6; }
+  ol.steps > li.done::before { content:"✓"; background:#5b8c4a; }
+  ol.steps > li.done .txt { color:#8a9a82; }
+  .dur { display:inline-flex; align-items:center; gap:6px; float:right; margin: 0 0 6px 10px; background: var(--soft); border:1px solid var(--line); color: var(--accent-dark); border-radius:999px; padding: 1px 4px 1px 10px; font-size: 13px; font-weight:700; white-space:nowrap; }
+  .dur i { font-weight:400; color:#8a6a50; }
+  .tbtn { border:none; background: var(--accent); color:#fff; border-radius:999px; padding: 2px 10px; font-size: 12px; font-weight:700; }
+  .tbtn.run { background:#3f6b31; }
+  .tbtn.ring { background:#c0392b; animation: pulse 0.8s infinite; }
+  @keyframes pulse { 50% { transform: scale(1.08); } }
+  .boxes { display:grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap: 12px; margin-top: 18px; }
+  .note { background: var(--soft); border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 14px; font-size: 15px; }
+  .note ul { margin: 4px 0 0; padding-left: 18px; }
+  .fix { background:#eef5ea; border-left-color:#5b8c4a; }
+  .fix > b { color:#3f6b31; }
+  .allergy { background:#fdecea; border-left-color:#c0392b; }
+  .allergy > b { color:#a93226; }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background:#3b2a1e; color:#fff; padding: 12px 18px; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.25); font-weight:700; z-index: 10; }
+
+  /* Home: names only */
+  .names { list-style:none; padding:0; margin: 10px 0 0; display:grid; gap:12px; }
+  .names a { display:block; text-decoration:none; font-size: 24px; font-weight: 700; padding: 20px 22px; border-radius: 16px; background: var(--hdr); color: var(--hdr-fg); box-shadow: 0 2px 10px rgba(90,52,23,.10); }
+  .names a:hover { filter: brightness(1.05); }
+  /* Speaker mode */
+  .spk { border:none; background: var(--accent); color:#fff; border-radius:999px; padding:7px 16px; font-weight:700; }
+  .spk.on { background:#3b2a1e; }
+  .t-lemon .spk:not(.on) { color:#3a2d00; }
+  .speaking { outline: 3px solid var(--accent); outline-offset: 4px; border-radius: 8px; background-color: var(--soft); }
+  ol.steps > li.speaking { outline-offset: 2px; border-radius: 14px; }
+  .player { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: #fffdf9; border-top: 1px solid var(--line); box-shadow: 0 -6px 20px rgba(59,42,30,.12); padding: 10px 16px 12px; }
+  .player .inner { max-width: 860px; margin: 0 auto; }
+  .player .row1 { display:flex; align-items:center; gap: 10px; flex-wrap: wrap; }
+  .player .now { flex: 1 1 200px; min-width: 0; }
+  .player .now b { display:block; color: var(--accent-dark); font-size: 17px; }
+  .player .now span { font-size: 13px; color:#8a6a50; }
+  .player .ctrls { display:flex; gap: 6px; align-items:center; }
+  .player .ctrls button { border: 1px solid var(--line); background:#fff; color: var(--accent-dark); border-radius: 999px; min-width: 44px; height: 44px; padding: 0 12px; font-weight: 700; font-size: 15px; }
+  .player .ctrls button.play { background: var(--accent); border-color: var(--accent); color:#fff; min-width: 56px; font-size: 18px; }
+  .t-lemon .player .ctrls button.play { color:#3a2d00; }
+  .player .ctrls button:disabled { opacity: .4; cursor: default; }
+  .tbar { position: relative; display:flex; gap: 3px; height: 16px; margin-top: 10px; }
+  .tbar .seg2 { position: relative; height: 100%; border-radius: 4px; background: var(--line); overflow: hidden; cursor: pointer; min-width: 6px; border: none; padding: 0; }
+  .tbar .seg2 .fill { position:absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); }
+  .tbar .seg2.cur { box-shadow: 0 0 0 2px var(--accent-dark); }
+  .tbar .seg2:hover { filter: brightness(.92); }
+  .tlabels { display:flex; justify-content: space-between; font-size: 12px; color:#8a6a50; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  body.has-player .wrap { padding-bottom: 150px; }
+  .toast { bottom: auto; top: 16px; }
+  /* themes */
+  .t-lemon { --accent:#d9b21f; --accent-dark:#8a6a00; --soft:#fdf7dc; --line:#f0dc8a; --hdr:#f2cf4a; --hdr-fg:#4a3a05; --dbl:#fefae8; }
+  .t-lemon .time.total, .t-lemon .time.total b, .t-lemon .seg button.on, .t-lemon .tbtn:not(.run):not(.ring), .t-lemon ol.steps > li:not(.done)::before { color:#3a2d00; }
+  .t-straw { --accent:#d9577a; --accent-dark:#b0304f; --soft:#fdeef2; --line:#f3c6d2; --hdr:#d9577a; --hdr-fg:#fff; --dbl:#fff4f7; }
+  @media (max-width: 640px) {
+    .cols { grid-template-columns: 1fr; gap: 0; }
+    .main .tip { display:block; margin-left:0; }
+    .main .tip::before { content:""; }
+    .hero h1 { font-size: 23px; }
+    .dur { float:none; margin: 2px 0 6px; display:flex; width: fit-content; white-space: normal; }
+    .wrap { padding-left: 12px; padding-right: 12px; }
+    td.amt { white-space: normal; padding-left: 8px; }
+    .hero { padding: 14px; }
+    .hero .pic { width: 64px; height: 64px; }
+    .hero .pic svg { width: 54px; height: 54px; }
+    ol.steps > li { padding-left: 46px; }
+  }
+  .times .time { white-space: nowrap; }
+  h1, h2 { overflow-wrap: anywhere; }
+  td.amt { overflow-wrap: normal; word-break: normal; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script type="application/json" id="data">[{"id": "cookies", "theme": "cookie", "title": "Chocolate Peanut Butter Cookies", "sub": "Soft, chewy and peanut-buttery", "facts": [["12", "cookies"], ["350°F", "175°C"]], "pic": "<svg class=\"cookie\" width=\"64\" height=\"64\" viewBox=\"0 0 200 200\" aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\">\n  <defs>\n    <radialGradient id=\"dough\" cx=\"55%\" cy=\"45%\" r=\"60%\">\n      <stop offset=\"0\" stop-color=\"#e9bd7f\"/><stop offset=\".62\" stop-color=\"#dba766\"/><stop offset=\".9\" stop-color=\"#c7883f\"/><stop offset=\"1\" stop-color=\"#b06f2f\"/>\n    <\/radialGradient>\n    <linearGradient id=\"choc\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">\n      <stop offset=\"0\" stop-color=\"#6b3a1c\"/><stop offset=\".55\" stop-color=\"#4a2410\"/><stop offset=\"1\" stop-color=\"#2e1407\"/>\n    <\/linearGradient>\n    <clipPath id=\"top\"><path d=\"M100 18 C146 16 184 50 183 96 C183 141 148 176 101 176 C54 177 17 143 18 97 C18 52 55 19 100 18Z\"/><\/clipPath>\n    <clipPath id=\"right\"><rect x=\"98\" y=\"0\" width=\"120\" height=\"200\"/><\/clipPath>\n  <\/defs>\n  <!-- shadow + cookie side (thickness) -->\n  <ellipse cx=\"102\" cy=\"186\" rx=\"80\" ry=\"9\" fill=\"#5a2e14\" opacity=\".18\"/>\n  <path d=\"M100 26 C146 24 184 58 183 104 C183 149 148 184 101 184 C54 185 17 151 18 105 C18 60 55 27 100 26Z\" fill=\"#9b5d27\"/>\n  <!-- top of cookie -->\n  <path d=\"M100 18 C146 16 184 50 183 96 C183 141 148 176 101 176 C54 177 17 143 18 97 C18 52 55 19 100 18Z\" fill=\"url(#dough)\"/>\n  <g clip-path=\"url(#top)\">\n    <!-- fork crisscross (step 9) -->\n    <g clip-path=\"url(#right)\" stroke-linecap=\"round\" fill=\"none\">\n      <g stroke=\"#a9682e\" stroke-width=\"3.2\">\n        <path d=\"M70 40 L170 140\"/><path d=\"M84 30 L184 130\"/><path d=\"M56 50 L156 150\"/><path d=\"M98 20 L198 120\"/>\n        <path d=\"M70 152 L170 52\"/><path d=\"M84 162 L184 62\"/><path d=\"M56 142 L156 42\"/><path d=\"M98 172 L198 72\"/>\n      <\/g>\n      <g stroke=\"#f3d39f\" stroke-width=\"1.3\" opacity=\".8\">\n        <path d=\"M72 38 L172 138\"/><path d=\"M86 28 L186 128\"/><path d=\"M58 48 L158 148\"/><path d=\"M100 18 L200 118\"/>\n        <path d=\"M72 154 L172 54\"/><path d=\"M86 164 L186 64\"/><path d=\"M58 144 L158 44\"/><path d=\"M100 174 L200 74\"/>\n      <\/g>\n      <!-- little cracks -->\n      <g stroke=\"#b97a3c\" stroke-width=\"1.4\" opacity=\".7\"><path d=\"M150 36 l-6 8 l4 5\"/><path d=\"M168 118 l-9 4 l-3 8\"/><path d=\"M120 160 l4 -7 l-5 -5\"/><\/g>\n    <\/g>\n    <!-- chocolate chips peeking out of the dough (step 5) -->\n    <g clip-path=\"url(#right)\" fill=\"#3d1c0b\">\n      <path d=\"M128 64 q7 -9 13 0 q-2 7 -7 7 q-5 0 -6 -7z\"/>\n      <path d=\"M156 92 q6 -8 12 0 q-2 6 -6 6 q-5 0 -6 -6z\"/>\n      <path d=\"M124 124 q7 -9 13 0 q-2 7 -7 7 q-5 0 -6 -7z\"/>\n      <path d=\"M148 146 q5 -7 10 0 q-1 5 -5 5 q-4 0 -5 -5z\"/>\n      <path d=\"M109 92 q5 -7 10 0 q-1 5 -5 5 q-4 0 -5 -5z\"/>\n    <\/g>\n    <g clip-path=\"url(#right)\" fill=\"#fff\" opacity=\".35\"><circle cx=\"131\" cy=\"64\" r=\"1.4\"/><circle cx=\"159\" cy=\"92\" r=\"1.2\"/><circle cx=\"127\" cy=\"124\" r=\"1.4\"/><\/g>\n    <!-- sugar sparkle from rolling (step 8) -->\n    <g clip-path=\"url(#right)\" fill=\"#fffaf0\">\n      <circle cx=\"112\" cy=\"40\" r=\"1.3\" opacity=\".9\"/><circle cx=\"134\" cy=\"30\" r=\"1\" opacity=\".8\"/><circle cx=\"160\" cy=\"54\" r=\"1.3\" opacity=\".9\"/><circle cx=\"175\" cy=\"80\" r=\"1\" opacity=\".8\"/>\n      <circle cx=\"118\" cy=\"76\" r=\"1.1\" opacity=\".9\"/><circle cx=\"143\" cy=\"84\" r=\"1.4\" opacity=\".9\"/><circle cx=\"170\" cy=\"108\" r=\"1.2\" opacity=\".85\"/><circle cx=\"112\" cy=\"112\" r=\"1\" opacity=\".8\"/>\n      <circle cx=\"140\" cy=\"108\" r=\"1.2\" opacity=\".9\"/><circle cx=\"160\" cy=\"130\" r=\"1.1\" opacity=\".85\"/><circle cx=\"108\" cy=\"146\" r=\"1.3\" opacity=\".9\"/><circle cx=\"136\" cy=\"162\" r=\"1\" opacity=\".8\"/>\n      <circle cx=\"150\" cy=\"70\" r=\".9\" opacity=\".8\"/><circle cx=\"126\" cy=\"96\" r=\".9\" opacity=\".8\"/><circle cx=\"178\" cy=\"96\" r=\".9\" opacity=\".8\"/><circle cx=\"120\" cy=\"140\" r=\".9\" opacity=\".8\"/>\n      <circle cx=\"146\" cy=\"40\" r=\".9\" opacity=\".8\"/><circle cx=\"166\" cy=\"148\" r=\".9\" opacity=\".8\"/>\n    <\/g>\n  <\/g>\n  <!-- half dipped in chocolate (step 13): covers the left half, a bit thick at the edge -->\n  <path d=\"M100 15 C104 40 94 62 101 86 C107 110 95 134 102 158 C104 168 101 176 101 179\n           C52 181 13 145 14.5 98 C15 50 53 15 100 15Z\" fill=\"#3a1a09\"/>\n  <path d=\"M100 15 C104 40 94 62 101 86 C107 110 95 134 102 158 C104 168 101 176 101 176\n           C54 177 17 143 18 97 C18 52 55 19 100 15Z\" fill=\"url(#choc)\"/>\n  <!-- drip on the side -->\n  <path d=\"M52 166 q5 2 9 5 q1 8 -4 9 q-5 -1 -5 -14z\" fill=\"#3a1a09\"/>\n  <!-- glossy shine -->\n  <path d=\"M40 60 C50 40 68 30 86 28\" stroke=\"#fff\" stroke-width=\"5\" stroke-linecap=\"round\" fill=\"none\" opacity=\".22\"/>\n  <path d=\"M30 96 C31 86 33 80 36 74\" stroke=\"#fff\" stroke-width=\"3\" stroke-linecap=\"round\" fill=\"none\" opacity=\".16\"/>\n  <!-- flaky salt on the wet chocolate (step 13) -->\n  <g fill=\"#fffdf8\">\n    <path d=\"M46 88 l4 -2 l2 3 l-3 3z\"/><path d=\"M66 58 l3 -1 l1 3 l-3 1z\"/><path d=\"M74 116 l4 -1 l1 3 l-4 2z\"/>\n    <path d=\"M40 128 l3 -2 l2 2 l-2 3z\"/><path d=\"M84 84 l3 0 l0 3 l-3 0z\"/><path d=\"M58 146 l3 -1 l1 2 l-3 2z\"/>\n    <path d=\"M60 100 l2 -1 l1 2 l-2 1z\"/><path d=\"M82 140 l2 -1 l1 2 l-2 1z\"/><path d=\"M52 66 l2 -1 l1 2 l-2 1z\"/>\n  <\/g>\n  <!-- chocolate drizzle over the top (step 14) -->\n  <g fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n    <path d=\"M40 44 C70 60 98 30 122 48 C140 62 150 40 174 58\" stroke=\"#2e1407\" stroke-width=\"4.2\"/>\n    <path d=\"M26 86 C58 104 92 68 124 92 C146 108 160 82 184 98\" stroke=\"#2e1407\" stroke-width=\"4.2\"/>\n    <path d=\"M28 126 C60 142 92 110 124 132 C146 148 160 124 180 136\" stroke=\"#2e1407\" stroke-width=\"4.2\"/>\n    <path d=\"M58 162 C80 170 102 150 128 164 C140 170 150 160 160 162\" stroke=\"#2e1407\" stroke-width=\"3.6\"/>\n    <g stroke=\"#9a6440\" stroke-width=\"1.2\" opacity=\".75\">\n      <path d=\"M104 40 C112 40 118 44 122 47\"/><path d=\"M130 92 C138 98 146 100 152 96\"/><path d=\"M130 136 C138 142 146 142 152 138\"/><path d=\"M160 58 C164 56 168 56 172 57\"/>\n    <\/g>\n  <\/g>\n<\/svg>", "body": "<div class=\"times\">\n  <div class=\"time\"><b>Prep:<\/b> 18 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Chill:<\/b> 30 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Bake:<\/b> 10–12 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Cool:<\/b> 20 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Set:<\/b> 20 min<\/div><span class=\"plus\">=<\/span>\n  <div class=\"time total\"><b>Total:<\/b> about 1 hr 40 min<\/div>\n<\/div>\n<div class=\"tip\">Cool = step 11. Set = the chocolate drying in step 13. Softening the butter on the counter (30–60 min) is extra.<\/div>\n\n<h2>Main Ingredients<\/h2>\n<table class=\"main\">\n  <tr><th><\/th><th>12 cookies<\/th><th>24 (double)<\/th><\/tr>\n  <tr><td>Flour<span class=\"tip\">Spoon it in, then scrape off the top (step 4)<\/span><\/td><td class=\"amt\">1 cup<\/td><td class=\"amt dbl\">2 cups<\/td><\/tr>\n  <tr><td>Peanut butter<span class=\"tip\">Regular creamy, like Jif or Skippy (step 2)<\/span><\/td><td class=\"amt\">½ cup<\/td><td class=\"amt dbl\">1 cup<\/td><\/tr>\n  <tr><td>Butter, softened<span class=\"tip\">Soft, not melted (step 1)<\/span><\/td><td class=\"amt\">¼ cup (½ stick)<\/td><td class=\"amt dbl\">½ cup (1 stick)<\/td><\/tr>\n  <tr><td>White sugar<\/td><td class=\"amt\">¼ cup<\/td><td class=\"amt dbl\">½ cup<\/td><\/tr>\n  <tr><td>Brown sugar, packed<\/td><td class=\"amt\">¼ cup<\/td><td class=\"amt dbl\">½ cup<\/td><\/tr>\n  <tr><td>Egg<span class=\"tip\">Take it out of the fridge when you start (step 1)<\/span><\/td><td class=\"amt\">1 large<\/td><td class=\"amt dbl\">2 large<\/td><\/tr>\n  <tr><td>Vanilla<\/td><td class=\"amt\">1 tsp<\/td><td class=\"amt dbl\">2 tsp<\/td><\/tr>\n  <tr><td>Baking soda<\/td><td class=\"amt\">½ tsp<\/td><td class=\"amt dbl\">1 tsp<\/td><\/tr>\n  <tr><td>Salt<\/td><td class=\"amt\">¼ tsp<\/td><td class=\"amt dbl\">½ tsp<\/td><\/tr>\n  <tr><td>Milk<\/td><td class=\"amt\">1 tbsp<\/td><td class=\"amt dbl\">2 tbsp<\/td><\/tr>\n  <tr><td>Chocolate chips, plain<span class=\"tip\">Mixed into the dough (step 5)<\/span><\/td><td class=\"amt\">½ cup<\/td><td class=\"amt dbl\">1 cup<\/td><\/tr>\n  <tr><td>Chocolate chips, for dipping<span class=\"tip\">Melted, for dipping and drizzling (steps 12–14)<\/span><\/td><td class=\"amt\">1 cup<\/td><td class=\"amt dbl\">2 cups<\/td><\/tr>\n<\/table>\n\n<div class=\"cols\">\n  <div>\n    <h2>For Rolling &amp; Topping<\/h2>\n    <table>\n      <tr><th><\/th><th>12<\/th><th>24<\/th><\/tr>\n      <tr><td>White sugar<span class=\"tip\">For rolling the balls (step 8)<\/span><\/td><td class=\"amt\">2 tbsp<\/td><td class=\"amt dbl\">¼ cup<\/td><\/tr>\n      <tr><td>Salt<span class=\"tip\">On the wet chocolate (step 13)<\/span><\/td><td class=\"amt\">tiny pinch<\/td><td class=\"amt dbl\">small pinch<\/td><\/tr>\n    <\/table>\n  <\/div>\n  <div>\n    <h2>Optional Add-ins<\/h2>\n    <table>\n      <tr><th><\/th><th>12<\/th><th>24<\/th><\/tr>\n      <tr><td>Honey<span class=\"tip\">If you add it, skip the milk<\/span><\/td><td class=\"amt\">1 tbsp<\/td><td class=\"amt dbl\">2 tbsp<\/td><\/tr>\n      <tr><td>Cinnamon<\/td><td class=\"amt\">½ tsp<\/td><td class=\"amt dbl\">1 tsp<\/td><\/tr>\n      <tr><td>Smushed banana<span class=\"tip\">Skip the milk and add extra flour: 1 tbsp (12) or 2 tbsp (24)<\/span><\/td><td class=\"amt\">2 tbsp<\/td><td class=\"amt dbl\">¼ cup<\/td><\/tr>\n    <\/table>\n  <\/div>\n<\/div>\n\n<h2>What You'll Need<\/h2>\n<div class=\"tip\">Set everything out before you start.<\/div>\n<ul class=\"tools\">\n  <li class=\"wide\"><span class=\"box\"><\/span><span><b>Cups:<\/b> <span class=\"sizes\">1 cup, ½ cup, ¼ cup<\/span><\/span><\/li>\n  <li class=\"wide\"><span class=\"box\"><\/span><span><b>Spoons:<\/b> <span class=\"sizes\">1 tbsp, ½ tbsp, 1 tsp, ½ tsp, ¼ tsp<\/span><\/span><\/li>\n  <li><span class=\"box\"><\/span>Stand mixer<\/li>\n  <li><span class=\"box\"><\/span>Big bowl<\/li>\n  <li><span class=\"box\"><\/span>Small bowl<\/li>\n  <li><span class=\"box\"><\/span>Deep microwave bowl<\/li>\n  <li><span class=\"box\"><\/span>Fork<\/li>\n  <li><span class=\"box\"><\/span>Spoon<\/li>\n  <li><span class=\"box\"><\/span>Knife (to level flour)<\/li>\n  <li><span class=\"box\"><\/span>Plate (for rolling sugar)<\/li>\n  <li><span class=\"box\"><\/span>Plastic wrap or a lid<\/li>\n  <li><span class=\"box\"><\/span>Baking sheet<\/li>\n  <li><span class=\"box\"><\/span>Parchment paper<\/li>\n  <li><span class=\"box\"><\/span>Oven mitts<\/li>\n  <li><span class=\"box\"><\/span>1½ tbsp cookie scoop<\/li>\n<\/ul>\n\n<h2>Steps<\/h2>\n<div class=\"tip\">Making 24? Use the double amounts, roll 24 balls, and bake one sheet at a time. Steps that say \"during\" happen at the same time as another step, so they don't add extra time.<\/div>\n<ol class=\"steps\">\n  <li><span class=\"dur\">⏱ 30–60 min <i>(1 min microwave)<\/i><\/span><span class=\"txt\"><b>Soften the butter and warm up the egg.<\/b> Take the butter and egg out of the fridge when you start. Leave the butter on the counter for <b>30–60 minutes<\/b>, or microwave it <b>5 seconds at a time<\/b> until soft. <b>Don't melt it<\/b>, or the cookies come out flat and greasy.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 3 min<\/span><span class=\"txt\"><b>Mix the wet stuff.<\/b> Use <b>regular creamy peanut butter like Jif or Skippy.<\/b> Natural peanut butter with oil on top makes the cookies greasy and crumbly. In the <b>stand mixer bowl<\/b>, beat the butter, peanut butter, white sugar and brown sugar on <b>medium speed for 1–2 minutes<\/b> until smooth and creamy.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 2 min<\/span><span class=\"txt\"><b>Add the egg and flavor.<\/b> With the mixer on <b>low<\/b>, beat in the egg until mixed in, then add the vanilla and milk. Stop and scrape down the sides of the bowl. If you're using honey or banana, add them now too.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 2 min<\/span><span class=\"txt\"><b>Mix the dry stuff.<\/b> <b>Spoon the flour into the cup, then scrape off the top with a knife.<\/b> Scooping from the bag packs in too much and makes dry cookies. In a small bowl, stir together the flour, baking soda and salt, plus cinnamon if you're using it.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 2 min<\/span><span class=\"txt\"><b>Combine.<\/b> <b>Turn off the mixer.<\/b> Stir in the dry mix with a spoon just until you can't see dry flour. Then <b>stir in the plain chocolate chips.<\/b> If the dough is too sticky, add 1 more tablespoon of flour.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 30 min<\/span><span class=\"txt\"><b>Chill the dough for 30 minutes.<\/b> Cover the bowl and put it in the fridge so it rolls easier.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 15 min <i>(during step 6)<\/i><\/span><span class=\"txt\"><b>Heat the oven<\/b> to 350°F when the dough has 15 minutes left. First, <b>move the oven rack to the middle.<\/b> Line a baking sheet with parchment paper.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 4 min<\/span><span class=\"txt\"><b>Roll into 12 same-size balls.<\/b> Use a <b>1½ tbsp cookie scoop<\/b> (or your 1 tbsp + ½ tbsp spoons) for each, so they bake evenly. <b>Roll each ball in the sugar<\/b> on a plate, then space them apart.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 1 min<\/span><span class=\"txt\"><b>Press each ball flat with a fork<\/b> to make the crisscross pattern. Flatten just a little, since the baking soda helps them spread. If the fork sticks, dip it in sugar.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 10–12 min<\/span><span class=\"txt\"><b>Bake on the middle rack for 10–12 minutes<\/b>, one sheet at a time, until the edges are a little golden. A low rack burns the bottoms and a high rack browns the tops too fast. Middles will still look soft. Use oven mitts!<\/span><\/li>\n  <li><span class=\"dur\">⏱ 20 min to cool<\/span><span class=\"txt\"><b>Let them cool all the way.<\/b> 5 minutes on the sheet, then 15 on a plate. <b>Warm cookies break when you dip them.<\/b><\/span><\/li>\n  <li><span class=\"dur\">⏱ 2 min <i>(during step 11)<\/i><\/span><span class=\"txt\"><b>Melt the chocolate chips<\/b> near the end of cooling. Put the dipping chips in a <b>small, deep<\/b> microwave-safe bowl. Microwave <b>30 seconds<\/b>, stir, then <b>15 seconds<\/b> at a time, stirring each time, until smooth (about <b>1–1½ minutes<\/b> total). Careful, it gets hot!<\/span><\/li>\n  <li><span class=\"dur\">⏱ 3 min + 20 min to set<\/span><span class=\"txt\"><b>Dip the cookies.<\/b> Hold each cookie by the edge, <b>dip half of it<\/b> in the chocolate, let the extra drip off, and lay it on the parchment. <b>While it's still wet, sprinkle a tiny pinch of salt on top<\/b>. <b>Save the leftover chocolate.<\/b> Let it set <b>20 minutes<\/b> (or <b>10 minutes<\/b> in the fridge).<\/span><\/li>\n  <li><span class=\"dur\">⏱ 1 min<\/span><span class=\"txt\"><b>Drizzle and eat!<\/b> Once the dip is dry, microwave the leftover chocolate <b>10–15 seconds<\/b> and stir. Drizzle a little on each cookie and <b>eat them straight away!<\/b><\/span><\/li>\n<\/ol>\n\n<div class=\"boxes\">\n  <div class=\"note fix\"><b>🔧 Fix It<\/b>\n    <ul>\n      <li><b>Cookies too flat?<\/b> Chill the dough longer.<\/li>\n      <li><b>Too dry or crumbly?<\/b> Add 1 tsp milk.<\/li>\n      <li><b>Too sticky to roll?<\/b> Chill for 10 more minutes.<\/li>\n    <\/ul>\n  <\/div>\n  <div class=\"note\"><b>Good to know:<\/b> The egg holds the dough together and the baking soda helps the cookies spread. Take them out while the middles look soft. They firm up as they cool.<\/div>\n  <div class=\"note allergy\"><b>⚠ Allergy note:<\/b> These cookies contain <b>peanuts, egg, milk and wheat<\/b>. Check with friends before sharing, and ask before bringing them to school.<\/div>\n<\/div>", "single": "12 cookies", "double": "24 cookies", "total": "about 1 hr 40 min"}, {"id": "lemonade", "theme": "lemon", "title": "Lemonade", "sub": "Sweet, tangy and ice-cold, with a strawberry option", "facts": [["7", "cups"], ["7", "glasses"]], "pic": "<svg width=\"50\" height=\"66\" viewBox=\"0 0 60 80\" aria-hidden=\"true\">\n        <line x1=\"40\" y1=\"2\" x2=\"31\" y2=\"70\" stroke=\"#e8a900\" stroke-width=\"3.5\" stroke-linecap=\"round\"/>\n        <line x1=\"40\" y1=\"2\" x2=\"31\" y2=\"70\" stroke=\"#fff\" stroke-width=\"3.5\" stroke-dasharray=\"3 5\" stroke-linecap=\"round\" opacity=\".8\"/>\n        <path d=\"M14 30 L46 30 L43 74.5 Q42.8 76.5 40.8 76.5 L19.2 76.5 Q17.2 76.5 17 74.5 Z\" fill=\"#f7e06a\"/>\n        <path d=\"M14 30 L46 30 L45.4 38 L14.6 38 Z\" fill=\"#e8c21c\" opacity=\".35\"/>\n        <g fill=\"#fff\" opacity=\".75\" stroke=\"#fff\" stroke-width=\".8\">\n          <rect x=\"18\" y=\"36\" width=\"10\" height=\"10\" rx=\"2\" transform=\"rotate(-12 23 41)\"/>\n          <rect x=\"31\" y=\"47\" width=\"10\" height=\"10\" rx=\"2\" transform=\"rotate(14 36 52)\"/>\n          <rect x=\"20\" y=\"56\" width=\"9\" height=\"9\" rx=\"2\" transform=\"rotate(8 24 60)\"/>\n        <\/g>\n        <g fill=\"#fff\" opacity=\".8\"><circle cx=\"38\" cy=\"66\" r=\"1.3\"/><circle cx=\"24\" cy=\"70\" r=\"1\"/><circle cx=\"41\" cy=\"40\" r=\"1\"/><\/g>\n        <path d=\"M11 18 L49 18 L44.5 75 Q44.2 79 40.5 79 L19.5 79 Q15.8 79 15.5 75 Z\" fill=\"#fff\" fill-opacity=\".18\" stroke=\"#5a4a1a\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/>\n        <line x1=\"16\" y1=\"24\" x2=\"19\" y2=\"70\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\" opacity=\".7\"/>\n        <g transform=\"translate(12 19)\">\n          <circle r=\"10\" fill=\"#fff6b0\" stroke=\"#e2b400\" stroke-width=\"2.2\"/>\n          <g stroke=\"#f2d23c\" stroke-width=\"1.2\"><line x1=\"-7\" y1=\"0\" x2=\"7\" y2=\"0\"/><line x1=\"0\" y1=\"-7\" x2=\"0\" y2=\"7\"/><line x1=\"-5\" y1=\"-5\" x2=\"5\" y2=\"5\"/><line x1=\"-5\" y1=\"5\" x2=\"5\" y2=\"-5\"/><\/g>\n          <circle r=\"1.4\" fill=\"#fff\"/>\n        <\/g>\n      <\/svg>", "body": "<div class=\"times\">\n  <div class=\"time\"><b>Cook:<\/b> 5 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Cool:<\/b> 15 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Mix:<\/b> 2 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Chill:<\/b> 30 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Serve:<\/b> 1 min<\/div><span class=\"plus\">=<\/span>\n  <div class=\"time total\"><b>Total:<\/b> 53 min<\/div>\n<\/div>\n<div class=\"times\"><span class=\"plus\">With strawberries:<\/span> <div class=\"time\">53 min<\/div><span class=\"plus\">+<\/span><div class=\"time\"><b>Blend:<\/b> 4 min<\/div><span class=\"plus\">=<\/span><div class=\"time total\"><b>Total:<\/b> 57 min<\/div><\/div>\n<div class=\"tip\">Cook = step 1. Cool = step 2 (steps 3–4 happen during it). Blend = steps 5–6. Mix = steps 7–8. Chill = step 9. Serve = step 10.<\/div>\n\n<h2>Ingredients<\/h2>\n<table class=\"main\">\n  <tr><th><\/th><th>7 cups<\/th><th>14 cups (double)<\/th><\/tr>\n  <tr><td>Lemons<span class=\"tip\">Squeezed for juice (step 3)<\/span><\/td><td class=\"amt\">6–7 (1¼ cups juice)<\/td><td class=\"amt dbl\">12–14 (2½ cups juice)<\/td><\/tr>\n  <tr><td>White sugar<span class=\"tip\">For the syrup (step 1)<\/span><\/td><td class=\"amt\">1 cup<\/td><td class=\"amt dbl\">2 cups<\/td><\/tr>\n  <tr><td>Water<span class=\"tip\">For the syrup (step 1)<\/span><\/td><td class=\"amt\">1 cup<\/td><td class=\"amt dbl\">2 cups<\/td><\/tr>\n  <tr><td>Cold water<span class=\"tip\">Mixed in (step 7)<\/span><\/td><td class=\"amt\">4½ cups<\/td><td class=\"amt dbl\">9 cups<\/td><\/tr>\n  <tr><td>Ice<span class=\"tip\">For the glasses (step 10)<\/span><\/td><td class=\"amt\">as needed<\/td><td class=\"amt dbl\">as needed<\/td><\/tr>\n<\/table>\n\n<div class=\"cols\">\n  <div>\n    <h2>Optional Add-ins<\/h2>\n    <table>\n      <tr><th><\/th><th>7<\/th><th>14<\/th><\/tr>\n      <tr><td>Fresh strawberries<span class=\"tip\">For strawberry lemonade (steps 4–6)<\/span><\/td><td class=\"amt\">2 cups<\/td><td class=\"amt dbl\">4 cups<\/td><\/tr>\n      <tr><td>Strawberry slices<\/td><td class=\"amt\">3 berries<\/td><td class=\"amt dbl\">6 berries<\/td><\/tr>\n      <tr><td>Lemon slices<\/td><td class=\"amt\">1 lemon<\/td><td class=\"amt dbl\">2 lemons<\/td><\/tr>\n      <tr><td>Mint leaves<\/td><td class=\"amt\">7 leaves<\/td><td class=\"amt dbl\">14 leaves<\/td><\/tr>\n    <\/table>\n  <\/div>\n  <div>\n    <h2>What You'll Need<\/h2>\n    <ul class=\"tools two\">\n      <li class=\"wide\"><span class=\"box\"><\/span><span><b>Cups:<\/b> <span class=\"sizes\">1, ½, ¼<\/span> · <b>Spoon:<\/b> <span class=\"sizes\">1 tbsp<\/span><\/span><\/li>\n      <li><span class=\"box\"><\/span>Small saucepan<\/li>\n      <li><span class=\"box\"><\/span>Wooden spoon<\/li>\n      <li><span class=\"box\"><\/span>Knife<\/li>\n      <li><span class=\"box\"><\/span>Cutting board<\/li>\n      <li><span class=\"box\"><\/span>Lemon squeezer<\/li>\n      <li><span class=\"box\"><\/span>Strainer<\/li>\n      <li><span class=\"box\"><\/span>Big pitcher<\/li>\n      <li><span class=\"box\"><\/span>Glasses<\/li>\n      <li class=\"wide\"><span class=\"box\"><\/span>Blender <span class=\"sizes\">(only for strawberries)<\/span><\/li>\n    <\/ul>\n  <\/div>\n<\/div>\n\n<h2>Steps<\/h2>\n<div class=\"tip\">Making 14 cups? Use the double amounts, a big pitcher, and 1 cup water for blending. No strawberries? Skip steps 4–6.<\/div>\n<ol class=\"steps\">\n  <li><span class=\"dur\">⏱ 5 min<\/span><span class=\"txt\"><b>Make the syrup.<\/b> Put the sugar and 1 cup of water in a small saucepan over <b>medium heat<\/b>. Stir until the sugar disappears and the liquid looks clear. It doesn't need to boil. <b>Careful, it's hot!<\/b><\/span><\/li>\n  <li><span class=\"dur\">⏱ 15 min to cool<\/span><span class=\"txt\"><b>Let the syrup cool.<\/b> Take the pan off the heat. Hot syrup would melt the ice.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 10 min <i>(during step 2)<\/i><\/span><span class=\"txt\"><b>Squeeze the lemons.<\/b> <b>Roll each lemon on the counter<\/b>, cut in half (careful with the knife!), and squeeze through a strainer until you have <b>1¼ cups of juice<\/b>.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 5 min <i>(during step 2)<\/i><\/span><span class=\"txt\"><b>Optional: Prep strawberries.<\/b> Rinse and <b>cut off the green tops<\/b>.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 1 min<\/span><span class=\"txt\"><b>Optional: Blend.<\/b> Blend the strawberries with <b>½ cup of the cold water<\/b> until smooth.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 3 min<\/span><span class=\"txt\"><b>Optional: Strain.<\/b> Pour it through the strainer into the pitcher. Throw away the seeds.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 1 min<\/span><span class=\"txt\"><b>Mix.<\/b> Add the syrup, lemon juice and <b>4½ cups cold water<\/b> (<b>4<\/b> if you blended strawberries). Stir.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 1 min<\/span><span class=\"txt\"><b>Taste it.<\/b> Too sour or too sweet? Use the Fix It box below.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 30 min<\/span><span class=\"txt\"><b>Chill for 30 minutes<\/b> in the fridge.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 1 min<\/span><span class=\"txt\"><b>Serve.<\/b> Stir first. Pour over ice and add a strawberry slice, lemon slice or mint if you like.<\/span><\/li>\n<\/ol>\n\n<div class=\"boxes\">\n  <div class=\"note fix\"><b>🔧 Fix It<\/b>\n    <ul>\n      <li><b>Too sour?<\/b> Add 1 tbsp sugar or ½ cup water.<\/li>\n      <li><b>Too sweet?<\/b> Add 1–2 tbsp lemon juice.<\/li>\n      <li><b>Watered down?<\/b> Use lemonade ice cubes.<\/li>\n      <li><b>Not fruity enough?<\/b> Blend in ½ cup more strawberries.<\/li>\n    <\/ul>\n  <\/div>\n  <div class=\"note\"><b>Good to know:<\/b> Syrup melts the sugar so it isn't gritty. Room-temperature lemons give more juice. Thaw frozen strawberries first.<\/div>\n  <div class=\"note allergy\"><b>⚠ Allergy note:<\/b> <b>No peanuts, egg, milk or wheat<\/b>. Some people are allergic to <b>strawberries<\/b>, so check first.<\/div>\n<\/div>", "single": "7 cups", "double": "14 cups", "total": "53 min"}, {"id": "strawberry-lemonade", "theme": "straw", "title": "Strawberry Lemonade", "sub": "Pink, fruity and refreshing", "facts": [["7", "cups"], ["7", "glasses"]], "pic": "<svg width=\"50\" height=\"66\" viewBox=\"0 0 60 80\" aria-hidden=\"true\">\n        <line x1=\"40\" y1=\"2\" x2=\"31\" y2=\"70\" stroke=\"#d9446b\" stroke-width=\"3.5\" stroke-linecap=\"round\"/>\n        <line x1=\"40\" y1=\"2\" x2=\"31\" y2=\"70\" stroke=\"#fff\" stroke-width=\"3.5\" stroke-dasharray=\"3 5\" stroke-linecap=\"round\" opacity=\".8\"/>\n        <path d=\"M14 30 L46 30 L43 74.5 Q42.8 76.5 40.8 76.5 L19.2 76.5 Q17.2 76.5 17 74.5 Z\" fill=\"#f48aa6\"/>\n        <path d=\"M14 30 L46 30 L45.4 38 L14.6 38 Z\" fill=\"#d9446b\" opacity=\".35\"/>\n        <g fill=\"#fff\" opacity=\".75\" stroke=\"#fff\" stroke-width=\".8\">\n          <rect x=\"18\" y=\"36\" width=\"10\" height=\"10\" rx=\"2\" transform=\"rotate(-12 23 41)\"/>\n          <rect x=\"31\" y=\"47\" width=\"10\" height=\"10\" rx=\"2\" transform=\"rotate(14 36 52)\"/>\n          <rect x=\"20\" y=\"56\" width=\"9\" height=\"9\" rx=\"2\" transform=\"rotate(8 24 60)\"/>\n        <\/g>\n        <g fill=\"#fff\" opacity=\".8\"><circle cx=\"38\" cy=\"66\" r=\"1.3\"/><circle cx=\"24\" cy=\"70\" r=\"1\"/><circle cx=\"41\" cy=\"40\" r=\"1\"/><\/g>\n        <path d=\"M11 18 L49 18 L44.5 75 Q44.2 79 40.5 79 L19.5 79 Q15.8 79 15.5 75 Z\" fill=\"#fff\" fill-opacity=\".18\" stroke=\"#5a4a1a\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/>\n        <line x1=\"16\" y1=\"24\" x2=\"19\" y2=\"70\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\" opacity=\".7\"/>\n        <g transform=\"translate(49 18)\">\n          <path d=\"M0 -3 C-8 -5 -11 3 -7 9 C-4 14 -1 16 0 17 C1 16 4 14 7 9 C11 3 8 -5 0 -3 Z\" fill=\"#e0304e\" stroke=\"#a81d36\" stroke-width=\"1.2\"/>\n          <path d=\"M-6 -4 L-2 -2 L0 -7 L2 -2 L6 -4 L3 0 L-3 0 Z\" fill=\"#3c9a3c\" stroke=\"#2a7a2a\" stroke-width=\".8\" stroke-linejoin=\"round\"/>\n          <g fill=\"#ffe27a\"><circle cx=\"-4\" cy=\"4\" r=\".9\"/><circle cx=\"2\" cy=\"3\" r=\".9\"/><circle cx=\"4\" cy=\"8\" r=\".9\"/><circle cx=\"-2\" cy=\"9\" r=\".9\"/><circle cx=\"0\" cy=\"13\" r=\".8\"/><circle cx=\"-5\" cy=\"1\" r=\".8\"/><\/g>\n        <\/g>\n      <\/svg>", "body": "<div class=\"times\">\n  <div class=\"time\"><b>Cook:<\/b> 5 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Cool:<\/b> 15 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Blend:<\/b> 4 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Mix:<\/b> 2 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Chill:<\/b> 30 min<\/div><span class=\"plus\">+<\/span>\n  <div class=\"time\"><b>Serve:<\/b> 1 min<\/div><span class=\"plus\">=<\/span>\n  <div class=\"time total\"><b>Total:<\/b> 57 min<\/div>\n<\/div>\n<div class=\"tip\">Cook = step 1. Cool = step 2 (steps 3–4 happen during it). Blend = steps 5–6. Mix = 7–8. Chill = 9. Serve = 10.<\/div>\n\n<h2>Ingredients<\/h2>\n<table class=\"main\">\n  <tr><th><\/th><th>7 cups<\/th><th>14 cups (double)<\/th><\/tr>\n  <tr><td>Fresh strawberries<span class=\"tip\">Green tops cut off (step 3)<\/span><\/td><td class=\"amt\">2 cups (about 12 oz)<\/td><td class=\"amt dbl\">4 cups (about 1½ lb)<\/td><\/tr>\n  <tr><td>Lemons<span class=\"tip\">Squeezed for juice (step 4)<\/span><\/td><td class=\"amt\">5–6 (1 cup juice)<\/td><td class=\"amt dbl\">10–12 (2 cups juice)<\/td><\/tr>\n  <tr><td>White sugar<span class=\"tip\">For the syrup (step 1)<\/span><\/td><td class=\"amt\">¾ cup<\/td><td class=\"amt dbl\">1½ cups<\/td><\/tr>\n  <tr><td>Water<span class=\"tip\">For the syrup (step 1)<\/span><\/td><td class=\"amt\">1 cup<\/td><td class=\"amt dbl\">2 cups<\/td><\/tr>\n  <tr><td>Cold water<span class=\"tip\">Some for blending (step 5), the rest for mixing (step 7)<\/span><\/td><td class=\"amt\">3 cups<\/td><td class=\"amt dbl\">6 cups<\/td><\/tr>\n  <tr><td>Ice<span class=\"tip\">For the glasses (step 10)<\/span><\/td><td class=\"amt\">as needed<\/td><td class=\"amt dbl\">as needed<\/td><\/tr>\n<\/table>\n\n<div class=\"cols\">\n  <div>\n    <h2>Optional Add-ins<\/h2>\n    <table>\n      <tr><th><\/th><th>7<\/th><th>14<\/th><\/tr>\n      <tr><td>Strawberry slices<span class=\"tip\">On the glasses (step 10)<\/span><\/td><td class=\"amt\">3 berries<\/td><td class=\"amt dbl\">6 berries<\/td><\/tr>\n      <tr><td>Lemon slices<span class=\"tip\">On the glasses (step 10)<\/span><\/td><td class=\"amt\">1 lemon<\/td><td class=\"amt dbl\">2 lemons<\/td><\/tr>\n      <tr><td>Mint leaves<span class=\"tip\">In the glasses (step 10)<\/span><\/td><td class=\"amt\">7 leaves<\/td><td class=\"amt dbl\">14 leaves<\/td><\/tr>\n    <\/table>\n  <\/div>\n  <div>\n    <h2>What You'll Need<\/h2>\n    <ul class=\"tools two\">\n      <li class=\"wide\"><span class=\"box\"><\/span><span><b>Cups:<\/b> <span class=\"sizes\">1, ½, ¼ (¾ = ½ + ¼)<\/span> · <b>Spoon:<\/b> <span class=\"sizes\">1 tbsp<\/span><\/span><\/li>\n      <li><span class=\"box\"><\/span>Blender<\/li>\n      <li><span class=\"box\"><\/span>Small saucepan<\/li>\n      <li><span class=\"box\"><\/span>Wooden spoon<\/li>\n      <li><span class=\"box\"><\/span>Knife<\/li>\n      <li><span class=\"box\"><\/span>Cutting board<\/li>\n      <li><span class=\"box\"><\/span>Lemon squeezer<\/li>\n      <li><span class=\"box\"><\/span>Strainer<\/li>\n      <li><span class=\"box\"><\/span>Big pitcher<\/li>\n      <li><span class=\"box\"><\/span>Glasses<\/li>\n    <\/ul>\n  <\/div>\n<\/div>\n\n<h2>Steps<\/h2>\n<div class=\"tip\">Making 14 cups? Use the double amounts: blend with 1 cup of the cold water and mix in the other 5 cups.<\/div>\n<ol class=\"steps\">\n  <li><span class=\"dur\">⏱ 5 min<\/span><span class=\"txt\"><b>Make the syrup.<\/b> Put the sugar and 1 cup of water in a small saucepan over <b>medium heat<\/b>. Stir until the sugar disappears and it looks clear. <b>Careful, it's hot!<\/b><\/span><\/li>\n  <li><span class=\"dur\">⏱ 15 min to cool<\/span><span class=\"txt\"><b>Let the syrup cool.<\/b> Take the pan off the heat and let it sit.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 5 min <i>(during step 2)<\/i><\/span><span class=\"txt\"><b>Get the strawberries ready.<\/b> Rinse them and <b>cut off the green tops<\/b> (careful with the knife!).<\/span><\/li>\n  <li><span class=\"dur\">⏱ 10 min <i>(during step 2)<\/i><\/span><span class=\"txt\"><b>Squeeze the lemons.<\/b> <b>Roll each lemon on the counter<\/b>, cut in half, and squeeze through a strainer until you have <b>1 cup of juice<\/b>.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 1 min<\/span><span class=\"txt\"><b>Blend.<\/b> Blend the strawberries with <b>½ cup of the cold water<\/b> until smooth.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 3 min<\/span><span class=\"txt\"><b>Strain.<\/b> Pour it through the strainer into the pitcher, pressing with a spoon. Throw away the seeds.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 1 min<\/span><span class=\"txt\"><b>Mix.<\/b> Add the syrup, lemon juice and the <b>other 2½ cups of cold water<\/b>. Stir well.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 1 min<\/span><span class=\"txt\"><b>Taste it.<\/b> Too sour or too sweet? Use the Fix It box below.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 30 min<\/span><span class=\"txt\"><b>Chill for 30 minutes<\/b> in the fridge.<\/span><\/li>\n  <li><span class=\"dur\">⏱ 1 min<\/span><span class=\"txt\"><b>Serve.<\/b> Stir first. Fill glasses with ice, pour, and add a strawberry slice, lemon slice or mint if you like.<\/span><\/li>\n<\/ol>\n\n<div class=\"boxes\">\n  <div class=\"note fix\"><b>🔧 Fix It<\/b>\n    <ul>\n      <li><b>Not fruity enough?<\/b> Blend, strain and stir in ½ cup more strawberries.<\/li>\n      <li><b>Too thick?<\/b> Add ½ cup cold water.<\/li>\n      <li><b>Too sour?<\/b> Stir in 1 tbsp sugar. <b>Too sweet?<\/b> Add 1–2 tbsp lemon juice.<\/li>\n    <\/ul>\n  <\/div>\n  <div class=\"note\"><b>Good to know:<\/b> Straining takes out the seeds. Skip step 6 if you like it thicker. Frozen strawberries work too, but let them thaw first so they blend smoothly.<\/div>\n  <div class=\"note allergy\"><b>⚠ Allergy note:<\/b> Contains <b>strawberries<\/b>, which some people are allergic to. No peanuts, egg, milk or wheat.<\/div>\n<\/div>", "single": "7 cups", "double": "14 cups", "total": "57 min"}]</script>
+<script>
+(function(){
+  var DATA = JSON.parse(document.getElementById('data').textContent);
+  var app = document.getElementById('app');
+  function load(key, def){ try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
+  function save(key, val){ try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){} }
+
+  var timers = {};  // "recipe:step" -> {end, iv}
+  var audioCtx = null;
+  function beep(){
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.35, 0.7].forEach(function(t){
+        var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.frequency.value = 880; o.connect(g); g.connect(audioCtx.destination);
+        g.gain.setValueAtTime(0.25, audioCtx.currentTime + t);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + t + 0.3);
+        o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + 0.3);
+      });
+    } catch(e){}
+  }
+  function toast(msg){
+    var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+    document.body.appendChild(t); setTimeout(function(){ t.remove(); }, 6000);
+  }
+  function fmt(s){ var m = Math.floor(s/60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
+
+  function home(){
+    document.title = 'Recipe Box';
+    app.className = 'wrap home';
+    app.innerHTML = '<h1>Recipe Box</h1><ul class="names">' + DATA.map(function(r){
+      return '<li class="t-' + r.theme + '"><a href="#' + r.id + '">' + r.title + '</a></li>';
+    }).join('') + '</ul>';
+  }
+
+  function recipe(r){
+    document.title = r.title + ' · Recipe Box';
+    app.className = 'wrap t-' + r.theme;
+    var key = 'recipebox:' + r.id;
+    var st = load(key, { got: [], tools: [], done: [], view: 'both' });
+    var h = '<button class="back" data-act="home">← All recipes</button>' +
+      '<div class="hero"><div class="pic">' + r.pic + '</div><div class="ttl"><h1>' + r.title + '</h1><div class="sub">' + r.sub + '</div></div>' +
+      '<div class="facts">' + r.facts.map(function(f){ return '<div class="fact"><b>' + f[0] + '</b><span>' + f[1] + '</span></div>'; }).join('') + '</div></div>' +
+      '<div class="toolbar"><div class="seg" role="group" aria-label="Amounts">' +
+        '<button data-view="single">' + r.single + '</button><button data-view="double">' + r.double + '</button><button data-view="both">Both</button></div>' +
+        '<span><button class="spk" data-act="speaker">🔊 Speaker mode</button> <button class="reset" data-act="reset">↺ Reset checkmarks</button></span></div>' +
+      r.body;
+    app.innerHTML = h;
+
+    // amounts toggle
+    function setView(v){
+      st.view = v; save(key, st);
+      app.querySelectorAll('.seg button').forEach(function(b){ b.classList.toggle('on', b.dataset.view === v); });
+      app.querySelectorAll('table').forEach(function(t){ t.classList.toggle('show-single', v === 'single'); t.classList.toggle('show-double', v === 'double'); });
+    }
+    setView(st.view);
+
+    // ingredient rows
+    app.querySelectorAll('table tr').forEach(function(tr, i){
+      if (tr.querySelector('th')) return;
+      tr.classList.add('row');
+      if (st.got.indexOf(i) >= 0) tr.classList.add('got');
+      tr.addEventListener('click', function(){
+        tr.classList.toggle('got');
+        var k = st.got.indexOf(i); if (k >= 0) st.got.splice(k, 1); else st.got.push(i);
+        save(key, st);
+      });
+    });
+    // tools
+    app.querySelectorAll('.tools li').forEach(function(li, i){
+      if (st.tools.indexOf(i) >= 0) li.classList.add('got');
+      li.addEventListener('click', function(){
+        li.classList.toggle('got');
+        var k = st.tools.indexOf(i); if (k >= 0) st.tools.splice(k, 1); else st.tools.push(i);
+        save(key, st);
+      });
+    });
+    // steps + timers
+    app.querySelectorAll('ol.steps > li').forEach(function(li, i){
+      if (st.done.indexOf(i) >= 0) li.classList.add('done');
+      li.addEventListener('click', function(e){
+        if (e.target.closest('.tbtn')) return;
+        li.classList.toggle('done');
+        var k = st.done.indexOf(i); if (k >= 0) st.done.splice(k, 1); else st.done.push(i);
+        save(key, st);
+      });
+      var dur = li.querySelector('.dur'); if (!dur) return;
+      var m = dur.textContent.match(/(\d+)\s*(?:–\d+\s*)?min/);
+      if (!m) return;
+      var mins = parseInt(m[1], 10), id = r.id + ':' + i;
+      var btn = document.createElement('button'); btn.className = 'tbtn'; btn.type = 'button';
+      dur.appendChild(btn);
+      function paint(){
+        var t = timers[id];
+        if (!t) { btn.className = 'tbtn'; btn.textContent = '▶ Start'; btn.title = 'Start a ' + mins + ' minute timer'; return; }
+        if (t.ringing) { btn.className = 'tbtn ring'; btn.textContent = '⏰ Done!'; btn.title = 'Stop'; return; }
+        var left = Math.max(0, Math.round((t.end - Date.now()) / 1000));
+        btn.className = 'tbtn run'; btn.textContent = '■ ' + fmt(left); btn.title = 'Stop timer';
+      }
+      btn.addEventListener('click', function(){
+        var t = timers[id];
+        if (t) { clearInterval(t.iv); clearInterval(t.ringIv); delete timers[id]; paint(); return; }
+        t = timers[id] = { end: Date.now() + mins * 60000 };
+        beep(); // unlock audio with the tap
+        t.iv = setInterval(function(){
+          if (!document.body.contains(btn)) { return; }
+          if (Date.now() >= t.end && !t.ringing) {
+            t.ringing = true; clearInterval(t.iv); beep();
+            t.ringIv = setInterval(beep, 3000);
+            var stepName = (li.querySelector('b') || li).textContent.replace(/\s+/g, ' ').trim();
+            toast('⏰ Time is up: step ' + (i + 1) + ', ' + stepName);
+          }
+          paint();
+        }, 500);
+        paint();
+      });
+      paint();
+    });
+
+    app.onclick = function(e){
+      var v = e.target.closest('[data-view]'); if (v) setView(v.dataset.view);
+      var a = e.target.closest('[data-act]'); if (!a) return;
+      if (a.dataset.act === 'home') { location.hash = ''; }
+      if (a.dataset.act === 'speaker') { if (speaker) stopSpeaker(); else startSpeaker(r, function(){ return st.view; }); }
+      if (a.dataset.act === 'reset') { st = { got: [], tools: [], done: [], view: st.view }; save(key, st); app.querySelectorAll('.got,.done').forEach(function(x){ x.classList.remove('got','done'); }); }
+   };
+  }
+
+
+  // ================= Speaker mode =================
+  var speaker = null;
+  var CPS = 14; // estimated characters spoken per second
+
+  var FRAC_AND = { '½':'a half', '¼':'a quarter', '¾':'three quarters', '⅛':'an eighth' };
+  var FRAC_ALONE = { '½':'half a', '¼':'a quarter', '¾':'three quarters of a', '⅛':'an eighth of a' };
+  var UNITS = { tbsp:['tablespoon','tablespoons'], tsp:['teaspoon','teaspoons'], min:['minute','minutes'], hr:['hour','hours'], oz:['ounce','ounces'], lb:['pound','pounds'] };
+  function sayable(t){
+    t = String(t)
+      .replace(/[⏱⚠🔧🍓🍋🍪↺▶■]/gu, '')
+      .replace(/\s*\((?:steps? [\d–\-, ]+)\)/g, '')
+      .replace(/(\d+)\s*[–-]\s*(\d+)/g, '$1 to $2')
+      .replace(/°F/g, ' degrees Fahrenheit').replace(/°C/g, ' degrees Celsius')
+      .replace(/(\d*)([½¼¾⅛]?)\s*(tbsp|tsp|min|hr|oz|lb)\b/g, function(all, n, f, u){
+        if (!n && !f) return UNITS[u][1];
+        var one = (n === '1' && !f) || (!n && f);
+        var num = n ? n + (f ? ' and ' + FRAC_AND[f] : '') : FRAC_ALONE[f];
+        return num + ' ' + UNITS[u][one ? 0 : 1];
+      })
+      .replace(/(\d+)([½¼¾⅛])/g, function(a, n, f){ return n + ' and ' + FRAC_AND[f]; })
+      .replace(/([½¼¾⅛])\s*(cup|stick|banana|lemon)\b/g, function(a, f, w){ return FRAC_ALONE[f] + ' ' + w; })
+      .replace(/[½¼¾⅛]/g, function(f){ return FRAC_AND[f]; })
+      .replace(/tablespoons cookie scoop/g, 'tablespoon cookie scoop')
+      .replace(/\((\d+)\)/g, 'for $1')
+      .replace(/\s*=\s*/g, ' is ').replace(/\s*\+\s*/g, ' plus ').replace(/\s*·\s*/g, '. ')
+      .replace(/\s+/g, ' ').trim();
+    return t;
+  }
+  function sentences(text){
+    return sayable(text).split(/(?<=[.!?])\s+/).filter(function(x){ return x.trim(); });
+  }
+  function ownText(el){
+    var c = el.cloneNode(true);
+    c.querySelectorAll('.tip, .tbtn').forEach(function(x){ x.remove(); });
+    return c.textContent.replace(/\s+/g, ' ').trim();
+  }
+  function end(t){ t = t.trim(); return /[.!?]$/.test(t) ? t : t + '.'; }
+
+  // everything between an h2 and the next h2 (or an element that holds one)
+  function blockAfter(h2){
+    var els = [h2], n = h2.nextElementSibling;
+    while (n && n.tagName !== 'H2' && !n.querySelector('h2')) { els.push(n); n = n.nextElementSibling; }
+    return els;
+  }
+
+  function buildSections(r, viewFn){
+    var out = [];
+    function add(title, short, lines, els){
+      var sents = []; lines.forEach(function(l){ sents = sents.concat(sentences(l)); });
+      if (!sents.length) return;
+      out.push({ title: title, short: short, sents: sents, els: els.filter(Boolean),
+                 chars: sents.reduce(function(a, x){ return a + x.length + 1; }, 0) });
+    }
+    var h2s = Array.prototype.slice.call(app.querySelectorAll('h2'));
+    function findH2(re){ return h2s.filter(function(h){ return re.test(h.textContent); }); }
+
+    // 1. How long it takes
+    var tl = [end(r.title), 'Here is how long everything takes.'], tEls = [];
+    app.querySelectorAll('.times').forEach(function(row, i){
+      var bits = [];
+      Array.prototype.forEach.call(row.children, function(c){
+        var t = c.textContent.trim();
+        if (c.classList.contains('plus')) { if (t === '+') bits.push(', plus '); else if (t === '=') bits.push(', equals '); else bits.push(t + ' '); }
+        else bits.push(t);
+      });
+      tl.push(end(bits.join('').replace(/\s+,/g, ',')));
+      tEls.push(row);
+    });
+    var legend = tEls.length && tEls[tEls.length - 1].nextElementSibling;
+    if (legend && legend.classList.contains('tip')) { tl.push(legend.textContent); tEls.push(legend); }
+    add('How long it takes', 'Times', tl, tEls);
+
+    // 2-4. Ingredients / Optional Add-ins / What You'll Need
+    function tableLines(els){
+      var view = viewFn(), lines = [];
+      els.forEach(function(el){
+        (el.tagName === 'TABLE' ? [el] : Array.prototype.slice.call(el.querySelectorAll ? el.querySelectorAll('table') : [])).forEach(function(tb){
+          tb.querySelectorAll('tr').forEach(function(tr){
+            var tds = tr.querySelectorAll('td'); if (!tds.length) return;
+            var name = ownText(tds[0]), tip = tds[0].querySelector('.tip');
+            var single = tr.querySelector('td.amt:not(.dbl)'), dbl = tr.querySelector('td.dbl');
+            var one = single.textContent.trim(), two = dbl.textContent.trim();
+            var amt = view === 'double' ? two : view === 'single' || one === two ? one : one + ', or ' + two + ' for ' + r.double;
+            lines.push(end(name + ': ' + amt));
+            if (tip) lines.push(end(tip.textContent));
+          });
+        });
+      });
+      return lines;
+    }
+    var ing = findH2(/ingredients/i)[0], roll = findH2(/rolling/i)[0];
+    if (ing) {
+      var els = blockAfter(ing).concat(roll ? blockAfter(roll) : []);
+      var lines = function(){ var l = ['Ingredients.'].concat(tableLines(blockAfter(ing))); if (roll) l = l.concat(['For rolling and topping.'], tableLines(blockAfter(roll))); return l; };
+      add('Ingredients', 'Ingredients', lines(), els);
+      out[out.length - 1].rebuild = lines;
+    }
+    var opt = findH2(/optional/i)[0];
+    if (opt) {
+      var ol = function(){ return ['Optional add-ins.'].concat(tableLines(blockAfter(opt))); };
+      add('Optional Add-ins', 'Add-ins', ol(), blockAfter(opt));
+      out[out.length - 1].rebuild = ol;
+    }
+    var need = findH2(/need/i)[0];
+    if (need) {
+      var nl = ["What you'll need."], group = [];
+      blockAfter(need).forEach(function(el){
+        if (el.classList && el.classList.contains('tip')) nl.push(el.textContent);
+        if (el.tagName === 'UL') el.querySelectorAll('li').forEach(function(li){
+          var t = li.textContent.replace(/\s+/g, ' ').trim();
+          if (li.classList.contains('wide')) nl.push(end(t)); else group.push(t);
+        });
+      });
+      for (var i = 0; i < group.length; i += 5) nl.push(end(group.slice(i, i + 5).join(', ')));
+      add("What You'll Need", 'Need', nl, blockAfter(need));
+    }
+
+    // 5. Each step: the step, then how long it takes
+    app.querySelectorAll('ol.steps > li').forEach(function(li, i){
+      var txt = li.querySelector('.txt'), dur = li.querySelector('.dur');
+      var lines = ['Step ' + (i + 1) + '.', end((txt || li).textContent)];
+      if (dur) lines.push('This step takes ' + end(ownText(dur)));
+      add('Step ' + (i + 1), String(i + 1), lines, [li]);
+    });
+
+    // 6-8. Fix It, Good to know, Allergy note
+    var fix = app.querySelector('.note.fix');
+    if (fix) add('Fix It', 'Fix It', ['Fix it.'].concat(Array.prototype.map.call(fix.querySelectorAll('li'), function(li){ return end(li.textContent); })), [fix]);
+    var good = app.querySelector('.note:not(.fix):not(.allergy)');
+    if (good) add('Good to know', 'Good', [good.textContent], [good]);
+    var allergy = app.querySelector('.note.allergy');
+    if (allergy) add('Allergy note', 'Allergy', [allergy.textContent], [allergy]);
+    return out;
+  }
+
+  function fmtT(sec){ sec = Math.max(0, Math.round(sec)); var m = Math.floor(sec / 60), s2 = sec % 60; return m + ':' + (s2 < 10 ? '0' : '') + s2; }
+
+  function startSpeaker(r, viewFn){
+    var synth = window.speechSynthesis;
+    if (!synth || typeof SpeechSynthesisUtterance === 'undefined') { toast('Sorry, this browser cannot read out loud.'); return; }
+    var sections = buildSections(r, viewFn);
+    var total = sections.reduce(function(a, x){ return a + x.chars; }, 0);
+    var S = speaker = { idx: 0, sent: 0, playing: false, gen: 0, sentStart: 0, sections: sections };
+
+    var bar = document.createElement('div'); bar.className = 'player t-' + r.theme; bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Speaker mode');
+    bar.innerHTML = '<div class="inner"><div class="row1"><div class="now"><b></b><span></span></div>' +
+      '<div class="ctrls"><button data-p="prev" title="Previous section" aria-label="Previous section">⏮</button>' +
+      '<button class="play" data-p="play" title="Play or pause" aria-label="Play or pause">⏸</button>' +
+      '<button data-p="next" title="Next section" aria-label="Next section">⏭</button>' +
+      '<button data-p="close" title="Turn off speaker mode" aria-label="Turn off speaker mode">✕</button></div></div>' +
+      '<div class="tbar">' + sections.map(function(x, i){ return '<button class="seg2" data-i="' + i + '" style="flex-grow:' + x.chars + '" title="' + x.title + '" aria-label="Skip to ' + x.title + '"><span class="fill"></span></button>'; }).join('') + '</div>' +
+      '<div class="tlabels"><span class="el">0:00</span><span class="tt">' + fmtT(total / CPS) + '</span></div></div>';
+    document.body.appendChild(bar); document.body.classList.add('has-player');
+    var spkBtn = app.querySelector('.spk'); if (spkBtn) { spkBtn.classList.add('on'); spkBtn.textContent = '🔇 Speaker off'; }
+    S.bar = bar;
+
+    function before(i){ var c = 0; for (var k = 0; k < i; k++) c += sections[k].chars; return c; }
+    function posInSection(){
+      var sec = sections[S.idx]; if (!sec) return 0;
+      var c = 0; for (var k = 0; k < S.sent && k < sec.sents.length; k++) c += sec.sents[k].length + 1;
+      if (S.playing && S.sent < sec.sents.length) c += Math.min(sec.sents[S.sent].length, (Date.now() - S.sentStart) / 1000 * CPS);
+      return Math.min(c, sec.chars);
+    }
+    function paint(){
+      var sec = sections[S.idx] || sections[sections.length - 1];
+      bar.querySelector('.now b').textContent = S.done ? 'Finished!' : sec.title;
+      bar.querySelector('.now span').textContent = S.done ? 'Press ⏮ or tap the bar to hear a part again.' : 'Part ' + (S.idx + 1) + ' of ' + sections.length;
+      bar.querySelector('[data-p="play"]').textContent = S.playing ? '⏸' : '▶';
+      bar.querySelector('[data-p="prev"]').disabled = S.idx === 0 && !S.done;
+      bar.querySelector('[data-p="next"]').disabled = S.done || S.idx >= sections.length - 1;
+      var inSec = posInSection();
+      bar.querySelectorAll('.seg2').forEach(function(b, i){
+        var pct = S.done || i < S.idx ? 100 : i > S.idx ? 0 : inSec / sections[i].chars * 100;
+        b.querySelector('.fill').style.width = pct + '%';
+        b.classList.toggle('cur', i === S.idx && !S.done);
+      });
+      var pos = S.done ? total : before(S.idx) + inSec;
+      bar.querySelector('.el').textContent = fmtT(pos / CPS);
+    }
+    function highlight(scroll){
+      app.querySelectorAll('.speaking').forEach(function(x){ x.classList.remove('speaking'); });
+      if (S.done) return;
+      var sec = sections[S.idx];
+      sec.els.forEach(function(x){ x.classList.add('speaking'); });
+      if (scroll && sec.els[0]) sec.els[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    function speakNow(){
+      var g = ++S.gen;
+      synth.cancel();
+      if (!S.playing) { paint(); return; }
+      var sec = sections[S.idx];
+      if (S.sent >= sec.sents.length) {
+        if (S.idx < sections.length - 1) { S.idx++; S.sent = 0; if (sections[S.idx].rebuild) { sections[S.idx].sents = [].concat.apply([], sections[S.idx].rebuild().map(sentences)); } highlight(true); }
+        else { S.playing = false; S.done = true; highlight(false); paint(); return; }
+        sec = sections[S.idx];
+      }
+      setTimeout(function(){
+        if (g !== S.gen || !S.playing) return;
+        var u = new SpeechSynthesisUtterance(sec.sents[S.sent]);
+        u.lang = 'en-US'; u.rate = 0.95;
+        u.onend = function(){ if (g !== S.gen) return; S.sent++; speakNow(); };
+        u.onerror = function(e){ if (g !== S.gen) return; if (e && (e.error === 'interrupted' || e.error === 'canceled')) return; S.sent++; speakNow(); };
+        S.sentStart = Date.now();
+        synth.speak(u);
+        paint();
+      }, 80);
+    }
+    function jump(i){
+      S.done = false; S.idx = Math.max(0, Math.min(sections.length - 1, i)); S.sent = 0;
+      if (sections[S.idx].rebuild) sections[S.idx].sents = [].concat.apply([], sections[S.idx].rebuild().map(sentences));
+      S.playing = true; highlight(true); speakNow();
+    }
+    S.jump = jump;
+    bar.onclick = function(e){
+      var seg = e.target.closest('.seg2'); if (seg) { jump(+seg.dataset.i); return; }
+      var b = e.target.closest('[data-p]'); if (!b) return;
+      var p = b.dataset.p;
+      if (p === 'close') stopSpeaker();
+      else if (p === 'next') jump(S.idx + 1);
+      else if (p === 'prev') jump(S.done ? sections.length - 1 : S.idx - 1);
+      else if (p === 'play') {
+        if (S.done) { jump(0); return; }
+        S.playing = !S.playing;
+        if (S.playing) { highlight(false); speakNow(); } else { S.gen++; synth.cancel(); paint(); }
+      }
+    };
+    S.iv = setInterval(function(){ if (S.playing) paint(); }, 250);
+    jump(0);
+  }
+  function stopSpeaker(){
+    if (!speaker) return;
+    var S = speaker; speaker = null;
+    S.gen++; S.playing = false; clearInterval(S.iv);
+    try { window.speechSynthesis.cancel(); } catch(e){}
+    if (S.bar) S.bar.remove();
+    document.body.classList.remove('has-player');
+    document.querySelectorAll('.speaking').forEach(function(x){ x.classList.remove('speaking'); });
+    var spkBtn = app.querySelector('.spk'); if (spkBtn) { spkBtn.classList.remove('on'); spkBtn.textContent = '🔊 Speaker mode'; }
+  }
+  function route(){
+    stopSpeaker();
+    Object.keys(timers).forEach(function(k){ clearInterval(timers[k].iv); clearInterval(timers[k].ringIv); delete timers[k]; });
+    var id = location.hash.replace('#', '');
+    var r = DATA.filter(function(x){ return x.id === id; })[0];
+    if (r) recipe(r); else home();
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', route);
+  route();
+})();
+</script>
+</body></html>

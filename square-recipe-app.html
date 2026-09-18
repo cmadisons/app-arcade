@@ -135,6 +135,19 @@
   .plan .save { font-size: 12px; font-weight:800; color:#3f6b31; min-height: 1.2em; }
   .plan button { border:none; background:#5a3417; color:#fbf1e4; font-weight:800; font-size: 16px; padding: 9px; }
   .plan.best button { background:#d9b21f; color:#3a2d00; }
+  .shop .h2prem { margin-top: 18px; color:#6a2fa0; }
+  .plan.prem { border-color:#d9c2f0; background:#faf5ff; }
+  .plan.prem.best { border-color:#9b59d0; background:#f3e8ff; }
+  .plan.prem button { background:#6a2fa0; color:#fff; }
+  .t-prem { --accent:#9b59d0; --accent-dark:#6a2fa0; --soft:#f3e8ff; --line:#dcc6f0; --hdr:#7b3fb8; --hdr-fg:#fff; }
+  .names .lock a { background: repeating-linear-gradient(45deg, #7b3fb8 0 14px, #6a2fa0 14px 28px); }
+  .names .soon a { background:#b89ad8; cursor: default; }
+  .names a { flex-direction: column; }
+  .newbadge { display:block; margin-top: 6px; font-size: 12px; font-weight:800; background:#fff; color:#6a2fa0; padding: 1px 6px; }
+  .prem-on .bigclock { display:none; }
+  .prem-on .home h1 { padding-left: 0; padding-right: 0; }
+  .prem-on .recipe h1 { margin-right: 0; }
+  .prem-on .home .names { margin-top: 18px; }
   .shop .status { margin-top: 14px; padding: 10px 12px; background:#eef5ea; border-left: 4px solid #5b8c4a; font-weight:700; color:#3f6b31; }
   .shop .test { margin-top: 12px; font-size: 12.5px; color:#8a6a50; background:#fbf1e4; padding: 8px 10px; }
   @media (max-width: 640px) { .plans { grid-template-columns: 1fr; } .upg { font-size: 11px; padding: 2px 7px; } .adtimer { justify-content:flex-start; padding-left: 10px; } }
@@ -158,6 +171,11 @@
 <div class="plans">
   <div class="plan"><b>1 month</b><div class="price">$1<small>/month</small></div><div class="save"></div><button type="button" data-buy="month">Get 1 month</button></div>
   <div class="plan best"><b>1 year</b><div class="price">$10<small>/year</small></div><div class="save">Save $2 (2 months free)</div><button type="button" data-buy="year">Get 1 year</button></div>
+</div>
+<h2 class="h2prem">💎 Premium</h2><p class="why"><b>No ads at all</b>, plus <b>2 new recipes every month</b>. Each month's recipes are only here for that month.</p>
+<div class="plans">
+  <div class="plan prem"><b>1 month</b><div class="price">$3<small>/month</small></div><div class="save"></div><button type="button" data-buy="pmonth">Get 1 month</button></div>
+  <div class="plan prem best"><b>1 year</b><div class="price">$30<small>/year</small></div><div class="save">Save $6 (2 months free)</div><button type="button" data-buy="pyear">Get 1 year</button></div>
 </div>
 <div class="status" id="upgStatus" hidden></div>
 <div class="test" id="upgTest">🧪 <b>Test mode.</b> Buying gives you the upgrade on this device without charging anything. To charge real money, paste your Stripe Payment Links into <code>PAY</code> in this file.</div>
@@ -207,16 +225,30 @@ var DATA = [
     ['Mint leaves', '7 leaves', '<span class="step">Step 10</span> Add to the glasses.', true]
   ]}
 ];
+// 💎 Premium recipes: 2 new ones each month, only for Premium, and only during their month.
+// Add them here with month: 'YYYY-MM' (same format as DATA). After that month they stop showing.
+var MONTHLY = [
+];
+function thisMonth(){ var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }
+function monthName(){ return new Date().toLocaleDateString([], { month: 'long' }); }
+function monthlyNow(){ return MONTHLY.filter(function(x){ return x.month === thisMonth(); }); }
 var app = document.getElementById('app'), scroller = document.getElementById('scroller');
 function route(){
   var id = location.hash.replace('#', '');
-  var r = DATA.filter(function(x){ return x.id === id; })[0];
+  var prem = typeof premium === 'function' && premium(), monthly = monthlyNow();
+  var r = DATA.concat(prem ? monthly : []).filter(function(x){ return x.id === id; })[0];
   if (!r) {
     document.title = 'Square Recipe Box';
     app.className = 'wrap home';
+    var extra;
+    if (!prem) extra = '<li class="t-prem lock"><a href="#" data-shop="1">🔒 ' + monthName() + '\'s new recipes<span class="newbadge">💎 Premium</span></a></li>';
+    else if (!monthly.length) extra = '<li class="t-prem soon"><a href="#" onclick="return false">New ' + monthName() + ' recipes coming soon<span class="newbadge">💎 Premium</span></a></li>';
+    else extra = monthly.map(function(x){ return '<li class="t-prem"><a href="#' + x.id + '">' + x.title + '<span class="newbadge">💎 New this month</span></a></li>'; }).join('');
     app.innerHTML = '<h1>▢ Square Recipe Box</h1><ul class="names">' + DATA.map(function(x){
       return '<li class="t-' + x.theme + '"><a href="#' + x.id + '">' + x.title + '</a></li>';
-    }).join('') + '</ul>';
+    }).join('') + extra + '</ul>';
+    var lk = app.querySelector('[data-shop]');
+    if (lk) lk.addEventListener('click', function(e){ e.preventDefault(); paintShop(); shop.hidden = false; });
   } else {
     document.title = r.title + ' · Square Recipe Box';
     app.className = 'wrap recipe t-' + r.theme;
@@ -454,8 +486,11 @@ var ADS = [
 ];
 // ⭐ Upgrade. To charge REAL money: make a Stripe Payment Link for each plan and paste it here.
 // Set each link's "after payment" URL to this page with ?paid=month or ?paid=year, which unlocks it.
-var PAY = { month: '', year: '' };
-var PLANS = { month: { label: '1 month', days: 31 }, year: { label: '1 year', days: 366 } };
+var PAY = { month: '', year: '', pmonth: '', pyear: '' };
+var PLANS = { month: { key: 'upgradeUntil', days: 31 }, year: { key: 'upgradeUntil', days: 366 },
+              pmonth: { key: 'premiumUntil', days: 31 }, pyear: { key: 'premiumUntil', days: 366 } };
+function until(k){ try { return +localStorage.getItem('squarebox:' + k) || 0; } catch(e){ return 0; } }
+function premium(){ return until('premiumUntil') > Date.now(); }
 var UPG_KEY = 'squarebox:upgradeUntil';
 function upgradeUntil(){ try { return +localStorage.getItem(UPG_KEY) || 0; } catch(e){ return 0; } }
 function upgraded(){ return upgradeUntil() > Date.now(); }
@@ -514,6 +549,8 @@ function showAd(){
 function tickTimer(){
   var label = timerEl.querySelector('span'), clock = timerEl.querySelector('.clock'), bar = timerEl.querySelector('.line b');
   if (!adEl.hidden) { label.textContent = '▶ Ad playing (can\'t skip)'; clock.hidden = true; bar.style.width = '100%'; return; }
+  document.getElementById('square').classList.toggle('prem-on', premium());
+  if (premium()) { label.textContent = '💎 Premium: no ads'; clock.hidden = true; bar.style.width = '100%'; return; }
   var left = Math.max(0, nextAt - Date.now()), sec = Math.ceil(left / 1000), total = waitTotal / 1000;
   label.textContent = (upgraded() ? '⭐' : '⏱') + ' Next ad in'; clock.hidden = false; clock.textContent = mmss(sec);
   paintBigClock(sec, total);
@@ -526,18 +563,21 @@ setInterval(tickTimer, 250); tickTimer();
 var shop = document.getElementById('shop');
 function fmtDate(t){ return new Date(t).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }); }
 function paintShop(){
-  var on = upgraded(), st = document.getElementById('upgStatus'), b = document.getElementById('upgBtn');
-  st.hidden = !on; if (on) st.textContent = '✅ Upgraded until ' + fmtDate(upgradeUntil()) + '. Ads come every 5 minutes. Buying again adds more time.';
-  b.textContent = on ? '⭐ Upgraded' : '⭐ Upgrade'; b.classList.toggle('on', on);
-  document.getElementById('upgTest').hidden = !!(PAY.month && PAY.year);
+  var on = upgraded(), pr = premium(), st = document.getElementById('upgStatus'), b = document.getElementById('upgBtn');
+  st.hidden = !on && !pr;
+  if (pr) st.textContent = '💎 Premium until ' + fmtDate(until('premiumUntil')) + ': no ads, and this month\'s new recipes are on the home screen. Buying again adds more time.';
+  else if (on) st.textContent = '✅ Upgraded until ' + fmtDate(upgradeUntil()) + '. Ads come every 5 minutes. Buying again adds more time.';
+  b.textContent = pr ? '💎 Premium' : on ? '⭐ Upgraded' : '⭐ Upgrade'; b.classList.toggle('on', on || pr);
+  document.getElementById('upgTest').hidden = !!(PAY.month && PAY.year && PAY.pmonth && PAY.pyear);
 }
 function grant(plan){
-  var was = waitTotal < 5 * 60 * 1000 && !upgraded();
-  var from = Math.max(Date.now(), upgradeUntil());
-  try { localStorage.setItem(UPG_KEY, String(from + PLANS[plan].days * 86400000)); } catch(e){}
+  var was = waitTotal < 5 * 60 * 1000 && !upgraded(), k = PLANS[plan].key;
+  var from = Math.max(Date.now(), until(k));
+  try { localStorage.setItem('squarebox:' + k, String(from + PLANS[plan].days * 86400000)); } catch(e){}
   // already counting down 3 minutes? stretch this wait to 5
-  if (was && waitTotal === AD_EVERY) { nextAt += adEvery() - AD_EVERY; waitTotal = adEvery(); }
+  if (k === 'upgradeUntil' && was && waitTotal === AD_EVERY) { nextAt += adEvery() - AD_EVERY; waitTotal = adEvery(); }
   paintShop(); tickTimer();
+  if (k === 'premiumUntil') route();   // show this month's recipes
 }
 document.getElementById('upgBtn').addEventListener('click', function(){ paintShop(); shop.hidden = false; });
 document.getElementById('shopClose').addEventListener('click', function(){ shop.hidden = true; });
@@ -550,7 +590,7 @@ shop.addEventListener('click', function(e){
 });
 // back from a real Stripe checkout
 (function(){
-  var m = location.search.match(/[?&]paid=(month|year)\b/);
+  var m = location.search.match(/[?&]paid=(month|year|pmonth|pyear)\b/);
   if (m) { grant(m[1]); history.replaceState(null, '', location.pathname + location.hash); paintShop(); shop.hidden = false; }
 })();
 paintShop();

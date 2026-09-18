@@ -118,6 +118,26 @@
   .ad .box.show h2 { font-size: clamp(20px, 4.5vw, 34px); }
   .ad .box.show .cap { font-size: clamp(14px, 2.6vw, 19px); }
   .ad .box.show .go { font-size: clamp(15px, 2.4vw, 20px); padding: 9px 22px; }
+  /* ⭐ Upgrade: ads every 5 minutes instead of 3 */
+  .upg { position:absolute; right:6px; bottom:5px; z-index:2; border:none; background:#f2cf4a; color:#3a2d00; font-weight:800; font-size:13px; padding: 3px 10px; }
+  .upg.on { background:#fbf1e4; color:#5a3417; }
+  .shop { position:absolute; inset:0 0 36px 0; z-index:35; background: rgba(40,25,12,.6); display:flex; align-items:center; justify-content:center; padding: 4%; }
+  .shop[hidden] { display:none; }
+  .shop .panel { width:100%; max-width: 520px; max-height:100%; overflow:auto; background:#fffaf4; border: 4px solid #5a3417; box-shadow: 8px 8px 0 rgba(0,0,0,.3); padding: 18px; position:relative; }
+  .shop h2 { margin: 0 0 4px; color:#5a3417; font-size: 24px; }
+  .shop .why { margin: 0 0 14px; color:#8a6a50; }
+  .shop .x2 { position:absolute; top:8px; right:8px; border: 2px solid #5a3417; background:#fff; color:#5a3417; font-weight:800; padding: 2px 10px; }
+  .plans { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .plan { border: 3px solid #ecd3b5; background:#fff; padding: 14px 12px; text-align:center; display:flex; flex-direction:column; gap:6px; }
+  .plan.best { border-color:#f2cf4a; background:#fdf7dc; }
+  .plan .price { font-size: 30px; font-weight:800; color:#5a3417; }
+  .plan .price small { font-size: 14px; color:#8a6a50; }
+  .plan .save { font-size: 12px; font-weight:800; color:#3f6b31; min-height: 1.2em; }
+  .plan button { border:none; background:#5a3417; color:#fbf1e4; font-weight:800; font-size: 16px; padding: 9px; }
+  .plan.best button { background:#d9b21f; color:#3a2d00; }
+  .shop .status { margin-top: 14px; padding: 10px 12px; background:#eef5ea; border-left: 4px solid #5b8c4a; font-weight:700; color:#3f6b31; }
+  .shop .test { margin-top: 12px; font-size: 12.5px; color:#8a6a50; background:#fbf1e4; padding: 8px 10px; }
+  @media (max-width: 640px) { .plans { grid-template-columns: 1fr; } .upg { font-size: 11px; padding: 2px 7px; } .adtimer { justify-content:flex-start; padding-left: 10px; } }
   /* 3-minute ad timer along the bottom */
   .scroll { bottom: 36px; }
   .adtimer { position:absolute; left:0; right:0; bottom:0; height:36px; gap: 8px; background:#5a3417; color:#fbf1e4; font-size: 13px; font-weight:700; display:flex; align-items:center; justify-content:center; font-variant-numeric: tabular-nums; }
@@ -131,7 +151,17 @@
 <div class="square" id="square"><div class="clocktl" id="clocktl" aria-label="Clock"></div><div class="bigclock" id="bigclock" aria-label="Time till the next ad"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="58" fill="#5a3417"/><circle cx="60" cy="60" r="53" fill="#fffaf4"/><circle class="ring" cx="60" cy="60" r="50.5" fill="none" stroke="#f2cf4a" stroke-width="4" transform="rotate(-90 60 60)" stroke-dasharray="317.3" stroke-dashoffset="0"/><line x1="60.00" y1="16.50" x2="60.00" y2="11.50" stroke="#5a3417" stroke-width="2"/><line x1="64.81" y1="14.25" x2="65.07" y2="11.77" stroke="#5a3417" stroke-width=".8"/><line x1="69.56" y1="15.01" x2="70.08" y2="12.56" stroke="#5a3417" stroke-width=".8"/><line x1="74.21" y1="16.25" x2="74.99" y2="13.87" stroke="#5a3417" stroke-width=".8"/><line x1="78.71" y1="17.98" x2="79.73" y2="15.69" stroke="#5a3417" stroke-width=".8"/><line x1="81.75" y1="22.33" x2="84.25" y2="18.00" stroke="#5a3417" stroke-width="2"/><line x1="87.04" y1="22.79" x2="88.51" y2="20.76" stroke="#5a3417" stroke-width=".8"/><line x1="90.78" y1="25.82" x2="92.45" y2="23.96" stroke="#5a3417" stroke-width=".8"/><line x1="94.18" y1="29.22" x2="96.04" y2="27.55" stroke="#5a3417" stroke-width=".8"/><line x1="97.21" y1="32.96" x2="99.24" y2="31.49" stroke="#5a3417" stroke-width=".8"/><line x1="97.67" y1="38.25" x2="102.00" y2="35.75" stroke="#5a3417" stroke-width="2"/><line x1="102.02" y1="41.29" x2="104.31" y2="40.27" stroke="#5a3417" stroke-width=".8"/><line x1="103.75" y1="45.79" x2="106.13" y2="45.01" stroke="#5a3417" stroke-width=".8"/><line x1="104.99" y1="50.44" x2="107.44" y2="49.92" stroke="#5a3417" stroke-width=".8"/><line x1="105.75" y1="55.19" x2="108.23" y2="54.93" stroke="#5a3417" stroke-width=".8"/><line x1="103.50" y1="60.00" x2="108.50" y2="60.00" stroke="#5a3417" stroke-width="2"/><line x1="105.75" y1="64.81" x2="108.23" y2="65.07" stroke="#5a3417" stroke-width=".8"/><line x1="104.99" y1="69.56" x2="107.44" y2="70.08" stroke="#5a3417" stroke-width=".8"/><line x1="103.75" y1="74.21" x2="106.13" y2="74.99" stroke="#5a3417" stroke-width=".8"/><line x1="102.02" y1="78.71" x2="104.31" y2="79.73" stroke="#5a3417" stroke-width=".8"/><line x1="97.67" y1="81.75" x2="102.00" y2="84.25" stroke="#5a3417" stroke-width="2"/><line x1="97.21" y1="87.04" x2="99.24" y2="88.51" stroke="#5a3417" stroke-width=".8"/><line x1="94.18" y1="90.78" x2="96.04" y2="92.45" stroke="#5a3417" stroke-width=".8"/><line x1="90.78" y1="94.18" x2="92.45" y2="96.04" stroke="#5a3417" stroke-width=".8"/><line x1="87.04" y1="97.21" x2="88.51" y2="99.24" stroke="#5a3417" stroke-width=".8"/><line x1="81.75" y1="97.67" x2="84.25" y2="102.00" stroke="#5a3417" stroke-width="2"/><line x1="78.71" y1="102.02" x2="79.73" y2="104.31" stroke="#5a3417" stroke-width=".8"/><line x1="74.21" y1="103.75" x2="74.99" y2="106.13" stroke="#5a3417" stroke-width=".8"/><line x1="69.56" y1="104.99" x2="70.08" y2="107.44" stroke="#5a3417" stroke-width=".8"/><line x1="64.81" y1="105.75" x2="65.07" y2="108.23" stroke="#5a3417" stroke-width=".8"/><line x1="60.00" y1="103.50" x2="60.00" y2="108.50" stroke="#5a3417" stroke-width="2"/><line x1="55.19" y1="105.75" x2="54.93" y2="108.23" stroke="#5a3417" stroke-width=".8"/><line x1="50.44" y1="104.99" x2="49.92" y2="107.44" stroke="#5a3417" stroke-width=".8"/><line x1="45.79" y1="103.75" x2="45.01" y2="106.13" stroke="#5a3417" stroke-width=".8"/><line x1="41.29" y1="102.02" x2="40.27" y2="104.31" stroke="#5a3417" stroke-width=".8"/><line x1="38.25" y1="97.67" x2="35.75" y2="102.00" stroke="#5a3417" stroke-width="2"/><line x1="32.96" y1="97.21" x2="31.49" y2="99.24" stroke="#5a3417" stroke-width=".8"/><line x1="29.22" y1="94.18" x2="27.55" y2="96.04" stroke="#5a3417" stroke-width=".8"/><line x1="25.82" y1="90.78" x2="23.96" y2="92.45" stroke="#5a3417" stroke-width=".8"/><line x1="22.79" y1="87.04" x2="20.76" y2="88.51" stroke="#5a3417" stroke-width=".8"/><line x1="22.33" y1="81.75" x2="18.00" y2="84.25" stroke="#5a3417" stroke-width="2"/><line x1="17.98" y1="78.71" x2="15.69" y2="79.73" stroke="#5a3417" stroke-width=".8"/><line x1="16.25" y1="74.21" x2="13.87" y2="74.99" stroke="#5a3417" stroke-width=".8"/><line x1="15.01" y1="69.56" x2="12.56" y2="70.08" stroke="#5a3417" stroke-width=".8"/><line x1="14.25" y1="64.81" x2="11.77" y2="65.07" stroke="#5a3417" stroke-width=".8"/><line x1="16.50" y1="60.00" x2="11.50" y2="60.00" stroke="#5a3417" stroke-width="2"/><line x1="14.25" y1="55.19" x2="11.77" y2="54.93" stroke="#5a3417" stroke-width=".8"/><line x1="15.01" y1="50.44" x2="12.56" y2="49.92" stroke="#5a3417" stroke-width=".8"/><line x1="16.25" y1="45.79" x2="13.87" y2="45.01" stroke="#5a3417" stroke-width=".8"/><line x1="17.98" y1="41.29" x2="15.69" y2="40.27" stroke="#5a3417" stroke-width=".8"/><line x1="22.33" y1="38.25" x2="18.00" y2="35.75" stroke="#5a3417" stroke-width="2"/><line x1="22.79" y1="32.96" x2="20.76" y2="31.49" stroke="#5a3417" stroke-width=".8"/><line x1="25.82" y1="29.22" x2="23.96" y2="27.55" stroke="#5a3417" stroke-width=".8"/><line x1="29.22" y1="25.82" x2="27.55" y2="23.96" stroke="#5a3417" stroke-width=".8"/><line x1="32.96" y1="22.79" x2="31.49" y2="20.76" stroke="#5a3417" stroke-width=".8"/><line x1="38.25" y1="22.33" x2="35.75" y2="18.00" stroke="#5a3417" stroke-width="2"/><line x1="41.29" y1="17.98" x2="40.27" y2="15.69" stroke="#5a3417" stroke-width=".8"/><line x1="45.79" y1="16.25" x2="45.01" y2="13.87" stroke="#5a3417" stroke-width=".8"/><line x1="50.44" y1="15.01" x2="49.92" y2="12.56" stroke="#5a3417" stroke-width=".8"/><line x1="55.19" y1="14.25" x2="54.93" y2="11.77" stroke="#5a3417" stroke-width=".8"/><text x="78.00" y="28.82" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">5</text><text x="91.18" y="42.00" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">10</text><text x="96.00" y="60.00" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">15</text><text x="91.18" y="78.00" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">20</text><text x="78.00" y="91.18" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">25</text><text x="60.00" y="96.00" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">30</text><text x="42.00" y="91.18" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">35</text><text x="28.82" y="78.00" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">40</text><text x="24.00" y="60.00" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">45</text><text x="28.82" y="42.00" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">50</text><text x="42.00" y="28.82" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">55</text><text x="60.00" y="24.00" font-size="8.5" font-weight="800" fill="#3b2a1e" text-anchor="middle" dominant-baseline="central" font-family="Helvetica Neue, Arial, sans-serif">60</text><g class="hs"><line x1="60" y1="36" x2="60" y2="18" stroke="#d62d20" stroke-width="2.4" stroke-linecap="round"/><path d="M57 20 L60 14 L63 20 Z" fill="#d62d20"/></g><circle cx="60" cy="60" r="24" fill="#fffaf4" stroke="#5a3417" stroke-width="2"/><text class="dig" x="60" y="61" font-size="15" font-weight="800" fill="#3b2a1e" text-anchor="middle" font-family="Helvetica Neue, Arial, sans-serif">0:30</text><text x="60" y="71" font-size="5.2" font-weight="800" fill="#9a5b22" text-anchor="middle" font-family="Helvetica Neue, Arial, sans-serif" letter-spacing=".2">TILL NEXT AD</text></svg></div><div class="scroll" id="scroller"><div class="wrap" id="app"></div></div>
 <div class="ad" id="ad" hidden role="dialog" aria-label="Ad"><div class="box"><span class="tag">Ad</span><span class="left"></span>
 <div class="stage"></div><div class="cap"></div><div class="dots"></div><h2></h2><a class="go" target="_blank" rel="noopener"></a><div class="bar"><b></b></div></div></div>
-<div class="adtimer" id="adtimer"><div class="line"><b></b></div><span>Next ad in</span><b class="clock">0:30</b></div></div>
+<div class="adtimer" id="adtimer"><div class="line"><b></b></div><span>Next ad in</span><b class="clock">0:30</b><button class="upg" id="upgBtn" type="button">⭐ Upgrade</button></div>
+<div class="shop" id="shop" hidden role="dialog" aria-label="Upgrade"><div class="panel">
+<button class="x2" type="button" id="shopClose">✕</button>
+<h2>⭐ Upgrade</h2><p class="why">Fewer ads: one every <b>5 minutes</b> instead of every 3.</p>
+<div class="plans">
+  <div class="plan"><b>1 month</b><div class="price">$2<small>/month</small></div><div class="save"></div><button type="button" data-buy="month">Get 1 month</button></div>
+  <div class="plan best"><b>1 year</b><div class="price">$20<small>/year</small></div><div class="save">Save $4 (2 months free)</div><button type="button" data-buy="year">Get 1 year</button></div>
+</div>
+<div class="status" id="upgStatus" hidden></div>
+<div class="test" id="upgTest">🧪 <b>Test mode.</b> Buying gives you the upgrade on this device without charging anything. To charge real money, paste your Stripe Payment Links into <code>PAY</code> in this file.</div>
+</div></div></div>
 <script>
 // Ingredients in the order you use them: [name, amount, what you do, optional?]
 var DATA = [
@@ -422,6 +452,14 @@ var ADS = [
   { id:'ship', title:'Ship Life', bg:'#101a33', fg:'#ffd84a', slides: SHIP, len: 60 },
   { id:'zelda', title:'Zelda BOTW', bg:'#0f2a2a', fg:'#e8d9a0', slides: ZELDA, len: 60 }
 ];
+// ⭐ Upgrade. To charge REAL money: make a Stripe Payment Link for each plan and paste it here.
+// Set each link's "after payment" URL to this page with ?paid=month or ?paid=year, which unlocks it.
+var PAY = { month: '', year: '' };
+var PLANS = { month: { label: '1 month', days: 31 }, year: { label: '1 year', days: 366 } };
+var UPG_KEY = 'squarebox:upgradeUntil';
+function upgradeUntil(){ try { return +localStorage.getItem(UPG_KEY) || 0; } catch(e){ return 0; } }
+function upgraded(){ return upgradeUntil() > Date.now(); }
+function adEvery(){ return (upgraded() ? 5 : 3) * 60 * 1000; }
 var AD_EVERY = 3 * 60 * 1000, AD_FIRST = 30 * 1000; // first ad 30 seconds after opening, then every 3 minutes
 var AD_MIN = 45, AD_MAX = 60; // every ad lasts a random 45-60 seconds
 var adEl = document.getElementById('ad'), lastAd = -1, slideIv = null, adIv = null;
@@ -467,7 +505,7 @@ function showAd(){
     if (ms <= 0) {
       clearInterval(adIv); clearInterval(slideIv);
       adEl.hidden = true; stage.innerHTML = '';
-      nextAt = Date.now() + AD_EVERY; waitTotal = AD_EVERY; tickTimer();
+      nextAt = Date.now() + adEvery(); waitTotal = adEvery(); tickTimer();
     }
   };
   adEl.hidden = false; paint();
@@ -477,12 +515,45 @@ function tickTimer(){
   var label = timerEl.querySelector('span'), clock = timerEl.querySelector('.clock'), bar = timerEl.querySelector('.line b');
   if (!adEl.hidden) { label.textContent = '▶ Ad playing (can\'t skip)'; clock.hidden = true; bar.style.width = '100%'; return; }
   var left = Math.max(0, nextAt - Date.now()), sec = Math.ceil(left / 1000), total = waitTotal / 1000;
-  label.textContent = '⏱ Next ad in'; clock.hidden = false; clock.textContent = mmss(sec);
+  label.textContent = (upgraded() ? '⭐' : '⏱') + ' Next ad in'; clock.hidden = false; clock.textContent = mmss(sec);
   paintBigClock(sec, total);
   bar.style.width = ((total - sec) / total * 100) + '%';
   if (left <= 0) { showAd(); tickTimer(); }
 }
 setInterval(tickTimer, 250); tickTimer();
+
+// ===== ⭐ Upgrade store =====
+var shop = document.getElementById('shop');
+function fmtDate(t){ return new Date(t).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }); }
+function paintShop(){
+  var on = upgraded(), st = document.getElementById('upgStatus'), b = document.getElementById('upgBtn');
+  st.hidden = !on; if (on) st.textContent = '✅ Upgraded until ' + fmtDate(upgradeUntil()) + '. Ads come every 5 minutes. Buying again adds more time.';
+  b.textContent = on ? '⭐ Upgraded' : '⭐ Upgrade'; b.classList.toggle('on', on);
+  document.getElementById('upgTest').hidden = !!(PAY.month && PAY.year);
+}
+function grant(plan){
+  var was = waitTotal < 5 * 60 * 1000 && !upgraded();
+  var from = Math.max(Date.now(), upgradeUntil());
+  try { localStorage.setItem(UPG_KEY, String(from + PLANS[plan].days * 86400000)); } catch(e){}
+  // already counting down 3 minutes? stretch this wait to 5
+  if (was && waitTotal === AD_EVERY) { nextAt += adEvery() - AD_EVERY; waitTotal = adEvery(); }
+  paintShop(); tickTimer();
+}
+document.getElementById('upgBtn').addEventListener('click', function(){ paintShop(); shop.hidden = false; });
+document.getElementById('shopClose').addEventListener('click', function(){ shop.hidden = true; });
+shop.addEventListener('click', function(e){
+  if (e.target === shop) { shop.hidden = true; return; }
+  var b = e.target.closest('[data-buy]'); if (!b) return;
+  var plan = b.dataset.buy;
+  if (PAY[plan]) { location.href = PAY[plan]; return; }   // real Stripe checkout; comes back with ?paid=plan
+  grant(plan);                                              // test mode: unlock on this device
+});
+// back from a real Stripe checkout
+(function(){
+  var m = location.search.match(/[?&]paid=(month|year)\b/);
+  if (m) { grant(m[1]); history.replaceState(null, '', location.pathname + location.hash); paintShop(); shop.hidden = false; }
+})();
+paintShop();
 
 // ===== Big clock: short hand = minutes till the ad (like the hour hand), long red hand = seconds, ticking =====
 var secAngle = null, lastSec = null; // big clock

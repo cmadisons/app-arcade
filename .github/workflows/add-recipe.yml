@@ -1,0 +1,46 @@
+# When someone presses "Share with everyone" in the Square Recipe Box and submits the issue,
+# this adds their square recipe to recipes.js, commits, pushes, and closes the issue.
+name: Add shared recipe
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: add-recipe
+  cancel-in-progress: false
+jobs:
+  add:
+    if: startsWith(github.event.issue.title, 'Recipe:')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: add
+        run: node .github/scripts/add-recipe.js
+      - name: Commit and push
+        if: steps.add.outputs.ok == 'yes'
+        env:
+          TITLE: ${{ steps.add.outputs.title }}
+          WHO: ${{ github.event.issue.user.login }}
+          NUM: ${{ github.event.issue.number }}
+        run: |
+          git config user.name "recipe-robot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add recipes.js
+          git commit -m "Add shared recipe: $TITLE (by @$WHO, #$NUM)"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break; sleep 3; done
+      - name: Tell them and close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OK: ${{ steps.add.outputs.ok }}
+          MSG: ${{ steps.add.outputs.message }}
+          ID: ${{ steps.add.outputs.id }}
+          NUM: ${{ github.event.issue.number }}
+        run: |
+          if [ "$OK" = "yes" ]; then
+            gh issue comment "$NUM" -R "$GITHUB_REPOSITORY" -b "✅ Your recipe was added to the Square Recipe Box for everyone! It shows up in about a minute: https://cmadisons.github.io/app-arcade/square-recipe-app.html#$ID"
+            gh issue close "$NUM" -R "$GITHUB_REPOSITORY"
+          else
+            gh issue comment "$NUM" -R "$GITHUB_REPOSITORY" -b "⚠️ $MSG"
+          fi

@@ -258,8 +258,10 @@
     '.aa-bar .aa-line b{display:block;height:100%;width:0;background:#f2cf4a;transition:width .25s linear}',
     '.aa-bar .aa-clock{margin-top:5px;font-size:17px;font-weight:800;background:#fbf1e4;color:#5a3417;padding:2px 8px}',
     '.aa-bar .aa-lbl{margin-top:5px}',
-    '.aa-bar .aa-arc{position:absolute;left:0;top:7px;bottom:0;display:flex;align-items:center;padding:0 12px;background:#7a4a24;color:#fbf1e4;text-decoration:none;font-weight:800;font-size:15px}',
-    '.aa-bar .aa-arc:hover{background:#94602f}',
+    '.aa-arc{position:fixed;left:0;top:0;z-index:2147483000;background:#5a3417;color:#fbf1e4;text-decoration:none;font:800 20px/1 "Helvetica Neue",Arial,sans-serif;padding:9px 14px;box-shadow:3px 3px 0 rgba(0,0,0,.25)}',
+    '.aa-arc:hover{background:#7a4a24}',
+    /* the hedgehog game's own "← Home" link sat in that corner */
+    '#home-link{display:none!important}',
     '.aa-big{position:fixed;right:10px;top:50%;transform:translateY(-50%);width:110px;height:110px;z-index:2147483000;pointer-events:none;filter:drop-shadow(3px 3px 0 rgba(0,0,0,.3))}',
     '.aa-big svg{display:block;width:100%;height:100%}',
     '.aa-big .hs{transition:transform .25s cubic-bezier(.4,2.2,.6,1);transform-origin:60px 60px}',
@@ -299,8 +301,9 @@
     '.aa-plan.best button{background:#d9b21f;color:#3a2d00}.aa-plan.prem button{background:#6a2fa0;color:#fff}',
     '.aa-status{margin-top:14px;padding:10px 12px;background:#eef5ea;border-left:4px solid #5b8c4a;font-weight:700;color:#3f6b31}',
     '.aa-off{margin-top:8px;border:2px solid #8a6a50;background:#fff;color:#8a6a50;font-weight:700;padding:5px 10px;cursor:pointer}',
+    '.aa-perks{margin:0 0 12px;padding-left:20px;color:#5a3417;font-size:14px;line-height:1.5}',
     '.aa-test{margin-top:12px;font-size:12.5px;color:#8a6a50;background:#fbf1e4;padding:8px 10px}',
-    '@media (max-width:640px){.aa-plans{grid-template-columns:1fr}.aa-bar .aa-upg{font-size:11px;padding:3px 7px}.aa-bar .aa-lbl{display:none}.aa-big{width:78px;height:78px}.aa-bar{font-size:12px;justify-content:flex-end;padding-right:10px}.aa-bar .aa-arc{font-size:13px}}'
+    '@media (max-width:640px){.aa-plans{grid-template-columns:1fr}.aa-bar .aa-upg{font-size:11px;padding:3px 7px}.aa-bar .aa-lbl{display:none}.aa-big{width:78px;height:78px}.aa-bar{font-size:12px;justify-content:flex-end;padding-right:10px}.aa-arc{font-size:15px;padding:7px 10px}}'
   ].join('\n');
 
   function clockFace(){
@@ -325,18 +328,21 @@
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
     document.body.classList.add('aa-on');
     var bar = document.createElement('div'); bar.className = 'aa-bar';
-    bar.innerHTML = '<div class="aa-line"><b></b></div><a class="aa-arc" href="' + ARCADE + '">🕹️ Arcade</a><span class="aa-lbl">⏱ Next ad in</span><b class="aa-clock">0:30</b><button type="button" class="aa-upg">⭐ Upgrade</button>';
+    bar.innerHTML = '<div class="aa-line"><b></b></div><span class="aa-lbl">⏱ Next ad in</span><b class="aa-clock">0:30</b><button type="button" class="aa-upg">⭐ Upgrade</button>';
     var shop = document.createElement('div'); shop.className = 'aa-shop'; shop.hidden = true; shop.setAttribute('role', 'dialog'); shop.setAttribute('aria-label', 'Upgrade');
     shop.innerHTML = '<div class="aa-panel"><button type="button" class="aa-x">✕</button>' +
       '<h3>⭐ Upgrade</h3><p>Fewer ads: one every <b>5 minutes</b> instead of every 3, in every arcade app.</p><div class="aa-plans">' +
       '<div class="aa-plan"><b>1 month</b><div class="aa-price">$1<small>/month</small></div><div class="aa-save"></div><button type="button" data-buy="month">Get 1 month</button></div>' +
       '<div class="aa-plan best"><b>1 year</b><div class="aa-price">$10<small>/year</small></div><div class="aa-save">Save $2 (2 months free)</div><button type="button" data-buy="year">Get 1 year</button></div></div>' +
-      '<h3 class="aa-h3p">💎 Premium</h3><p><b>No ads at all</b> in every arcade app, plus <b>2 new recipes every month</b> in the Square Recipe Box.</p><div class="aa-plans">' +
+      '<h3 class="aa-h3p">💎 Premium</h3><p><b>No ads and more:</b></p><ul class="aa-perks"><li>No ads in any arcade app</li><li>▢ Square Recipe Box: 2 new recipes every month</li><li>📖 Recipe Box: the pasta, muffin and porridge recipes</li><li>⚾ All Live Baseball: a video of every pitch, hit and play</li><li>🎵 Walk Up Songs: every player who played this season</li><li>🦔 Whack-a-Hedgehog: every hammer, mode and grid unlocked</li><li>🚀 Ship Life: start with all the floors (a choice in the mod)</li></ul><div class="aa-plans">' +
       '<div class="aa-plan prem"><b>1 month</b><div class="aa-price">$3<small>/month</small></div><div class="aa-save"></div><button type="button" data-buy="pmonth">Get 1 month</button></div>' +
       '<div class="aa-plan prem best"><b>1 year</b><div class="aa-price">$30<small>/year</small></div><div class="aa-save">Save $6 (2 months free)</div><button type="button" data-buy="pyear">Get 1 year</button></div></div>' +
       '<div class="aa-status" hidden></div><button type="button" class="aa-off" hidden>Turn off my ⭐ / 💎 and go back to normal</button>' +
       '<div class="aa-test">🧪 <b>Test mode.</b> Buying gives you the upgrade on this device without charging anything.</div></div>';
     document.body.appendChild(shop);
+    // top-left corner of every app: the 🕹️ Arcade button
+    var arc = document.createElement('a'); arc.className = 'aa-arc'; arc.href = ARCADE; arc.textContent = '🕹️ Arcade';
+    document.body.appendChild(arc);
     var big = document.createElement('div'); big.className = 'aa-big'; big.setAttribute('aria-label', 'Time till the next ad'); big.innerHTML = clockFace();
     var ad = document.createElement('div'); ad.className = 'aa-ad'; ad.hidden = true; ad.setAttribute('role', 'dialog'); ad.setAttribute('aria-label', 'Ad');
     ad.innerHTML = '<span class="aa-tag">AD</span><span class="aa-left"></span><div class="aa-stage"></div><div class="aa-cap"></div><div class="aa-dots"></div><h2></h2><a class="aa-go" target="_blank" rel="noopener">🕹️ Open Arcade →</a><div class="aa-adbar"><b></b></div>';
@@ -398,7 +404,7 @@
     function paintShop(){
       var on = upgraded(), pr = premium(), s2 = shop.querySelector('.aa-status'), b = bar.querySelector('.aa-upg');
       s2.hidden = !on && !pr; shop.querySelector('.aa-off').hidden = !on && !pr;
-      if (pr) s2.textContent = '💎 Premium until ' + fmtDate(until('premiumUntil')) + ': no ads in any arcade app. Buying again adds more time.';
+      if (pr) s2.textContent = '💎 Premium until ' + fmtDate(until('premiumUntil')) + ': no ads and all the extras in every arcade app. Buying again adds more time.';
       else if (on) s2.textContent = '✅ Upgraded until ' + fmtDate(until('upgradeUntil')) + '. Ads come every 5 minutes. Buying again adds more time.';
       b.textContent = pr ? '💎 Premium' : on ? '⭐ Upgraded' : '⭐ Upgrade'; b.classList.toggle('on', on || pr);
       shop.querySelector('.aa-test').hidden = !!(PAY.month && PAY.year && PAY.pmonth && PAY.pyear);
@@ -407,16 +413,18 @@
       var k = PLANS[plan].key, wasBasic = !upgraded() && !premium();
       try { localStorage.setItem('squarebox:' + k, String(Math.max(Date.now(), until(k)) + PLANS[plan].days * 86400000)); } catch(e){}
       if (k === 'upgradeUntil' && wasBasic && waitTotal === 3 * 60 * 1000) { nextAt += 2 * 60 * 1000; waitTotal = 5 * 60 * 1000; }   // stretch this wait to 5 minutes
-      paintShop(); tick();
+      paintShop(); tick(); changed();
     }
+    function changed(){ try { window.dispatchEvent(new Event('arcade-premium-change')); } catch(e){} }
     bar.querySelector('.aa-upg').addEventListener('click', function(){ paintShop(); shop.hidden = false; });
+    window.appArcadeOpenStore = function(){ paintShop(); shop.hidden = false; };   // apps can open the store (e.g. a locked Premium tile)
     shop.addEventListener('click', function(e){
       if (e.target === shop || e.target.closest('.aa-x')) { shop.hidden = true; return; }
       if (e.target.closest('.aa-off')) {
         try { localStorage.removeItem('squarebox:upgradeUntil'); localStorage.removeItem('squarebox:premiumUntil'); } catch(e2){}
         if (waitTotal > 3 * 60 * 1000) { nextAt -= waitTotal - 3 * 60 * 1000; waitTotal = 3 * 60 * 1000; }
         if (nextAt < Date.now()) { nextAt = Date.now() + 3 * 60 * 1000; waitTotal = 3 * 60 * 1000; }
-        paintShop(); tick(); return;
+        paintShop(); tick(); changed(); return;
       }
       var b = e.target.closest('[data-buy]'); if (!b) return;
       if (PAY[b.dataset.buy]) { location.href = PAY[b.dataset.buy]; return; }   // real Stripe checkout

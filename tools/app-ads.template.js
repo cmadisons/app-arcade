@@ -44,6 +44,8 @@
   // ---------- look ----------
   var css = [
     'body.aa-on{padding-bottom:40px!important}',
+    /* room for the 🕹️ Arcade button in the top-left corner (not on full-screen games) */
+    'body.aa-on:not(.aa-full){padding-top:44px!important}',
     /* bars the apps already pin to the bottom move up above ours */
     'body.aa-on .player, body.aa-on .bar{bottom:40px!important}',
     '.aa-bar{position:fixed;left:0;right:0;bottom:0;height:40px;z-index:2147483000;background:#5a3417;color:#fbf1e4;display:flex;align-items:center;justify-content:center;gap:8px;font:700 14px/1 "Helvetica Neue",Arial,sans-serif;font-variant-numeric:tabular-nums;box-shadow:0 -3px 10px rgba(0,0,0,.2)}',
@@ -120,6 +122,7 @@
   function start(){
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
     document.body.classList.add('aa-on');
+    if (APP === 'zelda') document.body.classList.add('aa-full');
     var bar = document.createElement('div'); bar.className = 'aa-bar';
     bar.innerHTML = '<div class="aa-line"><b></b></div><span class="aa-lbl">⏱ Next ad in</span><b class="aa-clock">0:30</b><button type="button" class="aa-upg">⭐ Upgrade</button>';
     var shop = document.createElement('div'); shop.className = 'aa-shop'; shop.hidden = true; shop.setAttribute('role', 'dialog'); shop.setAttribute('aria-label', 'Upgrade');

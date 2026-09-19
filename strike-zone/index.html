@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strike Zone Cam</title>
+<style>
+  :root { --bg:#0d2a1a; --panel:#143d26; --line:#2e6b45; --ink:#f4f1e6; --dim:#a9c7b3; --chalk:#ffffff; --strike:#3ee07a; --ball:#ff5a4f; --gold:#ffd84a; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background: repeating-linear-gradient(90deg, #0f2f1d 0 60px, #0d2a1a 60px 120px); color: var(--ink);
+         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 14px 16px 30px; }
+  h1 { margin: 4px 0 2px; font-size: clamp(26px, 5vw, 40px); letter-spacing: 1px; }
+  h1 span { color: var(--gold); }
+  .sub { margin: 0 0 14px; color: var(--dim); }
+  button, .btn { font: 800 16px/1 inherit; font-family: inherit; border: 0; cursor: pointer; padding: 12px 16px; background: var(--chalk); color: #0d2a1a;
+           box-shadow: 3px 3px 0 rgba(0,0,0,.35); display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+  button:hover { filter: brightness(.93); }
+  .big { font-size: 20px; padding: 16px 22px; }
+  button.gold { background: var(--gold); }
+  button.ghost { background: transparent; color: var(--ink); box-shadow: none; border: 2px solid var(--line); }
+  button:disabled { opacity: .4; cursor: default; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  [hidden] { display: none !important; }
+
+  /* home */
+  .batters { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
+  .card { background: var(--panel); border: 3px solid var(--line); cursor: pointer; overflow: hidden; position: relative; }
+  .card:hover { border-color: var(--gold); }
+  .card img { display: block; width: 100%; aspect-ratio: 3/4; object-fit: cover; background: #000; }
+  .card b { display: block; padding: 8px 10px; font-size: 17px; }
+  .card .del { position: absolute; top: 6px; right: 6px; padding: 4px 8px; font-size: 13px; background: rgba(0,0,0,.6); color: #fff; box-shadow: none; }
+  .empty { color: var(--dim); padding: 30px 0; }
+
+  /* camera */
+  .cam { position: relative; background: #000; max-width: 720px; }
+  .cam video { display: block; width: 100%; max-height: max(220px, calc(100vh - 270px)); object-fit: contain; }
+  .cam video.mirror { transform: scaleX(-1); }
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity .35s; }
+  .flash.on { opacity: 1; transition: none; }
+  .note { color: var(--dim); font-size: 14px; }
+
+  /* photo + zone */
+  .stage { display: grid; gap: 16px; grid-template-columns: 1fr; align-items: start; }
+  @media (min-width: 820px) { .stage { grid-template-columns: minmax(0, 1.25fr) minmax(280px, 1fr); } }
+  .shot { position: relative; background: #000; line-height: 0; }
+  .shot canvas { width: 100%; max-height: max(260px, calc(100vh - 140px)); object-fit: contain; display: block; touch-action: none; }
+  .tip { position: absolute; left: 0; right: 0; top: 0; padding: 8px 10px; background: rgba(0,0,0,.65); font: 700 15px/1.3 inherit; font-family: inherit; line-height: 1.3; }
+  .side { background: var(--panel); border: 3px solid var(--line); padding: 14px; display: grid; gap: 12px; }
+  label { font-weight: 700; font-size: 14px; color: var(--dim); display: grid; gap: 5px; }
+  input[type=text], input[type=number], select { font: 700 18px/1.2 inherit; font-family: inherit; padding: 9px 10px; border: 2px solid var(--line); background: #0d2a1a; color: var(--ink); width: 100%; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .seg { display: flex; }
+  .seg button { flex: 1; box-shadow: none; background: #0d2a1a; color: var(--ink); border: 2px solid var(--line); }
+  .seg button.on { background: var(--gold); color: #0d2a1a; border-color: var(--gold); }
+
+  /* at bat */
+  .name { font-size: 26px; font-weight: 800; }
+  .count { display: flex; gap: 14px; font-weight: 800; font-size: 15px; }
+  .count i { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; margin-left: 3px; vertical-align: -3px; }
+  .count .b i.on { background: var(--strike); border-color: var(--strike); }
+  .count .s i.on { background: var(--ball); border-color: var(--ball); }
+  .result { border: 3px solid var(--line); padding: 12px; min-height: 96px; background: #0d2a1a; }
+  .result .call { font-size: 34px; font-weight: 900; letter-spacing: 1px; }
+  .result .call.strike { color: var(--strike); }
+  .result .call.ball { color: var(--ball); }
+  .result .where { font-size: 17px; font-weight: 700; margin-top: 4px; }
+  .result .more { font-size: 14px; color: var(--dim); margin-top: 4px; line-height: 1.4; }
+  .log { max-height: 190px; overflow: auto; font-size: 14px; display: grid; gap: 4px; }
+  .log div { display: flex; gap: 8px; align-items: baseline; }
+  .log .k { font-weight: 900; width: 58px; flex: none; }
+  .log .k.strike { color: var(--strike); } .log .k.ball { color: var(--ball); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HOME -->
+  <section id="home">
+    <h1>⚾ Strike Zone <span>Cam</span></h1>
+    <p class="sub">Take a picture of a batter, put the strike zone on them, then watch the pitches come in.</p>
+    <div class="row"><button class="big gold" id="newBtn">📸 New batter</button><label class="btn big">🖼️ Use a photo I already have<input type="file" id="fileIn2" accept="image/*" hidden></label></div>
+    <p class="note">Photos from your camera roll, texts or files all work. Pictures stay on this device.</p>
+    <div class="batters" id="list"></div>
+  </section>
+
+  <!-- CAMERA -->
+  <section id="camera" hidden>
+    <h1>📸 Take their picture</h1>
+    <p class="sub">Get the whole person in, from the top of their head to their feet.</p>
+    <div class="cam"><video id="video" autoplay playsinline muted></video><div class="flash" id="flash"></div></div>
+    <p class="note" id="camNote" hidden></p>
+    <div class="row" style="margin-top:12px">
+      <button class="big gold" id="snapBtn">📸 Snap</button>
+      <button id="flipBtn">🔄 Flip camera</button>
+      <label class="btn">🖼️ Pick a photo I already have<input type="file" id="fileIn" accept="image/*" hidden></label>
+      <button class="ghost" id="camBack">✖ Cancel</button>
+    </div>
+  </section>
+
+  <!-- SETUP: zone + name -->
+  <section id="setup" hidden>
+    <h1>🟩 Make the strike zone</h1>
+    <div class="stage">
+      <div class="shot"><canvas id="setupCv"></canvas><div class="tip" id="setupTip"></div></div>
+      <div class="side">
+        <label>Batter's name<input type="text" id="nameIn" maxlength="24" placeholder="Type their name"></label>
+        <div class="two">
+          <label>How tall (feet)<input type="number" id="ftIn" min="2" max="7" value="5"></label>
+          <label>+ inches<input type="number" id="inIn" min="0" max="11" value="0"></label>
+        </div>
+        <label>Bats<div class="seg" id="batsSeg"><button data-v="R" class="on">Right</button><button data-v="L">Left</button></div></label>
+        <div class="note">The zone is as wide as home plate (17 inches), from just under their knees up to halfway between their belt and shoulders. Drag it to move it, drag a corner to change its size.</div>
+        <div class="row">
+          <button class="big gold" id="saveBtn" disabled>✅ Save batter</button>
+          <button id="retapBtn">👆 Tap again</button>
+          <button class="ghost" id="setupBack">✖ Cancel</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AT BAT -->
+  <section id="atbat" hidden>
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <div class="name" id="abName"></div>
+      <div class="row"><button class="ghost" id="editBtn">✏️ Zone</button><button class="ghost" id="abBack">🏠 Batters</button></div>
+    </div>
+    <div class="stage">
+      <div class="shot"><canvas id="cv"></canvas><div class="tip" id="abTip" hidden>👆 Tap where the pitch should go</div></div>
+      <div class="side">
+        <div class="count" id="count"></div>
+        <label>Pitch<select id="typeSel">
+          <option value="any">🎲 Any pitch</option><option>Fastball</option><option>Curveball</option><option>Slider</option><option>Changeup</option><option>Sinker</option>
+        </select></label>
+        <div class="row">
+          <button class="big gold" id="pitchBtn">⚾ Pitch!</button>
+          <button id="aimBtn">👆 I pick where</button>
+        </div>
+        <div class="result" id="result"><div class="more">Press ⚾ Pitch! to throw one. You'll see the pitch come in, and exactly where it crossed the plate.</div></div>
+        <div class="row"><button id="replayBtn" disabled>▶ Watch again</button><button id="saveVidBtn" disabled>💾 Save video</button><button class="ghost" id="clearBtn">🧹 New at-bat</button></div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+var KEY = 'strikezone:batters';
+var PLATE = 17, BALL_R = 1.45;            // inches: home plate width, baseball radius
+var $ = function(id){ return document.getElementById(id); };
+function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } }
+function store(list){ try { localStorage.setItem(KEY, JSON.stringify(list)); return true; } catch(e){ alert('Out of room on this device. Delete a batter and try again.'); return false; } }
+var batters = load();
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return '&#' + c.charCodeAt(0) + ';'; }); }
+function show(id){ ['home','camera','setup','atbat'].forEach(function(s){ $(s).hidden = s !== id; }); window.scrollTo(0, 0); if (id !== 'camera') stopCam(); }
+
+// ---------- home ----------
+function renderHome(){
+  $('list').innerHTML = batters.length ? batters.map(function(b, i){
+    return '<div class="card" data-i="' + i + '"><img src="' + b.photo + '" alt=""><b>' + esc(b.name) + '</b><button class="del" data-del="' + i + '">🗑️</button></div>';
+  }).join('') : '<div class="empty">No batters yet. Press 📸 New batter to take someone\'s picture, or use a photo you already have.</div>';
+}
+$('list').addEventListener('click', function(e){
+  var d = e.target.closest('[data-del]');
+  if (d) { var b = batters[+d.dataset.del]; if (confirm('Delete ' + b.name + '?')) { batters.splice(+d.dataset.del, 1); store(batters); renderHome(); } return; }
+  var c = e.target.closest('.card'); if (c) openBatter(+c.dataset.i);
+});
+$('newBtn').onclick = function(){ openCamera(); };
+
+// ---------- camera ----------
+var stream = null, facing = 'environment';
+function stopCam(){ if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; } }
+function openCamera(){
+  show('camera'); $('camNote').hidden = true; $('snapBtn').disabled = true;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return noCam();
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false }).then(function(s){
+    stream = s; $('video').srcObject = s; $('snapBtn').disabled = false;
+    $('video').classList.toggle('mirror', facing === 'user');
+  }).catch(noCam);
+}
+function noCam(){ $('camNote').hidden = false; $('camNote').textContent = 'The camera didn\'t open (it may need permission). You can press 🖼️ Pick a photo I already have.'; }
+$('flipBtn').onclick = function(){ facing = facing === 'user' ? 'environment' : 'user'; stopCam(); openCamera(); };
+$('camBack').onclick = function(){ show('home'); };
+$('snapBtn').onclick = function(){
+  var v = $('video'); if (!v.videoWidth) return;
+  $('flash').classList.add('on'); setTimeout(function(){ $('flash').classList.remove('on'); }, 60);
+  var c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+  var x = c.getContext('2d'); if (facing === 'user') { x.translate(c.width, 0); x.scale(-1, 1); }
+  x.drawImage(v, 0, 0); setTimeout(function(){ startSetup(shrink(c)); }, 250);
+};
+$('fileIn').onchange = $('fileIn2').onchange = function(){
+  var f = this.files[0]; if (!f) return; var img = new Image();
+  img.onload = function(){ startSetup(shrink(img)); URL.revokeObjectURL(img.src); };
+  img.src = URL.createObjectURL(f); this.value = '';
+};
+function shrink(src){ // keep photos small so lots of batters fit on the device
+  var w = src.naturalWidth || src.width, h = src.naturalHeight || src.height, k = Math.min(1, 800 / Math.max(w, h));
+  var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.82);
+}
+
+// ---------- setup: tap head, tap feet, zone appears ----------
+var S = null, editing = -1; // S = the batter being set up
+function startSetup(photo, existing){
+  editing = existing == null ? -1 : existing;
+  var b = existing == null ? null : batters[existing];
+  S = { photo: photo, img: new Image(), head: b ? b.head : null, feet: b ? b.feet : null, zone: b ? Object.assign({}, b.zone) : null };
+  $('nameIn').value = b ? b.name : ''; $('ftIn').value = b ? Math.floor(b.heightIn / 12) : 5; $('inIn').value = b ? b.heightIn % 12 : 0;
+  setBats(b ? b.bats : 'R');
+  S.img.onload = function(){ var c = $('setupCv'); c.width = S.img.width; c.height = S.img.height; drawSetup(); };
+  S.img.src = photo; show('setup');
+}
+function setBats(v){ [].forEach.call($('batsSeg').children, function(b){ b.classList.toggle('on', b.dataset.v === v); }); }
+function bats(){ return $('batsSeg').querySelector('.on').dataset.v; }
+$('batsSeg').onclick = function(e){ if (e.target.dataset.v) { e.preventDefault(); setBats(e.target.dataset.v); } };
+function heightIn(){ return Math.max(24, Math.min(90, (+$('ftIn').value || 0) * 12 + (+$('inIn').value || 0))); }
+function autoZone(){ // standing rulebook zone from the head/feet taps
+  var H = S.feet.y - S.head.y, ppi = H / heightIn(), cx = (S.head.x + S.feet.x) / 2;
+  var top = S.feet.y - 0.70 * H, bot = S.feet.y - 0.27 * H, w = PLATE * ppi;
+  S.zone = { x: cx - w / 2, y: top, w: w, h: bot - top };
+}
+$('ftIn').oninput = $('inIn').oninput = function(){ if (S && S.head && S.feet) { autoZone(); drawSetup(); } };
+$('retapBtn').onclick = function(){ S.head = S.feet = S.zone = null; drawSetup(); };
+$('setupBack').onclick = function(){ editing >= 0 ? openBatter(editing) : show('home'); };
+$('nameIn').oninput = function(){ drawSetup(); };
+
+function drawSetup(){
+  var c = $('setupCv'), x = c.getContext('2d');
+  x.drawImage(S.img, 0, 0, c.width, c.height);
+  var u = c.width / 600; // line size that looks the same on any photo
+  [S.head, S.feet].forEach(function(p){ if (!p) return; x.fillStyle = '#ffd84a'; x.beginPath(); x.arc(p.x, p.y, 7 * u, 0, 7); x.fill(); x.lineWidth = 2 * u; x.strokeStyle = '#000'; x.stroke(); });
+  if (S.zone) { drawPlate(x, S, u); drawZone(x, S.zone, u, null);
+    x.fillStyle = '#fff'; [[0,0],[1,0],[0,1],[1,1]].forEach(function(k){ x.fillRect(S.zone.x + k[0] * S.zone.w - 7 * u, S.zone.y + k[1] * S.zone.h - 7 * u, 14 * u, 14 * u); }); }
+  $('setupTip').textContent = !S.head ? '👆 Tap the TOP of their head' : !S.feet ? '👆 Now tap their FEET' : '✋ Drag the box to fix it. Then type their name and save.';
+  $('saveBtn').disabled = !(S.zone && $('nameIn').value.trim());
+}
+function pt(c, e){ var r = c.getBoundingClientRect(); return { x: (e.clientX - r.left) * c.width / r.width, y: (e.clientY - r.top) * c.height / r.height }; }
+var drag = null;
+$('setupCv').addEventListener('pointerdown', function(e){
+  var c = this, p = pt(c, e);
+  if (!S.head) { S.head = p; drawSetup(); return; }
+  if (!S.feet) { if (p.y <= S.head.y + 10) return; S.feet = p; autoZone(); drawSetup(); return; }
+  var z = S.zone, near = 26 * c.width / c.getBoundingClientRect().width, hit = null;
+  [[0,0],[1,0],[0,1],[1,1]].forEach(function(k){ if (Math.abs(p.x - (z.x + k[0] * z.w)) < near && Math.abs(p.y - (z.y + k[1] * z.h)) < near) hit = k; });
+  if (!hit && !(p.x > z.x && p.x < z.x + z.w && p.y > z.y && p.y < z.y + z.h)) return;
+  drag = { corner: hit, start: p, z: Object.assign({}, z) }; c.setPointerCapture(e.pointerId);
+});
+$('setupCv').addEventListener('pointermove', function(e){
+  if (!drag) return; var p = pt(this, e), dx = p.x - drag.start.x, dy = p.y - drag.start.y, o = drag.z, z = S.zone;
+  if (!drag.corner) { z.x = o.x + dx; z.y = o.y + dy; }
+  else {
+    var L = o.x, R = o.x + o.w, T = o.y, B = o.y + o.h;
+    if (drag.corner[0]) R += dx; else L += dx;
+    if (drag.corner[1]) B += dy; else T += dy;
+    if (R - L > 20 && B - T > 20) { z.x = L; z.w = R - L; z.y = T; z.h = B - T; }
+  }
+  drawSetup();
+});
+['pointerup','pointercancel'].forEach(function(t){ $('setupCv').addEventListener(t, function(){ drag = null; }); });
+$('saveBtn').onclick = function(){
+  var b = { name: $('nameIn').value.trim(), photo: S.photo, zone: S.zone, head: S.head, feet: S.feet, heightIn: heightIn(), bats: bats(), w: S.img.width, h: S.img.height };
+  if (editing >= 0) { b.pitches = batters[editing].pitches || []; batters[editing] = b; } else { b.pitches = []; batters.push(b); editing = batters.length - 1; }
+  if (store(batters)) { renderHome(); openBatter(editing); }
+};
+
+// ---------- drawing the zone ----------
+function drawZone(x, z, u, lit){
+  x.save();
+  x.fillStyle = lit === 'strike' ? 'rgba(62,224,122,.28)' : lit === 'ball' ? 'rgba(255,90,79,.10)' : 'rgba(255,255,255,.10)';
+  x.fillRect(z.x, z.y, z.w, z.h);
+  x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 1.2 * u;
+  for (var i = 1; i < 3; i++) { x.beginPath(); x.moveTo(z.x + z.w * i / 3, z.y); x.lineTo(z.x + z.w * i / 3, z.y + z.h); x.moveTo(z.x, z.y + z.h * i / 3); x.lineTo(z.x + z.w, z.y + z.h * i / 3); x.stroke(); }
+  x.strokeStyle = lit === 'strike' ? '#3ee07a' : '#fff'; x.lineWidth = 3.5 * u; x.shadowColor = 'rgba(0,0,0,.6)'; x.shadowBlur = 4 * u;
+  x.strokeRect(z.x, z.y, z.w, z.h); x.restore();
+}
+function drawPlate(x, b, u){ // home plate at their feet, as wide as the zone
+  if (!b.feet) return; var z = b.zone, cx = z.x + z.w / 2, y = b.feet.y, w = z.w, d = w * 0.18;
+  x.save(); x.fillStyle = 'rgba(255,255,255,.85)'; x.strokeStyle = 'rgba(0,0,0,.5)'; x.lineWidth = 1.5 * u;
+  x.beginPath(); x.moveTo(cx - w / 2, y - d); x.lineTo(cx + w / 2, y - d); x.lineTo(cx + w / 2, y); x.lineTo(cx, y + d); x.lineTo(cx - w / 2, y); x.closePath(); x.fill(); x.stroke(); x.restore();
+}
+function drawBall(x, px, py, r, u, a){
+  x.save(); x.globalAlpha = a == null ? 1 : a;
+  var g = x.createRadialGradient(px - r * .35, py - r * .35, r * .1, px, py, r); g.addColorStop(0, '#fff'); g.addColorStop(1, '#d9d4c7');
+  x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+  x.strokeStyle = '#c8322b'; x.lineWidth = Math.max(1, r * .12);
+  x.beginPath(); x.arc(px - r * 1.35, py, r * 1.0, -0.6, 0.6); x.stroke(); x.beginPath(); x.arc(px + r * 1.35, py, r * 1.0, Math.PI - 0.6, Math.PI + 0.6); x.stroke();
+  x.restore();
+}
+
+// ---------- at bat ----------
+var B = null, bi = -1, img = new Image(), last = null, busy = false, aiming = false;
+var TYPES = {
+  Fastball:  { mph: [88, 97], brk: [0.0, -0.08], spread: [9, 11] },
+  Sinker:    { mph: [86, 94], brk: [0.10, 0.22], spread: [9, 10] },
+  Curveball: { mph: [72, 80], brk: [-0.10, 0.45], spread: [10, 13] },
+  Slider:    { mph: [80, 88], brk: [-0.35, 0.12], spread: [11, 10] },
+  Changeup:  { mph: [78, 86], brk: [0.14, 0.20], spread: [9, 11] }
+};
+function openBatter(i){
+  bi = i; B = batters[i]; B.pitches = B.pitches || []; last = null;
+  $('abName').textContent = '🧍 ' + B.name + (B.bats === 'L' ? ' · bats left' : ' · bats right');
+  img.onload = function(){ var c = $('cv'); c.width = img.width; c.height = img.height; drawScene(null); };
+  img.src = B.photo; show('atbat'); renderSide(); $('result').innerHTML = '<div class="more">Press ⚾ Pitch! to throw one. You\'ll see the pitch come in, and exactly where it crossed the plate.</div>';
+  $('replayBtn').disabled = $('saveVidBtn').disabled = true;
+}
+$('abBack').onclick = function(){ if (!busy) { renderHome(); show('home'); } };
+$('editBtn').onclick = function(){ if (!busy) startSetup(B.photo, bi); };
+$('clearBtn').onclick = function(){ if (busy) return; B.pitches = []; store(batters); last = null; renderSide(); drawScene(null); $('result').innerHTML = '<div class="more">New at-bat! 0 balls, 0 strikes.</div>'; };
+
+function atbatCount(){ // balls/strikes in the at-bat that's going on now (it starts over after a walk or strikeout)
+  var b = 0, s = 0; B.pitches.forEach(function(p){ if (p.strike) s++; else b++; if (p.end) b = s = 0; });
+  return { b: b, s: s };
+}
+function renderSide(){
+  var k = atbatCount(), dots = function(n, m){ var h = ''; for (var i = 0; i < m; i++) h += '<i class="' + (i < n ? 'on' : '') + '"></i>'; return h; };
+  $('count').innerHTML = '<span class="b">BALLS ' + dots(k.b, 3) + '</span><span class="s">STRIKES ' + dots(k.s, 2) + '</span><span>PITCHES ' + B.pitches.length + '</span>';
+  $('log').innerHTML = B.pitches.slice().reverse().map(function(p, i){
+    return '<div><span class="k ' + (p.strike ? 'strike' : 'ball') + '">' + (p.strike ? 'STRIKE' : 'BALL') + '</span><span>#' + (B.pitches.length - i) + ' ' + p.type + ' ' + p.mph + ' mph · ' + esc(p.where) + (p.end ? ' · <b>' + p.end + '</b>' : '') + '</span></div>';
+  }).join('');
+}
+function drawScene(lit){
+  var c = $('cv'), x = c.getContext('2d'), u = c.width / 600;
+  x.drawImage(img, 0, 0, c.width, c.height); drawPlate(x, B, u); drawZone(x, B.zone, u, lit);
+  B.pitches.forEach(function(p, i){ // older pitches = small dots
+    if (p === last) return; var ppi = B.zone.w / PLATE;
+    var px = B.zone.x + B.zone.w / 2 + p.ix * ppi, py = B.zone.y + B.zone.h / 2 - p.iy * ppi;
+    x.fillStyle = p.strike ? 'rgba(62,224,122,.85)' : 'rgba(255,90,79,.85)'; x.beginPath(); x.arc(px, py, BALL_R * ppi * .55, 0, 7); x.fill();
+  });
+}
+
+// where a pitch is, in inches from the middle of the zone (right = +x, up = +y, as seen in the picture)
+function judge(ix, iy){
+  var hw = PLATE / 2, hh = (B.zone.h / (B.zone.w / PLATE)) / 2;
+  var dx = Math.max(0, Math.abs(ix) - hw), dy = Math.max(0, Math.abs(iy) - hh);
+  var strike = dx * dx + dy * dy <= BALL_R * BALL_R;
+  var inside = (ix > 0) === (B.bats === 'R'); // a righty stands on the right side of the picture
+  var side = inside ? 'inside' : 'outside', updown = iy > 0 ? 'high' : 'low';
+  var gx = Math.max(0, dx - BALL_R), gy = Math.max(0, dy - BALL_R), where;
+  if (strike) {
+    var col = Math.abs(ix) < hw / 3 ? 'middle' : side, row = Math.abs(iy) < hh / 3 ? 'middle' : updown;
+    where = (dx > 0 || dy > 0) ? 'on the edge, ' + (dy > 0 ? updown : '') + (dx > 0 && dy > 0 ? ' and ' : '') + (dx > 0 ? side : '') + ' (it just touched the zone)'
+          : col === 'middle' && row === 'middle' ? 'right down the middle!' : (row === 'middle' ? '' : row) + (row !== 'middle' && col !== 'middle' ? ' and ' : '') + (col === 'middle' ? '' : col) + (row === 'middle' ? ', middle height' : col === 'middle' ? ', middle of the plate' : ' corner');
+  } else {
+    var parts = []; if (gy > 0.05) parts.push(r1(gy) + ' in ' + updown); if (gx > 0.05) parts.push(r1(gx) + ' in ' + side);
+    where = parts.length ? parts.join(' and ') : 'just missed the corner by ' + r1(Math.sqrt(dx * dx + dy * dy) - BALL_R) + ' in';
+  }
+  return { strike: strike, where: where };
+}
+function r1(n){ return (Math.round(n * 10) / 10).toFixed(1); }
+function ftin(n){ n = Math.round(n); return Math.floor(n / 12) + ' ft ' + (n % 12) + ' in'; }
+function gauss(){ return (Math.random() + Math.random() + Math.random() - 1.5) / 0.5; }
+
+function newPitch(aimAt){
+  var t = $('typeSel').value; if (t === 'any') { var ks = Object.keys(TYPES); t = ks[Math.floor(Math.random() * ks.length)]; }
+  var T = TYPES[t], ix, iy, ppi = B.zone.w / PLATE;
+  if (aimAt) { ix = (aimAt.x - (B.zone.x + B.zone.w / 2)) / ppi; iy = ((B.zone.y + B.zone.h / 2) - aimAt.y) / ppi; }
+  else { ix = gauss() * T.spread[0] * 0.8; iy = gauss() * T.spread[1] * 0.8 - (t === 'Curveball' || t === 'Sinker' ? 3 : 0); }
+  var j = judge(ix, iy), mph = Math.round(T.mph[0] + Math.random() * (T.mph[1] - T.mph[0]));
+  var ground = B.feet ? (B.feet.y - (B.zone.y + B.zone.h / 2)) / ppi + iy : null;
+  var more = 'Middle of the plate to the ball: ' + r1(Math.abs(ix)) + ' in to the ' + (ix >= 0 ? 'right' : 'left') + (ground != null ? ' · Height off the ground: ' + ftin(ground) : '');
+  return { type: t, mph: mph, ix: ix, iy: iy, strike: j.strike, where: j.where, more: more, brk: T.brk };
+}
+function throwPitch(aimAt){
+  if (busy) return; var p = newPitch(aimAt);
+  var k = atbatCount();
+  if (p.strike && k.s === 2) p.end = 'STRIKEOUT 🔥'; else if (!p.strike && k.b === 3) p.end = 'WALK 🚶';
+  B.pitches.push(p);
+  store(batters); last = p; play(p, null);
+}
+$('pitchBtn').onclick = function(){ aiming = false; $('abTip').hidden = true; throwPitch(null); };
+$('aimBtn').onclick = function(){ if (busy) return; aiming = !aiming; $('abTip').hidden = !aiming; };
+$('cv').addEventListener('pointerdown', function(e){ if (!aiming || busy) return; aiming = false; $('abTip').hidden = true; throwPitch(pt(this, e)); });
+$('replayBtn').onclick = function(){ if (last && !busy) play(last, null); };
+$('saveVidBtn').onclick = function(){
+  if (!last || busy) return; var c = $('cv');
+  if (!c.captureStream || !window.MediaRecorder) return alert('This browser can\'t save videos.');
+  var type = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm'].filter(function(t){ return MediaRecorder.isTypeSupported(t); })[0];
+  var rec = new MediaRecorder(c.captureStream(30), type ? { mimeType: type } : undefined), chunks = [];
+  rec.ondataavailable = function(e){ if (e.data.size) chunks.push(e.data); };
+  rec.onstop = function(){ var blob = new Blob(chunks, { type: rec.mimeType }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = B.name.replace(/\W+/g, '-') + '-pitch-' + (B.pitches.indexOf(last) + 1) + (/mp4/.test(rec.mimeType) ? '.mp4' : '.webm'); a.click(); };
+  rec.start(); play(last, function(){ setTimeout(function(){ rec.stop(); }, 1200); });
+};
+
+// ---------- the pitch video ----------
+function play(p, done){
+  busy = true; ['pitchBtn','aimBtn','replayBtn','saveVidBtn'].forEach(function(b){ $(b).disabled = true; });
+  $('result').innerHTML = '<div class="more">⚾ Here it comes…</div>';
+  var c = $('cv'), x = c.getContext('2d'), u = c.width / 600, z = B.zone, ppi = z.w / PLATE;
+  var tx = z.x + z.w / 2 + p.ix * ppi, ty = z.y + z.h / 2 - p.iy * ppi, R = BALL_R * ppi;
+  var sx = c.width * 0.64, sy = c.height * 0.58, S0 = Math.max(2, Math.min(c.width, c.height) * 0.08 / R); // starts close to the camera (the pitcher's hand)
+  var bx = p.brk[0] * z.w * (B.bats === 'L' ? -1 : 1), by = p.brk[1] * z.h;  // how much it moves (breaks) on the way
+  var INTRO = 700, FLY = 400 + 900 * (100 / p.mph), HOLD = 900, t0 = null, trail = [];
+  function label(txt, y, col, size){ x.save(); x.font = '900 ' + size * u + 'px Helvetica Neue, Arial, sans-serif'; x.textAlign = 'center';
+    x.lineWidth = size * u / 5; x.strokeStyle = 'rgba(0,0,0,.75)'; x.strokeText(txt, c.width / 2, y); x.fillStyle = col; x.fillText(txt, c.width / 2, y); x.restore(); }
+  function frame(now){
+    if (t0 == null) t0 = now; var t = now - t0;
+    drawScene(t > INTRO + FLY ? (p.strike ? 'strike' : 'ball') : null);
+    x.save(); x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, 0, c.width, 34 * u);
+    x.font = '800 ' + 17 * u + 'px Helvetica Neue, Arial, sans-serif'; x.fillStyle = '#ffd84a'; x.textBaseline = 'middle';
+    x.fillText('⚾ #' + (B.pitches.indexOf(p) + 1) + ' ' + p.type + ' · ' + p.mph + ' mph', 10 * u, 17 * u);
+    x.textAlign = 'right'; x.fillStyle = '#fff'; x.fillText(t < INTRO + FLY ? 'SLOW MO 🎥' : B.name, c.width - 10 * u, 17 * u); x.restore();
+    if (t < INTRO) { label('Pitch coming…', c.height * 0.5, '#fff', 30); }
+    else if (t < INTRO + FLY) {
+      var k = (t - INTRO) / FLY, e = 1 - Math.pow(1 - k, 1.6);
+      var px = sx + (tx - bx - sx) * e + bx * k * k, py = sy + (ty - by - sy) * e + by * k * k, r = R * (S0 + (1 - S0) * e);
+      trail.push([px, py, r]); if (trail.length > 7) trail.shift();
+      trail.forEach(function(q, i){ drawBall(x, q[0], q[1], q[2], u, (i + 1) / trail.length * 0.25); });
+      x.save(); x.fillStyle = 'rgba(0,0,0,.25)'; x.beginPath(); x.ellipse(px, py + r * 1.8, r, r * 0.3, 0, 0, 7); x.fill(); x.restore();
+      drawBall(x, px, py, r, u);
+    } else {
+      var a = Math.min(1, (t - INTRO - FLY) / 250);
+      x.save(); x.strokeStyle = p.strike ? '#3ee07a' : '#ff5a4f'; x.lineWidth = 4 * u; x.globalAlpha = 1 - a * .5;
+      x.beginPath(); x.arc(tx, ty, R * (1 + a * 1.6), 0, 7); x.stroke(); x.restore();
+      if (!p.strike) { // dashed line from the ball to the nearest edge of the zone
+        var nx = Math.max(z.x, Math.min(z.x + z.w, tx)), ny = Math.max(z.y, Math.min(z.y + z.h, ty));
+        x.save(); x.setLineDash([6 * u, 5 * u]); x.strokeStyle = '#fff'; x.lineWidth = 2.5 * u; x.beginPath(); x.moveTo(nx, ny); x.lineTo(tx, ty); x.stroke(); x.restore();
+      }
+      drawBall(x, tx, ty, R, u);
+      x.save(); x.strokeStyle = '#000'; x.lineWidth = 1.5 * u; x.beginPath(); x.moveTo(tx - R * 1.8, ty); x.lineTo(tx + R * 1.8, ty); x.moveTo(tx, ty - R * 1.8); x.lineTo(tx, ty + R * 1.8); x.stroke(); x.restore();
+      label(p.strike ? 'STRIKE!' : 'BALL', Math.min(c.height - 20 * u, Math.max(z.y + z.h + 60 * u, c.height * 0.88)), p.strike ? '#3ee07a' : '#ff5a4f', 52);
+      if (p.end && t > INTRO + FLY + 400) label(p.end, c.height * 0.5, '#ffd84a', 48);
+    }
+    if (t < INTRO + FLY + HOLD) requestAnimationFrame(frame); else finish();
+  }
+  function finish(){
+    busy = false; ['pitchBtn','aimBtn','replayBtn','saveVidBtn'].forEach(function(b){ $(b).disabled = false; });
+    $('result').innerHTML = '<div class="call ' + (p.strike ? 'strike' : 'ball') + '">' + (p.strike ? 'STRIKE' : 'BALL') + (p.end ? ' · ' + p.end : '') + '</div>' +
+      '<div class="where">📍 ' + esc(p.where) + '</div><div class="more">' + p.type + ', ' + p.mph + ' mph<br>' + esc(p.more) + '</div>';
+    renderSide(); if (done) done();
+  }
+  requestAnimationFrame(frame);
+}
+
+renderHome();
+})();
+</script>
+<!-- App Arcade ads + clock + store (shared, from github.com/cmadisons/app-arcade) -->
+<script src="https://cmadisons.github.io/app-arcade/app-ads.js" data-app="strikezone" defer></script>
+</body>
+</html>

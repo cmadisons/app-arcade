@@ -21,7 +21,7 @@
   .wrap { max-width: 860px; margin: 0 auto; padding: 18px 16px 30px; }
   h1 { color:#5a3417; margin: 8px 0 16px; font-size: 30px; line-height:1.15; }
   .home h1 { text-align:center; }
-  .names { list-style:none; padding:0; margin:0; display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:14px; }
+  .names { list-style:none; padding:0; margin:0; display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:14px; }
   .names a { aspect-ratio: 1 / 1; display:flex; align-items:center; justify-content:center; text-align:center; padding:14px;
              text-decoration:none; font-size:22px; font-weight:700; line-height:1.2; background: var(--hdr); color: var(--hdr-fg);
              border: 3px solid rgba(0,0,0,.12); }
@@ -148,6 +148,14 @@
   .names .lock a { background: repeating-linear-gradient(45deg, #7b3fb8 0 14px, #6a2fa0 14px 28px); }
   .names .soon a { background:#b89ad8; cursor: default; }
   .names a { flex-direction: column; }
+  .home h2.cat { color:#5a3417; font-size: 20px; margin: 22px 0 10px; padding-bottom: 4px; border-bottom: 3px solid #ecd3b5; }
+  .home h2.cat:first-of-type { margin-top: 42px; }
+  .prem-on .home h2.cat:first-of-type { margin-top: 6px; }
+  .home .catempty { color:#8a6a50; margin: 0 0 6px; }
+  .home .catempty a { color:#5a3417; font-weight: 700; }
+  .home .names { margin-top: 0 !important; }
+  .nrcat { font-weight: 700; color:#5a3417; }
+  .nrcat select { font: inherit; padding: 4px 8px; border: 2px solid #5a3417; background:#fff; }
   .t-shared { --accent:#3f8f5a; --accent-dark:#2e6b43; --soft:#eaf6ee; --line:#bfe0c9; --hdr:#3f8f5a; --hdr-fg:#fff; }
   .t-mine { --accent:#2f7fc0; --accent-dark:#1f5f95; --soft:#e8f2fb; --line:#bcd8f0; --hdr:#2f7fc0; --hdr-fg:#fff; }
   .t-new { --accent:#5a3417; --accent-dark:#5a3417; --soft:#fbf1e4; --line:#ecd3b5; --hdr:#fffaf4; --hdr-fg:#5a3417; }
@@ -304,7 +312,7 @@ var SITE = 'https://cmadisons.github.io/app-arcade/';
 function esc(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
 // a square recipe object -> the same shape as DATA (everything escaped, it's typed by people)
 function toData(r, theme, badge){
-  return { id: r.id, theme: theme, title: esc(r.title), makes: esc(r.makes || ''), badge: badge,
+  return { id: r.id, theme: theme, title: esc(r.title), makes: esc(r.makes || ''), badge: badge, category: CATS.some(function(c){ return c[0] === r.category; }) ? r.category : guessCat(r.title, (r.items || []).map(function(it){ return it.name; })),
     items: (r.items || []).map(function(it){
       var uses = (it.uses || []).map(function(u){ return (u.step ? '<span class="step">' + esc(u.step) + '</span> ' : '') + esc(u.text); }).join(' ');
       return [esc(it.name), esc(it.amount), uses, !!it.optional];
@@ -376,6 +384,20 @@ function squareFromText(txt){
   return { title: (title || 'My recipe').slice(0, 80), makes: makes.slice(0, 60), items: out.slice(0, 60), stepCount: steps.length };
 }
 var app = document.getElementById('app'), scroller = document.getElementById('scroller');
+// Home screen sections, in this order
+var CATS = [['chicken', '🍗 Chicken'], ['beef', '🥩 Beef'], ['pork', '🐖 Pork'], ['pasta', '🍝 Pasta'], ['dessert', '🍰 Dessert'], ['other', '🍽️ Other']];
+var CAT_OF = { cookies: 'dessert', muffins: 'dessert', pasta: 'pasta', lemonade: 'other', 'strawberry-lemonade': 'other', porridge: 'other' };
+// a new recipe's section, guessed from its name first, then its ingredients
+function guessCat(title, names){
+  var tests = [['chicken', /\bchicken\b/], ['beef', /\b(beef|steak|hamburgers?|burgers?|meatballs?|brisket)\b/], ['pork', /\b(pork|bacon|ham|sausages?|chorizo|prosciutto|pepperoni)\b/],
+    ['pasta', /\b(pasta|spaghetti|noodles?|macaroni|penne|lasagna|fettuccine|linguine|ravioli|rigatoni)\b/],
+    ['dessert', /\b(cookies?|cakes?|cupcakes?|brownies?|muffins?|pies?|desserts?|pudding|fudge|candy|ice cream|frosting|cheesecake|tart|crisp|cobbler)\b/]];
+  var t = String(title || '').toLowerCase(), n = (names || []).join(' ').toLowerCase();
+  for (var k = 0; k < tests.length; k++) if (tests[k][1].test(t)) return tests[k][0];
+  for (var j = 0; j < tests.length - 1; j++) if (tests[j][1].test(n)) return tests[j][0];   // ingredients never make it a dessert
+  return 'other';
+}
+function catOf(x){ return x.category || CAT_OF[x.id] || 'other'; }
 function route(){
   var id = location.hash.replace('#', '');
   var prem = typeof premium === 'function' && premium(), monthly = monthlyNow();
@@ -385,15 +407,16 @@ function route(){
   if (!r) {
     document.title = 'Square Recipe Box';
     app.className = 'wrap home';
-    var extra;
-    if (!prem) extra = '<li class="t-prem lock"><a href="#" data-shop="1">🔒 Premium recipes<span class="newbadge">💎 Premium</span></a></li>';
-    else if (!monthly.length) extra = '<li class="t-prem soon"><a href="#" onclick="return false">New recipes coming soon<span class="newbadge">💎 Premium</span></a></li>';
-    else extra = monthly.map(function(x){ return '<li class="t-prem"><a href="#' + x.id + '">' + x.title + '<span class="newbadge">' + (x.month === thisMonth() ? '💎 New this month' : '💎 Premium') + '</span></a></li>'; }).join('');
-    app.innerHTML = '<h1>▢ Square Recipe Box</h1><ul class="names">' + DATA.map(function(x){
-      return '<li class="t-' + x.theme + '"><a href="#' + x.id + '">' + x.title + '</a></li>';
-    }).join('') + extra + mine.concat(shared).map(function(x){
-      return '<li class="t-' + x.theme + '"><a href="#' + x.id + '">' + x.title + '<span class="newbadge">' + x.badge + '</span></a></li>';
-    }).join('') + '<li class="t-new"><a href="#new">➕ New recipe<span class="newbadge">Paste any recipe</span></a></li></ul>';
+    var all = DATA.map(function(x){ return { x: x, html: '<li class="t-' + x.theme + '"><a href="#' + x.id + '">' + x.title + '</a></li>' }; })
+      .concat((prem ? monthly : []).map(function(x){ return { x: x, html: '<li class="t-prem"><a href="#' + x.id + '">' + x.title + '<span class="newbadge">' + (x.month === thisMonth() ? '💎 New this month' : '💎 Premium') + '</span></a></li>' }; }))
+      .concat(mine.concat(shared).map(function(x){ return { x: x, html: '<li class="t-' + x.theme + '"><a href="#' + x.id + '">' + x.title + '<span class="newbadge">' + x.badge + '</span></a></li>' }; }));
+    var locked = prem ? (monthly.length ? '' : '<li class="t-prem soon"><a href="#" onclick="return false">New recipes coming soon<span class="newbadge">💎 Premium</span></a></li>')
+                      : '<li class="t-prem lock"><a href="#" data-shop="1">🔒 Premium recipes<span class="newbadge">💎 Premium</span></a></li>';
+    app.innerHTML = '<h1>▢ Square Recipe Box</h1>' + CATS.map(function(c){
+      var here = all.filter(function(o){ return catOf(o.x) === c[0]; });
+      return '<h2 class="cat">' + c[1] + '</h2>' + (here.length ? '<ul class="names">' + here.map(function(o){ return o.html; }).join('') + '</ul>'
+        : '<p class="catempty">No recipes yet. <a href="#new">➕ Add one</a></p>');
+    }).join('') + '<h2 class="cat">➕ More</h2><ul class="names">' + locked + '<li class="t-new"><a href="#new">➕ New recipe<span class="newbadge">Paste any recipe</span></a></li></ul>';
     var lk = app.querySelector('[data-shop]');
     if (lk) lk.addEventListener('click', function(e){ e.preventDefault(); paintShop(); shop.hidden = false; });
   } else {
@@ -430,15 +453,16 @@ function newRecipeScreen(){
     out.innerHTML = '<h2 class="nrh">Preview</h2><h1 class="nrprev">' + d.title + '<span class="makes">' + d.makes + '</span></h1>' +
       '<table><tr><th>Ingredient</th><th>What you do with it</th></tr>' + d.items.map(function(it){
         return '<tr><td class="ing"><b>' + it[0] + '</b><span class="amt">' + it[1] + '</span>' + (it[3] ? '<br><span class="opt">Optional</span>' : '') + '</td><td>' + it[2] + '</td></tr>'; }).join('') + '</table>' +
+      '<p class="nrcat">Section: <select id="nrCat">' + CATS.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === guessCat(r.title, r.items.map(function(it){ return it.name; })) ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></p>' +
       '<div class="nrbtns"><button type="button" class="nrgo" id="nrShare">👥 Share with everyone</button><button type="button" id="nrMine">⭐ Save just for me</button></div>' +
       '<p class="nrmsg">Sharing opens GitHub with your recipe filled in (you need a free GitHub account). Press <b>Submit</b> there, and a robot adds it to the Square Recipe Box for everyone in about a minute.</p>';
     document.getElementById('nrMine').addEventListener('click', function(){
-      r.id = 'm-' + Date.now().toString(36); delete r.stepCount; saveMine(r);
+      r.id = 'm-' + Date.now().toString(36); r.category = document.getElementById('nrCat').value; delete r.stepCount; saveMine(r);
       try { sessionStorage.removeItem('squarebox:draft'); } catch(e){}
       location.hash = r.id;
     });
     document.getElementById('nrShare').addEventListener('click', function(){
-      var body = 'Please add my square recipe to the Square Recipe Box.\n\n```json\n' + JSON.stringify({ title: r.title, makes: r.makes, items: r.items }, null, 1) + '\n```\n';
+      var body = 'Please add my square recipe to the Square Recipe Box.\n\n```json\n' + JSON.stringify({ title: r.title, makes: r.makes, category: document.getElementById('nrCat').value, items: r.items }, null, 1) + '\n```\n';
       var url = 'https://github.com/' + REPO + '/issues/new?title=' + encodeURIComponent('Recipe: ' + r.title) + '&body=' + encodeURIComponent(body);
       window.open(url, '_blank', 'noopener');
       out.querySelector('.nrmsg').innerHTML = '✅ GitHub opened in a new tab. Press <b>Submit new issue</b> there. Your recipe shows up here for everyone in about a minute (reload the page).';

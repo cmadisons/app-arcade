@@ -244,7 +244,6 @@
     { id:'hedgehog', title:'Whack-a-Hedgehog', text:'How fast can you whack them? Catch Sonic for a reward.', bg:'#4f7a1a', fg:'#fff', video: V + 'hedgehog.webm', len: 57 },
     { id:'walkup', title:'Walk Up Songs', text:'Every player, and the song they walk up to.', bg:'#7b3fa0', fg:'#fff', video: V + 'walkup.webm', len: 57 },
     { id:'lego', title:'LEGO Pic', text:'Drop in a photo and get it back as LEGO bricks.', bg:'#d62d20', fg:'#fff', video: V + 'lego.webm', len: 53 },
-    { id:'strikezone', title:'Strike Zone Cam', text:'Take a picture of a batter, get their strike zone, and see exactly where every pitch goes.', bg:'#14532d', fg:'#ffd84a', video: V + 'strikezone.webm', len: 57 },
     { id:'ship', title:'Ship Life', bg:'#101a33', fg:'#ffd84a', slides: SHIP, len: 60 },
     { id:'zelda', title:'Zelda BOTW', bg:'#0f2a2a', fg:'#e8d9a0', slides: ZELDA, len: 60 }
   ].filter(function(a){ return a.id !== APP; });

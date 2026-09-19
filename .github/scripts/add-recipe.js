@@ -29,7 +29,7 @@ if (list.some(x => x.issue === issue.number)) fail('This recipe was already adde
 const base = 'u-' + (title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'recipe');
 let id = base, n = 2;
 while (list.some(x => x.id === id)) id = base + '-' + n++;
-const CATS = ['chicken', 'beef', 'pork', 'pasta', 'dessert', 'other'];
+const CATS = ['chicken', 'beef', 'pork', 'pasta', 'drinks', 'dessert', 'other'];
 list.push({ id, title, makes: txt(r.makes, 60), category: CATS.includes(r.category) ? r.category : 'other', items, by: '@' + issue.user.login, issue: issue.number, added: new Date().toISOString().slice(0, 10) });
 fs.writeFileSync(file, 'window.SHARED_RECIPES = ' + JSON.stringify(list, null, 1) + ';\n');
 out('ok', 'yes'); out('title', title); out('id', id);

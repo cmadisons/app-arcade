@@ -385,12 +385,13 @@ function squareFromText(txt){
 }
 var app = document.getElementById('app'), scroller = document.getElementById('scroller');
 // Home screen sections, in this order
-var CATS = [['chicken', '🍗 Chicken'], ['beef', '🥩 Beef'], ['pork', '🐖 Pork'], ['pasta', '🍝 Pasta'], ['dessert', '🍰 Dessert'], ['other', '🍽️ Other']];
-var CAT_OF = { cookies: 'dessert', muffins: 'dessert', pasta: 'pasta', lemonade: 'other', 'strawberry-lemonade': 'other', porridge: 'other' };
+var CATS = [['chicken', '🍗 Chicken'], ['beef', '🥩 Beef'], ['pork', '🐖 Pork'], ['pasta', '🍝 Pasta'], ['drinks', '🥤 Drinks'], ['dessert', '🍰 Dessert'], ['other', '🍽️ Other']];
+var CAT_OF = { cookies: 'dessert', muffins: 'dessert', pasta: 'pasta', lemonade: 'drinks', 'strawberry-lemonade': 'drinks', porridge: 'other' };
 // a new recipe's section, guessed from its name first, then its ingredients
 function guessCat(title, names){
   var tests = [['chicken', /\bchicken\b/], ['beef', /\b(beef|steak|hamburgers?|burgers?|meatballs?|brisket)\b/], ['pork', /\b(pork|bacon|ham|sausages?|chorizo|prosciutto|pepperoni)\b/],
     ['pasta', /\b(pasta|spaghetti|noodles?|macaroni|penne|lasagna|fettuccine|linguine|ravioli|rigatoni)\b/],
+    ['drinks', /\b(lemonade|smoothies?|juice|tea|milkshakes?|shakes?|punch|soda|drinks?|latte|cocoa|hot chocolate|slushies?|limeade)\b/],
     ['dessert', /\b(cookies?|cakes?|cupcakes?|brownies?|muffins?|pies?|desserts?|pudding|fudge|candy|ice cream|frosting|cheesecake|tart|crisp|cobbler)\b/]];
   var t = String(title || '').toLowerCase(), n = (names || []).join(' ').toLowerCase();
   for (var k = 0; k < tests.length; k++) if (tests[k][1].test(t)) return tests[k][0];

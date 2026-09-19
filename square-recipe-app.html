@@ -163,6 +163,7 @@
   .prem-on .home h1 { padding-left: 0; padding-right: 0; }
   .prem-on .recipe h1 { margin-right: 0; }
   .prem-on .home .names { margin-top: 18px; }
+  .shop .turnoff { margin-top: 8px; border: 2px solid #8a6a50; background:#fff; color:#8a6a50; font-weight:700; padding: 5px 10px; }
   .shop .status { margin-top: 14px; padding: 10px 12px; background:#eef5ea; border-left: 4px solid #5b8c4a; font-weight:700; color:#3f6b31; }
   .shop .test { margin-top: 12px; font-size: 12.5px; color:#8a6a50; background:#fbf1e4; padding: 8px 10px; }
   @media (max-width: 640px) { .plans { grid-template-columns: 1fr; } .upg { font-size: 11px; padding: 2px 7px; } .adtimer { justify-content:flex-start; padding-left: 10px; } }
@@ -192,7 +193,7 @@
   <div class="plan prem"><b>1 month</b><div class="price">$3<small>/month</small></div><div class="save"></div><button type="button" data-buy="pmonth">Get 1 month</button></div>
   <div class="plan prem best"><b>1 year</b><div class="price">$30<small>/year</small></div><div class="save">Save $6 (2 months free)</div><button type="button" data-buy="pyear">Get 1 year</button></div>
 </div>
-<div class="status" id="upgStatus" hidden></div>
+<div class="status" id="upgStatus" hidden></div><button type="button" class="turnoff" id="upgOff" hidden>Turn off my ⭐ / 💎 and go back to normal</button>
 <div class="test" id="upgTest">🧪 <b>Test mode.</b> Buying gives you the upgrade on this device without charging anything. To charge real money, paste your Stripe Payment Links into <code>PAY</code> in this file.</div>
 </div></div></div>
 <script>
@@ -679,6 +680,11 @@ var PLANS = { month: { key: 'upgradeUntil', days: 31 }, year: { key: 'upgradeUnt
               pmonth: { key: 'premiumUntil', days: 30 }, pyear: { key: 'premiumUntil', days: 366 } };
 function until(k){ try { return +localStorage.getItem('squarebox:' + k) || 0; } catch(e){ return 0; } }
 function premium(){ return until('premiumUntil') > Date.now(); }
+// Reset switch: bump STORE_RESET to take away everyone's ⭐/💎 (only test-mode ones exist so far).
+var STORE_RESET = 1;
+(function(){ try { if (+localStorage.getItem('squarebox:storeReset') !== STORE_RESET) {
+  localStorage.removeItem('squarebox:upgradeUntil'); localStorage.removeItem('squarebox:premiumUntil');
+  localStorage.setItem('squarebox:storeReset', String(STORE_RESET)); } } catch(e){} })();
 var UPG_KEY = 'squarebox:upgradeUntil';
 function upgradeUntil(){ try { return +localStorage.getItem(UPG_KEY) || 0; } catch(e){ return 0; } }
 function upgraded(){ return upgradeUntil() > Date.now(); }
@@ -752,7 +758,7 @@ var shop = document.getElementById('shop');
 function fmtDate(t){ return new Date(t).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }); }
 function paintShop(){
   var on = upgraded(), pr = premium(), st = document.getElementById('upgStatus'), b = document.getElementById('upgBtn');
-  st.hidden = !on && !pr;
+  st.hidden = !on && !pr; document.getElementById('upgOff').hidden = !on && !pr;
   if (pr) st.textContent = '💎 Premium until ' + fmtDate(until('premiumUntil')) + ': no ads, and all the Premium recipes are on the home screen. Buying again adds more time.';
   else if (on) st.textContent = '✅ Upgraded until ' + fmtDate(upgradeUntil()) + '. Ads come every 5 minutes. Buying again adds more time.';
   b.textContent = pr ? '💎 Premium' : on ? '⭐ Upgraded' : '⭐ Upgrade'; b.classList.toggle('on', on || pr);
@@ -769,6 +775,12 @@ function grant(plan){
 }
 document.getElementById('upgBtn').addEventListener('click', function(){ paintShop(); shop.hidden = false; });
 document.getElementById('shopClose').addEventListener('click', function(){ shop.hidden = true; });
+document.getElementById('upgOff').addEventListener('click', function(){
+  try { localStorage.removeItem('squarebox:upgradeUntil'); localStorage.removeItem('squarebox:premiumUntil'); } catch(e){}
+  if (waitTotal > AD_EVERY) { nextAt -= waitTotal - AD_EVERY; waitTotal = AD_EVERY; }   // back to 3 minutes
+  if (nextAt < Date.now()) { nextAt = Date.now() + AD_EVERY; waitTotal = AD_EVERY; }   // no surprise ad right away
+  paintShop(); tickTimer(); route();
+});
 shop.addEventListener('click', function(e){
   if (e.target === shop) { shop.hidden = true; return; }
   var b = e.target.closest('[data-buy]'); if (!b) return;

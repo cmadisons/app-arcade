@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ad Builder</title>
+<meta name="theme-color" content="#120a24">
+<meta name="description" content="Describe an ad. Thirty seconds later it is made, and it plays.">
+<style>
+  /* The arcade's look: dark purple, neon, hard shadows, no rounded corners. */
+  :root { --bg:#120a24; --panel:#1e1238; --ink:#fff4d6; --dim:#b9a8d9; --neon:#ffd84a; --pink:#ff4fa0; --cyan:#4de8ff; --line:#5a3a8a; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background: radial-gradient(circle at 50% -10%, #3a1a6a 0, var(--bg) 60%) fixed;
+         color: var(--ink); font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 22px 16px 60px; }
+  h1 { margin: 6px 0 2px; text-align:center; font-size: clamp(30px, 7vw, 50px); letter-spacing: 2px; color: var(--neon);
+       text-shadow: 0 0 6px rgba(255,216,74,.8), 0 0 22px rgba(255,79,160,.6); }
+  .sub { text-align:center; color: var(--dim); margin: 0 0 20px; font-size: 15px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: var(--cyan); margin: 24px 0 10px;
+       border-bottom: 2px solid rgba(77,232,255,.3); padding-bottom: 6px; }
+  .panel { background: var(--panel); border: 3px solid var(--line); box-shadow: 6px 6px 0 rgba(0,0,0,.45); padding: 16px; }
+
+  /* ---- the describe box ---- */
+  textarea { width:100%; min-height: 120px; resize: vertical; background:#0d0718; color: var(--ink); border: 3px solid var(--line);
+             font: 16px/1.45 "Helvetica Neue", Arial, sans-serif; padding: 12px; }
+  textarea:focus { outline:none; border-color: var(--cyan); box-shadow: 0 0 14px rgba(77,232,255,.35); }
+  .hint { color: var(--dim); font-size: 13px; margin: 8px 0 0; line-height:1.5; }
+  .chips { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
+  .chip { border:2px solid var(--line); background:#0d0718; color: var(--ink); font: 700 13px "Helvetica Neue", Arial, sans-serif;
+          padding: 5px 10px; cursor:pointer; display:flex; align-items:center; gap:6px; }
+  .chip:hover { border-color: var(--c, var(--cyan)); box-shadow: 0 0 12px var(--c, var(--cyan)); }
+  .chip i { font-style: normal; width:10px; height:10px; background: var(--c, #fff); display:inline-block; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:14px; }
+  .lens { display:flex; gap:0; border:3px solid var(--line); }
+  .lens button { border:none; background:#0d0718; color: var(--dim); font:800 14px "Helvetica Neue", Arial, sans-serif; padding:9px 14px; cursor:pointer; }
+  .lens button.on { background: var(--cyan); color:#0d0718; }
+  .go { flex:1 1 240px; border:none; background: var(--neon); color:#2a1a00; font: 800 20px "Helvetica Neue", Arial, sans-serif;
+        padding: 15px 18px; cursor:pointer; box-shadow: 5px 5px 0 rgba(0,0,0,.45); }
+  .go:hover { background:#fff0a0; }
+  .go:disabled { opacity:.5; cursor:default; }
+  .ghost { border:2px solid var(--line); background:transparent; color: var(--dim); font:700 14px "Helvetica Neue", Arial, sans-serif;
+           padding:9px 13px; cursor:pointer; }
+  .ghost:hover { color: var(--ink); border-color: var(--cyan); }
+
+  /* ---- the 30 second build ---- */
+  #build[hidden], #done[hidden], #mine[hidden] { display:none; }
+  .bwrap { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+  .dial { width:132px; height:132px; flex:0 0 auto; }
+  .dial svg { display:block; width:100%; height:100%; }
+  .steps { flex:1 1 260px; margin:0; padding:0; list-style:none; font-size:14px; }
+  .steps li { padding:3px 0; color:#6a5a90; display:flex; gap:8px; align-items:baseline; }
+  .steps li.on { color: var(--cyan); }
+  .steps li.did { color: var(--ink); }
+  .steps li b { font-weight:800; }
+  .steps li span { color: var(--dim); font-size:13px; }
+  .strip { display:flex; gap:6px; margin-top:14px; flex-wrap:wrap; }
+  .strip div { width: 92px; aspect-ratio: 16/9; border:2px solid var(--line); background:#000; overflow:hidden; opacity:0; transform: scale(.7); transition: .35s; }
+  .strip div.in { opacity:1; transform:none; }
+  .strip svg { display:block; width:100%; height:100%; }
+
+  /* ---- the finished ad player (the arcade's own ad look) ---- */
+  .player { position:fixed; inset:0; z-index: 2147482000; background: var(--ad-bg,#000); color: var(--ad-fg,#fff);
+            display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+            padding: 52px 4vw 34px; text-align:center; font-family:"Helvetica Neue", Arial, sans-serif; }
+  .player[hidden] { display:none; }
+  .player .tag { position:absolute; top:14px; left:16px; font-size:15px; font-weight:800; letter-spacing:.6px; opacity:.8; }
+  .player .left { position:absolute; top:10px; right:14px; font-size:20px; font-weight:800; font-variant-numeric:tabular-nums;
+                  background:rgba(0,0,0,.35); border:2px solid currentColor; padding:3px 12px; }
+  .player .stage { height:min(52vh,52vw); aspect-ratio:16/9; max-width:94vw; border:3px solid rgba(255,255,255,.4); background:#000; overflow:hidden; }
+  .player .stage svg { display:block; width:100%; height:100%; }
+  .player .cap { font-weight:700; font-size: clamp(15px,2.4vw,22px); max-width:820px; min-height:1.4em; }
+  .player .dots { display:flex; gap:5px; }
+  .player .dots i { width:8px; height:8px; background:currentColor; opacity:.3; }
+  .player .dots i.on { opacity:1; }
+  .player h2 { margin:0; border:none; padding:0; letter-spacing:0; text-transform:none; color:inherit; font-size: clamp(22px,4.5vw,38px); }
+  .player .made { position:absolute; bottom:22px; left:0; right:0; font-size:11px; letter-spacing:.4px; opacity:.6; }
+  .player .adbar { position:absolute; left:0; right:0; bottom:0; height:12px; background: rgba(255,255,255,.18); }
+  .player .adbar b { display:block; height:100%; width:100%; background: var(--ad-fg,#fff); transition: width .2s linear; }
+  .player .ctrl { position:absolute; top:8px; left:50%; transform:translateX(-50%); display:flex; gap:8px; }
+  .player .ctrl button { border:2px solid currentColor; background:rgba(0,0,0,.3); color:inherit; font:800 13px "Helvetica Neue", Arial, sans-serif;
+                         padding:4px 10px; cursor:pointer; }
+  .cta { display:inline-block; text-decoration:none; font-weight:800; font-size: clamp(16px,2.4vw,22px);
+         padding:10px 24px; background: var(--ad-fg,#fff); color: var(--ad-bg,#000); border:none; cursor:pointer; }
+
+  /* ---- saved ads ---- */
+  .mine { display:grid; grid-template-columns: repeat(auto-fill, minmax(170px,1fr)); gap:12px; }
+  .card { background: var(--panel); border:3px solid var(--c,var(--line)); box-shadow:5px 5px 0 rgba(0,0,0,.45); overflow:hidden;
+          display:flex; flex-direction:column; cursor:pointer; }
+  .card:hover { transform: translate(-2px,-2px); box-shadow:7px 7px 0 rgba(0,0,0,.45), 0 0 16px var(--c); }
+  .card .face { aspect-ratio:16/9; background:#000; border-bottom:3px solid var(--c,var(--line)); }
+  .card .face svg { display:block; width:100%; height:100%; }
+  .card .t { padding:8px 10px 10px; }
+  .card .t b { display:block; font-size:15px; }
+  .card .t span { display:block; font-size:12px; color:var(--dim); margin-top:2px; line-height:1.3;
+                  overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .card .t i { display:inline-block; font-style:normal; font-size:11px; color:#6a5a90; margin-top:6px; }
+  .del { border:none; background:transparent; color:#6a5a90; font:700 12px "Helvetica Neue", Arial, sans-serif; cursor:pointer; padding:0 0 8px 10px; text-align:left; }
+  .del:hover { color: var(--pink); }
+  footer { text-align:center; color:#6a5a90; font-size:12.5px; margin-top:30px; line-height:1.6; }
+
+  /* ---- the animations the scenes use ---- */
+  .glow { animation: gl 1.1s ease-in-out infinite alternate } @keyframes gl { from{opacity:.4} to{opacity:1} }
+  .bob { animation: bb 2s ease-in-out infinite } @keyframes bb { 50%{ transform: translateY(-5px) } }
+  .bob2 { animation: bb 2s ease-in-out infinite .5s }
+  .bob3 { animation: bb 2s ease-in-out infinite 1s }
+  .spin { transform-box: fill-box; transform-origin:center; animation: sp 9s linear infinite } @keyframes sp { to { transform: rotate(360deg) } }
+  .fast { animation-duration: 2.5s }
+  .flash { animation: fl 1.2s steps(1) infinite } @keyframes fl { 0%,55%{opacity:0} 60%,100%{opacity:1} }
+  .pop { transform-box: fill-box; transform-origin:center; animation: pp .5s cubic-bezier(.3,1.8,.5,1) both } @keyframes pp { from { transform: scale(.2); opacity:0 } }
+  .rise { animation: rs .7s ease-out both } @keyframes rs { from { transform: translateY(18px); opacity:0 } }
+  .slide { animation: sl .7s ease-out both } @keyframes sl { from { transform: translateX(-40px); opacity:0 } }
+  .shake { animation: sk .35s ease-in-out infinite } @keyframes sk { 25%{transform:translateX(-1.5px)} 75%{transform:translateX(1.5px)} }
+  .grow { transform-box: fill-box; transform-origin: center bottom; animation: gw 1.6s ease-out both } @keyframes gw { from { transform: scaleY(0) } }
+  @media (prefers-reduced-motion: reduce) { .glow,.bob,.bob2,.bob3,.spin,.flash,.shake { animation: none } }
+  @media (max-width:560px){ .dial{width:104px;height:104px} .strip div{width:72px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎬 AD BUILDER</h1>
+  <p class="sub">Describe an ad. It takes 30 seconds to make, then it plays.</p>
+
+  <!-- ===== 1. describe it ===== -->
+  <section id="ask" class="panel">
+    <h2 style="margin-top:0">Describe your ad</h2>
+    <textarea id="desc" spellcheck="true" placeholder="A funny ad for Whack-a-Hedgehog. Green and fast, hedgehogs popping out of the grass, a big hammer, and it ends with &quot;Can you catch Sonic?&quot;"></textarea>
+    <p class="hint">Say what it is for, what should be in it, and how it should feel — funny, scary, exciting, cute, epic, retro. Put words in "quotes" to have the ad say them exactly.</p>
+    <h2>Or make one for a real app</h2>
+    <div class="chips" id="chips"></div>
+    <div class="row">
+      <span class="hint" style="margin:0">How long is the ad?</span>
+      <div class="lens" id="lens">
+        <button type="button" data-len="15">15s</button>
+        <button type="button" data-len="30" class="on">30s</button>
+        <button type="button" data-len="60">60s</button>
+      </div>
+      <button type="button" class="ghost" id="lucky">🎲 Surprise me</button>
+    </div>
+    <div class="row">
+      <button type="button" class="go" id="make">🎬 Make my ad (30 seconds)</button>
+    </div>
+  </section>
+
+  <!-- ===== 2. the 30 second build ===== -->
+  <section id="build" class="panel" hidden>
+    <h2 style="margin-top:0">Making your ad…</h2>
+    <div class="bwrap">
+      <div class="dial" id="dial"></div>
+      <ol class="steps" id="steps"></ol>
+    </div>
+    <div class="strip" id="strip"></div>
+    <div class="row">
+      <button type="button" class="ghost" id="skip">⏩ Skip the wait</button>
+      <button type="button" class="ghost" id="cancel">✕ Start again</button>
+    </div>
+  </section>
+
+  <!-- ===== 3. it is made ===== -->
+  <section id="done" class="panel" hidden>
+    <h2 style="margin-top:0">Your ad is ready</h2>
+    <div class="bwrap">
+      <div style="flex:0 0 200px; max-width:100%"><div id="poster" style="aspect-ratio:16/9;border:3px solid var(--line);background:#000;overflow:hidden"></div></div>
+      <div style="flex:1 1 240px">
+        <b id="doneName" style="font-size:22px"></b>
+        <p class="hint" id="doneLine" style="margin-top:6px"></p>
+        <p class="hint" id="doneSpec" style="color:#6a5a90"></p>
+      </div>
+    </div>
+    <div class="row">
+      <button type="button" class="go" id="play">▶ Play the ad</button>
+      <button type="button" class="ghost" id="save">💾 Save it</button>
+      <button type="button" class="ghost" id="edit">✏️ Change the words</button>
+      <button type="button" class="ghost" id="again">🎬 Make another</button>
+    </div>
+  </section>
+
+  <!-- ===== saved ads ===== -->
+  <section id="mine" hidden>
+    <h2>My ads</h2>
+    <div class="mine" id="mineGrid"></div>
+  </section>
+
+  <footer>
+    Every ad is made on this device out of the words you type — nothing is sent anywhere.<br>
+    Ads for real apps are made-up fan ads, not real ads from those companies.
+  </footer>
+</div>
+
+<!-- the finished ad, full screen -->
+<div class="player" id="player" hidden role="dialog" aria-label="Your ad">
+  <span class="tag">AD</span>
+  <span class="left" id="left"></span>
+  <div class="ctrl"><button type="button" id="mute">🔊</button><button type="button" id="close">✕ Close</button></div>
+  <div class="stage" id="stage"></div>
+  <div class="cap" id="cap"></div>
+  <div class="dots" id="dots"></div>
+  <h2 id="head"></h2>
+  <button type="button" class="cta" id="cta"></button>
+  <div class="made" id="made"></div>
+  <div class="adbar"><b id="adbar"></b></div>
+</div>
+<script>
+/* ===========================================================================
+   AD BUILDER
+   You type a description; this turns it into a real little ad and plays it.
+
+   It is all done here in the page — no internet, no account, nothing sent
+   away. The work is: read the words, decide who the ad is FOR, pick the
+   colours and the cast, write a script of scenes, draw every scene as an
+   animated picture, then play them in order with a countdown, exactly like
+   the ads the rest of the arcade shows.
+   =========================================================================== */
+(function(){
+'use strict';
+var $ = function (id){ return document.getElementById(id); };
+var LOCAL = location.protocol === 'file:';
+var ARCADE = LOCAL ? 'app-arcade.html' : 'https://cmadisons.github.io/app-arcade/app-arcade.html';
+
+/* ---------------------------------------------------------------------------
+   1. THE APPS IT KNOWS
+   An ad for a real app should look like that app: its colours and its logo,
+   drawn here in code so nothing has to be downloaded. Each one also carries
+   a few true things about it, so the ad has something to say.
+   `words` are what somebody might type to mean this app.
+   --------------------------------------------------------------------------- */
+function badge(c1, c2, inner){                 // a rounded app-icon shape, 100 x 100
+  return '<rect x="6" y="6" width="88" height="88" rx="20" fill="' + c1 + '"/>' +
+         (c2 ? '<rect x="6" y="6" width="88" height="88" rx="20" fill="' + c2 + '" opacity=".35"/>' : '') + inner;
+}
+function emojiMark(em, c){
+  return badge(c, '', '<text x="50" y="54" font-size="46" text-anchor="middle" dominant-baseline="central">' + em + '</text>');
+}
+var BRANDS = [
+  /* --- real apps --- */
+  { id:'youtube', name:'YouTube', words:['youtube','you tube'], real:1, bg:'#1a0505', fg:'#fff', accent:'#ff0033',
+    mark: badge('#ff0033','', '<path d="M40 33 L68 50 L40 67 Z" fill="#fff"/>'),
+    blurb:'Every video, all in one place.',
+    feats:['Search anything and watch it in a second','Subscribe and never miss a new one','Watch on the telly, the phone, anywhere','Make your own channel'] },
+  { id:'minecraft', name:'Minecraft', words:['minecraft','mine craft'], real:1, bg:'#1d2b12', fg:'#e8f5d0', accent:'#7ccf2a',
+    mark: '<rect x="8" y="8" width="84" height="22" fill="#6aa832"/><rect x="8" y="30" width="84" height="62" fill="#7a5a36"/>' +
+          '<g fill="#000" opacity=".12"><rect x="8" y="8" width="14" height="10"/><rect x="36" y="18" width="14" height="12"/><rect x="64" y="8" width="16" height="12"/>' +
+          '<rect x="20" y="40" width="16" height="16"/><rect x="54" y="60" width="18" height="16"/><rect x="14" y="70" width="14" height="14"/></g>',
+    blurb:'Build anything, then survive the night.',
+    feats:['A whole world made of blocks','Mine it, build it, blow it up','Survive the night, or turn the mobs off','Play with your friends'] },
+  { id:'roblox', name:'Roblox', words:['roblox','ro blox'], real:1, bg:'#141414', fg:'#fff', accent:'#e2231a',
+    mark: '<g transform="rotate(-14 50 50)"><rect x="18" y="18" width="64" height="64" fill="#e2231a"/><rect x="40" y="40" width="20" height="20" fill="#fff"/></g>',
+    blurb:'Millions of games, all made by people like you.',
+    feats:['Thousands of games in one app','Make your own game and share it','Dress up your avatar','Play with friends anywhere'] },
+  { id:'spotify', name:'Spotify', words:['spotify'], real:1, bg:'#08140c', fg:'#fff', accent:'#1db954',
+    mark: '<circle cx="50" cy="50" r="42" fill="#1db954"/><g stroke="#08140c" stroke-linecap="round" fill="none">' +
+          '<path d="M28 38 Q50 30 73 42" stroke-width="9"/><path d="M31 52 Q50 46 68 56" stroke-width="7"/><path d="M34 65 Q50 61 64 68" stroke-width="5.5"/></g>',
+    blurb:'Every song you know, and the ones you do not yet.',
+    feats:['Play any song the second you think of it','Playlists that learn what you like','Download it and listen with no signal','Podcasts too'] },
+  { id:'netflix', name:'Netflix', words:['netflix'], real:1, bg:'#0b0b0b', fg:'#fff', accent:'#e50914',
+    mark: '<rect x="6" y="6" width="88" height="88" fill="#111"/><path d="M32 18 H46 L68 82 H54 Z" fill="#e50914"/>' +
+          '<rect x="32" y="18" width="14" height="64" fill="#b0060f"/><rect x="54" y="18" width="14" height="64" fill="#b0060f"/>',
+    blurb:'Films and series, one more episode at a time.',
+    feats:['Thousands of films and series','New things every week','Download them for the car','Everyone gets their own profile'] },
+  { id:'tiktok', name:'TikTok', words:['tiktok','tik tok'], real:1, bg:'#0a0a0a', fg:'#fff', accent:'#25f4ee',
+    mark: badge('#111','', '<g><path d="M44 66 a10 10 0 1 0 10 -10 V26 q8 12 20 13 v12 q-12 -1 -20 -7 v22" fill="#25f4ee" transform="translate(-3 -2)"/>' +
+          '<path d="M44 66 a10 10 0 1 0 10 -10 V26 q8 12 20 13 v12 q-12 -1 -20 -7 v22" fill="#fe2c55" transform="translate(3 2)"/>' +
+          '<path d="M44 66 a10 10 0 1 0 10 -10 V26 q8 12 20 13 v12 q-12 -1 -20 -7 v22" fill="#fff"/></g>'),
+    blurb:'Short videos that will not let you put it down.',
+    feats:['A new video every few seconds','It works out what you like','Make one yourself in a minute','Sounds, filters and duets'] },
+  { id:'instagram', name:'Instagram', words:['instagram','insta'], real:1, bg:'#170a1a', fg:'#fff', accent:'#e1306c',
+    mark: '<defs><linearGradient id="ig" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#fdc468"/><stop offset=".5" stop-color="#e1306c"/><stop offset="1" stop-color="#833ab4"/></linearGradient></defs>' +
+          '<rect x="6" y="6" width="88" height="88" rx="24" fill="url(#ig)"/><rect x="22" y="22" width="56" height="56" rx="18" fill="none" stroke="#fff" stroke-width="6"/>' +
+          '<circle cx="50" cy="50" r="13" fill="none" stroke="#fff" stroke-width="6"/><circle cx="70" cy="30" r="4.5" fill="#fff"/>',
+    blurb:'The pictures worth keeping.',
+    feats:['Post a photo in a tap','Stories that vanish in a day','Reels, if you have a minute','See what your friends are up to'] },
+  { id:'whatsapp', name:'WhatsApp', words:['whatsapp','whats app'], real:1, bg:'#08160f', fg:'#fff', accent:'#25d366',
+    mark: '<circle cx="50" cy="50" r="42" fill="#25d366"/><path d="M28 72 L33 58 A22 22 0 1 1 42 67 Z" fill="#fff"/>' +
+          '<path d="M42 42 q2 10 12 16 l6 -5 8 6 -5 7 q-16 -2 -26 -18 z" fill="#25d366"/>',
+    blurb:'Messages that just get there.',
+    feats:['Free messages to anybody, anywhere','Calls and video calls','Groups for the whole family','Nobody else can read them'] },
+  { id:'snapchat', name:'Snapchat', words:['snapchat','snap chat'], real:1, bg:'#2a2400', fg:'#fff', accent:'#fffc00',
+    mark: badge('#fffc00','', '<path d="M50 20 q18 0 18 20 q0 8 6 12 q6 3 -2 7 q4 10 12 12 q-10 6 -16 4 q-6 8 -18 8 t-18 -8 q-6 2 -16 -4 q8 -2 12 -12 q-8 -4 -2 -7 q6 -4 6 -12 q0 -20 18 -20 z" fill="#fff"/>'),
+    blurb:'A picture instead of a text.',
+    feats:['Send a snap, it disappears','Filters that put you in the picture','Streaks with your best friends','See where your friends are'] },
+  { id:'duolingo', name:'Duolingo', words:['duolingo','duo lingo'], real:1, bg:'#0d2410', fg:'#fff', accent:'#58cc02',
+    mark: badge('#58cc02','', '<circle cx="50" cy="52" r="26" fill="#8ee34a"/><circle cx="41" cy="46" r="9" fill="#fff"/><circle cx="59" cy="46" r="9" fill="#fff"/>' +
+          '<circle cx="41" cy="47" r="4" fill="#1a1a1a"/><circle cx="59" cy="47" r="4" fill="#1a1a1a"/><path d="M42 60 h16 l-8 9 z" fill="#ffc800"/>'),
+    blurb:'A new language, five minutes a day.',
+    feats:['Short lessons you can do anywhere','Keep the streak going','40 languages','It is free'] },
+  { id:'maps', name:'Google Maps', words:['google maps','maps'], real:1, bg:'#0b1a2a', fg:'#fff', accent:'#34a853',
+    mark: badge('#e8eaed','', '<path d="M14 62 L38 20 L62 48 L86 22 V86 H14 Z" fill="#a8d5a2"/><path d="M14 74 L44 44 L70 70 L86 56" stroke="#fff" stroke-width="7" fill="none"/>' +
+          '<path d="M56 24 a14 14 0 0 1 28 0 c0 12 -14 26 -14 26 s-14 -14 -14 -26 z" fill="#ea4335"/><circle cx="70" cy="24" r="5" fill="#fff"/>'),
+    blurb:'It knows the way.',
+    feats:['Turn by turn, out loud','It sees the traffic before you do','Every shop, and whether it is open','Walk, drive, bus or bike'] },
+  { id:'discord', name:'Discord', words:['discord'], real:1, bg:'#12131a', fg:'#fff', accent:'#5865f2',
+    mark: badge('#5865f2','', '<ellipse cx="50" cy="52" rx="30" ry="22" fill="#fff"/><circle cx="40" cy="52" r="6" fill="#5865f2"/><circle cx="60" cy="52" r="6" fill="#5865f2"/>'),
+    blurb:'Where your people hang out.',
+    feats:['Talk while you play','Servers for anything you are into','Text, voice or video','Free'] },
+  { id:'chrome', name:'Chrome', words:['chrome','google chrome'], real:1, bg:'#0d1520', fg:'#fff', accent:'#4285f4',
+    mark: '<circle cx="50" cy="50" r="42" fill="#ea4335"/><path d="M50 50 L88 32 A42 42 0 0 1 64 88 Z" fill="#34a853"/><path d="M50 50 L64 88 A42 42 0 0 1 14 68 Z" fill="#fbbc05"/>' +
+          '<circle cx="50" cy="50" r="17" fill="#fff"/><circle cx="50" cy="50" r="12" fill="#4285f4"/>',
+    blurb:'The whole internet, one box.',
+    feats:['Pages that load before you blink','Your tabs on every device','It fills the boring forms in','Millions of add-ons'] },
+  { id:'amazon', name:'Amazon', words:['amazon'], real:1, bg:'#131921', fg:'#fff', accent:'#ff9900',
+    mark: badge('#232f3e','', '<text x="50" y="44" font-size="30" font-weight="800" fill="#fff" text-anchor="middle" font-family="Helvetica Neue, Arial">a</text>' +
+          '<path d="M24 60 Q50 76 76 58" stroke="#ff9900" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M70 52 L80 57 L70 64 Z" fill="#ff9900"/>'),
+    blurb:'Order it now, open it tomorrow.',
+    feats:['Everything, in one search','At the door the next day','Reviews from people who bought it','Send it back if it is wrong'] },
+  { id:'fortnite', name:'Fortnite', words:['fortnite'], real:1, bg:'#14103a', fg:'#fff', accent:'#00d2ff',
+    mark: badge('#1a1650','', '<path d="M34 24 h34 v12 h-20 v10 h16 v12 h-16 v20 h-14 z" fill="#00d2ff"/>'),
+    blurb:'100 players. One left.',
+    feats:['Drop in, last one standing wins','Build your way out of anything','A new season every few weeks','Free to play'] },
+  { id:'pokemon', name:'Pokémon GO', words:['pokemon go','pokemon','pokémon'], real:1, bg:'#0b2a1a', fg:'#fff', accent:'#ffcb05',
+    mark: '<circle cx="50" cy="50" r="40" fill="#fff"/><path d="M10 50 a40 40 0 0 1 80 0 z" fill="#ee1515"/><rect x="10" y="46" width="80" height="8" fill="#222"/>' +
+          '<circle cx="50" cy="50" r="13" fill="#fff" stroke="#222" stroke-width="5"/>',
+    blurb:'They are out there. Go and get them.',
+    feats:['Catch them in your own street','Walk, and they hatch','Raids with everybody in the park','Free'] },
+  /* --- the arcade's own apps: the ad opens them --- */
+  { id:'baseball', name:'All Live Baseball', words:['all live baseball','baseball','live baseball'], bg:'#1f3d7a', fg:'#fff', accent:'#4d7cff',
+    mark: emojiMark('⚾','#1f3d7a'), arcade:'baseball',
+    blurb:'Every game, live, with the stats that matter.',
+    feats:['Every live game and every score','Stats, standings and the playoffs','Levels to climb and the Baseball Pass','The pitch clock and the walk-up song'] },
+  { id:'hedgehog', name:'Whack-a-Hedgehog', words:['whack a hedgehog','whack-a-hedgehog','hedgehog','whack'], bg:'#2c4a10', fg:'#eaffd0', accent:'#7ccf2a',
+    mark: emojiMark('🦔','#4f7a1a'), arcade:'hedgehog',
+    blurb:'How fast can you whack them?',
+    feats:['They pop up faster than you think','Big hammers and bigger grids','Catch Sonic for a reward','One more go. Every time.'] },
+  { id:'recipe', name:'Recipe Box', words:['recipe box','recipes','recipe'], bg:'#5a3417', fg:'#fbf1e4', accent:'#c98a4b',
+    mark: emojiMark('📖','#c98a4b'), arcade:'recipe',
+    blurb:'The whole recipe, in order, out loud.',
+    feats:['Double the amounts with one tap','Tick off what you have done','A timer on every step','Speaker mode, so your hands stay floury'] },
+  { id:'lego', name:'LEGO Pic', words:['lego pic','lego'], bg:'#8a1008', fg:'#fff', accent:'#ff4a3d',
+    mark: emojiMark('🧱','#d62d20'), arcade:'lego',
+    blurb:'Any photo, back in bricks.',
+    feats:['Drop a photo in','It comes back as LEGO','Pick how big the bricks are','Save it and print it'] },
+  { id:'zelda', name:'Zelda BOTW', words:['zelda','breath of the wild','botw'], bg:'#0f2a2a', fg:'#e8d9a0', accent:'#4de8c0',
+    mark: emojiMark('🗡️','#1a4a44'), arcade:'zelda',
+    blurb:'Wake up on the Great Plateau.',
+    feats:['A whole Hyrule to walk into','Shrines, towers and the paraglider','Cook what you find','Go anywhere, in any order'] },
+  { id:'ship', name:'Ship Life', words:['ship life','space ship','spaceship'], bg:'#101a33', fg:'#ffd84a', accent:'#ffd84a',
+    mark: emojiMark('🚀','#1b2a55'), arcade:'ship',
+    blurb:'Live on a giant space ship.',
+    feats:['Floors to unlock, one at a time','Jobs, air, and the dark outside','A Minecraft mod you can play tonight','Chapter after chapter'] },
+  { id:'times', name:'TimesTanimals', words:['timestanimals','times tables','times table'], bg:'#4a1030', fg:'#fff', accent:'#ff4fa0',
+    mark: emojiMark('🦁','#ff4fa0'), arcade:'times',
+    blurb:'The times tables, with animals.',
+    feats:['Every table, one animal at a time','Quick rounds you can do in the car','It remembers the ones you miss','Beat your own score'] }
+];
+
+/* ---------------------------------------------------------------------------
+   2. THE WORDS IT LOOKS FOR
+   --------------------------------------------------------------------------- */
+var COLORS = {
+  red:['#ff3b30','#2a0705','#ffd0cc'], blue:['#4d7cff','#050f2a','#cfe0ff'], green:['#4ccf5a','#05220c','#d2ffd8'],
+  yellow:['#ffd84a','#2a2200','#fff3c0'], gold:['#e8b923','#241a00','#ffeeb0'], orange:['#ff8a2a','#2a1200','#ffe0c0'],
+  purple:['#b36cf0','#1a0a2a','#ecd6ff'], pink:['#ff4fa0','#2a0618','#ffd6e8'], black:['#3a3a3a','#000000','#dddddd'],
+  white:['#f2f2f2','#1a1a1a','#ffffff'], grey:['#9aa0a8','#16181c','#e4e6ea'], gray:['#9aa0a8','#16181c','#e4e6ea'],
+  cyan:['#4de8ff','#04202a','#ccf6ff'], teal:['#2ec4b6','#04221f','#c8f5f0'], brown:['#a1703f','#1e1208','#e8d3ba'],
+  silver:['#c8ccd2','#1a1c20','#ffffff'], rainbow:['#ff4fa0','#120a24','#ffd84a'], neon:['#39ff88','#04120a','#c8ffe0']
+};
+var MOODS = {
+  funny:   { em:'😂', hook:'It was NOT meant to go like this.', pace:1,   caps:0, end:'Go on. You know you want to.' },
+  scary:   { em:'😱', hook:'Nobody told you about this part.',  pace:1.15,caps:0, end:'If you dare.' },
+  exciting:{ em:'🔥', hook:'Right. Watch this.',                pace:.8,  caps:1, end:'Start now.' },
+  epic:    { em:'⚔️', hook:'This is where it begins.',          pace:1.25,caps:1, end:'Your turn.' },
+  cute:    { em:'🥰', hook:'Look at this for a second.',        pace:1.1, caps:0, end:'Come and say hello.' },
+  calm:    { em:'🌙', hook:'Take a breath.',                    pace:1.35,caps:0, end:'Whenever you are ready.' },
+  retro:   { em:'👾', hook:'Insert coin.',                      pace:.9,  caps:1, end:'Press start.' },
+  fancy:   { em:'✨', hook:'Some things are just done properly.',pace:1.3, caps:0, end:'You deserve it.' },
+  sad:     { em:'🥺', hook:'It did not have to be this way.',   pace:1.3, caps:0, end:'It gets better.' },
+  fast:    { em:'⚡', hook:'No time. Go.',                       pace:.65, caps:1, end:'GO.' }
+};
+var MOODWORDS = {
+  funny:['funny','fun','silly','joke','laugh','hilarious','goofy','daft'], scary:['scary','spooky','horror','creepy','dark','scared','monster'],
+  exciting:['exciting','hype','loud','amazing','awesome','wild','crazy','action'], epic:['epic','legendary','dramatic','cinematic','hero','battle','warrior'],
+  cute:['cute','sweet','adorable','lovely','soft','baby','kitten','puppy'], calm:['calm','chill','relaxing','quiet','gentle','peaceful','cosy','cozy'],
+  retro:['retro','8 bit','8-bit','arcade','pixel','old school','classic','vintage'], fancy:['fancy','posh','luxury','fine','elegant','premium','smart'],
+  sad:['sad','emotional','crying','lonely','miss'], fast:['fast','quick','speed','speedy','rush','instant','zoom']
+};
+/* the cast: a word in the description becomes somebody or something on screen */
+var PROPS = {
+  '🦔':['hedgehog'], '🔨':['hammer','mallet'], '⚾':['baseball','bat','pitch','pitcher','batter'], '🏀':['basketball','hoop'],
+  '⚽':['football','soccer','goal'], '🏈':['touchdown','nfl'], '🎾':['tennis'], '🏒':['hockey'], '🎯':['dart','darts','target','bullseye'],
+  '🐶':['dog','puppy','doggy'], '🐱':['cat','kitten','kitty'], '🦁':['lion'], '🐸':['frog'], '🐢':['turtle','tortoise'], '🦄':['unicorn'],
+  '🐉':['dragon'], '🐧':['penguin'], '🐝':['bee'], '🦖':['dinosaur','dino','t rex'], '🐠':['fish','fishing'], '🐔':['chicken'],
+  '🐵':['monkey'], '🐻':['bear'], '🐘':['elephant'], '🦊':['fox'], '🐦':['bird'], '🐴':['horse'], '🐷':['pig'], '🐮':['cow'], '🐑':['sheep'],
+  '🍕':['pizza'], '🍔':['burger'], '🍟':['chips','fries'], '🍪':['cookie','biscuit'], '🍰':['cake'], '🍦':['ice cream'], '🍓':['strawberry'],
+  '🍋':['lemon','lemonade'], '🍎':['apple'], '🍌':['banana'], '🥛':['milk'], '☕':['coffee'], '🌮':['taco'], '🍿':['popcorn'], '🍭':['sweet','candy','lolly'],
+  '🚗':['car','driving','drive'], '🚀':['rocket','space','launch'], '✈️':['plane','flight','flying'], '🚲':['bike','bicycle','cycling'],
+  '🚂':['train'], '🛸':['ufo','alien'], '🛴':['scooter'], '🚤':['boat','ship','sailing'],
+  '🤖':['robot','ai'], '👻':['ghost'], '👽':['martian'], '🧙':['wizard','magic'], '🧟':['zombie'], '🦸':['hero','superhero'],
+  '👑':['king','queen','crown','royal'], '💎':['diamond','gem','jewel'], '💰':['money','cash','rich','coins'], '🏆':['trophy','champion','win','winner'],
+  '⭐':['star','stars'], '❤️':['love','heart'], '🎵':['music','song','sing','tune'], '🎸':['guitar','rock'], '🎮':['game','gaming','console','play'],
+  '📱':['phone','mobile','app'], '💻':['laptop','computer'], '📺':['tv','telly','television'], '📷':['camera','photo','picture'],
+  '⚡':['lightning','power','energy','thunder'], '🔥':['fire','flame','hot','burn'], '❄️':['snow','ice','cold','winter'], '🌈':['rainbow'],
+  '☀️':['sun','sunny','summer'], '🌧️':['rain','rainy'], '🌊':['sea','ocean','wave','water'], '🏝️':['island','beach'], '🌳':['tree','forest','wood'],
+  '🌸':['flower','blossom','spring'], '🎃':['pumpkin','halloween'], '🎄':['christmas'], '🎁':['present','gift','birthday'], '🎈':['balloon','party'],
+  '📚':['book','read','reading','story'], '✏️':['school','homework','write','pencil'], '🧪':['science','experiment','lab'], '🔢':['maths','math','numbers','sums'],
+  '🕹️':['arcade','joystick'], '🧱':['brick','lego','block','blocks'], '⛏️':['mine','mining','pickaxe','minecraft'], '🗡️':['sword','fight','knight'],
+  '🛡️':['shield','defend','armour','armor'], '🏰':['castle','tower'], '🚪':['door'], '🗝️':['key','unlock','secret'], '🧩':['puzzle','jigsaw'],
+  '🎲':['dice','random','luck'], '🃏':['card','cards'], '⏰':['time','clock','timer','late','alarm'], '📈':['score','level','levels','points','stats'],
+  '🍳':['cook','cooking','kitchen','recipe','chef','baking','bake'], '🧺':['washing','laundry'], '🛏️':['sleep','bed','tired'],
+  '🏃':['run','running','race','racing'], '🏊':['swim','swimming'], '🤸':['jump','jumping','bounce'], '🧗':['climb','climbing'],
+  '👶':['baby'], '👦':['boy','kid','kids','child','children'], '👧':['girl'], '👨‍👩‍👧':['family'], '🧑‍🤝‍🧑':['friend','friends','everyone','people'],
+  '🎂':['party time'], '🐛':['bug'], '🕷️':['spider'], '🦇':['bat animal'], '🌍':['world','earth','planet','global'],
+  '💬':['chat','message','text','talk'], '📧':['email','mail'], '🔔':['notification','alert','remind','reminder'], '🔍':['search','find','look'],
+  '🎬':['film','movie','video','cinema'], '🎤':['sing along','karaoke','voice'], '🎨':['draw','drawing','art','paint','colour','color'],
+  '🛒':['shop','shopping','buy','order','store'], '💤':['boring','bored'], '😴':['sleepy']
+};
+
+/* ---------------------------------------------------------------------------
+   3. READING WHAT YOU TYPED
+   Pull out of the sentence: who the ad is for, what colour it is, how it
+   should feel, and who is in it. Everything else in the ad is built on this.
+   --------------------------------------------------------------------------- */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function titleCase(s){ return s.replace(/\s+/g,' ').trim().replace(/\b[a-z]/g, function(c){ return c.toUpperCase(); }); }
+function has(low, w){ return new RegExp('(^|[^a-z])' + w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + 's?([^a-z]|$)').test(low); }
+
+function findBrand(low){
+  var best = null, at = 1e9;
+  BRANDS.forEach(function(b){
+    b.words.forEach(function(w){
+      var i = low.indexOf(w);
+      if (i < 0) return;
+      // the longest name that appears wins, so "all live baseball" beats "baseball"
+      if (!best || w.length > best.w.length || (w.length === best.w.length && i < at)) { best = { b:b, w:w }; at = i; }
+    });
+  });
+  return best && best.b;
+}
+function findProps(low){
+  var found = [];
+  Object.keys(PROPS).forEach(function(em){
+    PROPS[em].forEach(function(w){
+      if (found.length > 40 || found.some(function(f){ return f.em === em; })) return;
+      var i = low.indexOf(w);
+      if (i >= 0 && has(low, w)) found.push({ em:em, at:i, word:w });
+    });
+  });
+  found.sort(function(a,b){ return a.at - b.at; });
+  return found.slice(0, 6);
+}
+function findMood(low){
+  var best = 'exciting', score = 0;
+  Object.keys(MOODWORDS).forEach(function(m){
+    var n = 0;
+    MOODWORDS[m].forEach(function(w){ if (has(low, w)) n++; });
+    if (n > score) { score = n; best = m; }
+  });
+  return { id: best, hit: score > 0 };
+}
+function findColors(low){
+  var hits = [];
+  Object.keys(COLORS).forEach(function(c){ var i = low.indexOf(c); if (i >= 0 && has(low, c)) hits.push({ c:c, at:i }); });
+  hits.sort(function(a,b){ return a.at - b.at; });
+  return hits.map(function(h){ return h.c; });
+}
+/* Their own sentence, cut into short lines the ad can put on screen. */
+var FILLER = /^(an?|the|and|with|that|it|its|is|of|for|to|in|on|a|ad|advert|advertisement|please|make|about)$/;
+function phrases(text){
+  var t = text.replace(/^[^a-z0-9"]*(make|build|create)?\s*(me\s*)?(an?|the)?\s*(ad|advert|advertisement|commercial)\s*(for|about|of)?\s*/i, '');
+  return t.split(/[,.;!?\n]+|\s+(?:and then|and|with|where|plus)\s+/i)
+    .map(function(p){ return p.replace(/["“”']/g,'').replace(/\s+/g,' ').trim(); })
+    .filter(function(p){
+      if (p.length < 4 || p.length > 64) return false;
+      var words = p.toLowerCase().split(' ');
+      return words.length <= 9 && words.some(function(w){ return !FILLER.test(w); });
+    })
+    .map(function(p){ return p.charAt(0).toUpperCase() + p.slice(1); })
+    .slice(0, 5);
+}
+var NAME_TAIL = ['Time','Go','World','Land','Dash','Club','Pro','Party','Quest','Box'];
+function read(text, len){
+  var raw = (text || '').trim(), low = ' ' + raw.toLowerCase() + ' ';
+  var brand = findBrand(low), mood = findMood(low), props = findProps(low), cols = findColors(low), lines = phrases(raw);
+  var quoted = raw.match(/["“']([^"”']{2,60})["”']/);
+
+  /* colours: what you asked for, else the app's own, else the mood's */
+  var pal;
+  if (cols.length) {
+    var a = COLORS[cols[0]], b = cols[1] ? COLORS[cols[1]] : null;
+    pal = { acc:a[0], bg:a[1], ink:a[2], fg:a[2], two:(b ? b[0] : a[0]) };
+    if (brand) pal.bg = brand.bg;
+  } else if (brand) {
+    pal = { acc:brand.accent, bg:brand.bg, ink:brand.fg, fg:brand.fg, two:brand.accent };
+  } else {
+    var pick = { funny:'yellow', scary:'purple', exciting:'orange', epic:'gold', cute:'pink', calm:'teal', retro:'green', fancy:'gold', sad:'blue', fast:'cyan' }[mood.id];
+    var p = COLORS[pick];
+    pal = { acc:p[0], bg:p[1], ink:p[2], fg:p[2], two:p[0] };
+  }
+
+  /* what is it called? */
+  var name;
+  if (brand) name = brand.name;
+  else {
+    var m = raw.match(/\b(?:called|named)\s+([A-Za-z0-9' ]{2,28})/i) ||
+            raw.match(/(?:ad|advert|advertisement|commercial)\s+(?:for|about|of)\s+(?:a|an|the|my)?\s*([A-Za-z0-9' ]{2,28})/i);
+    if (m) name = titleCase(m[1].replace(/\b(that|which|with|and|it|where)\b.*$/i,'').trim());
+    if ((!name || name.length < 2) && quoted) name = titleCase(quoted[1].slice(0, 22));
+    if (!name || name.length < 2) {
+      var w = (props[0] && props[0].word) || (lines[0] || 'your idea').split(' ')[0];
+      name = titleCase(w) + ' ' + NAME_TAIL[(raw.length + w.length) % NAME_TAIL.length];
+    }
+  }
+
+  var P = {
+    raw: raw, name: name, brand: brand, real: !!(brand && brand.real), mood: mood.id, M: MOODS[mood.id],
+    pal: pal, props: props.map(function(p){ return p.em; }), words: props.map(function(p){ return p.word; }),
+    lines: lines, quote: quoted ? quoted[1] : '', len: len,
+    mark: brand ? brand.mark : emojiMark(props.length ? props[0].em : MOODS[mood.id].em, pal.acc),
+    free: /\bfree\b/i.test(raw), price: (raw.match(/([£$]\s?\d+(?:\.\d{2})?)/) || [])[1] || ''
+  };
+  P.tagline = P.quote || (brand ? brand.blurb : (lines[0] || 'The one you have been waiting for.'));
+  P.feats = (brand ? brand.feats.slice() : []);
+  lines.forEach(function(l){ if (P.feats.length < 6 && P.feats.indexOf(l) < 0) P.feats.push(l); });
+  if (!P.feats.length) P.feats = ['You will want to show somebody', 'It is easier than it looks', 'It is ready right now'];
+  P.cta = brand && brand.arcade ? '🕹️ Open it in the Arcade' : (P.real ? 'Get ' + P.name : 'I want it');
+  P.url = brand && brand.arcade ? ARCADE + '#' + brand.arcade : '';
+  return P;
+}
+
+/* ---------------------------------------------------------------------------
+   4. DRAWING
+   Every scene is one picture, 320 x 180, drawn here and animated with the CSS
+   classes at the top. Nothing is loaded from anywhere.
+   --------------------------------------------------------------------------- */
+var uid = 0;
+function nid(){ return 'ab' + (++uid); }
+function sky(top, bottom){
+  var g = nid();
+  return '<defs><linearGradient id="' + g + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + top + '"/><stop offset="1" stop-color="' + bottom + '"/></linearGradient></defs>' +
+         '<rect width="320" height="180" fill="url(#' + g + ')"/>';
+}
+function svg(inner){ return '<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' + inner + '</svg>'; }
+function txt(x, y, size, s, fill, cls, weight, anchor){
+  return '<text x="' + x + '" y="' + y + '" font-size="' + size + '" font-weight="' + (weight || 800) + '" fill="' + fill + '"' +
+         ' text-anchor="' + (anchor || 'middle') + '" font-family="Helvetica Neue, Arial, sans-serif"' + (cls ? ' class="' + cls + '"' : '') + '>' + esc(s) + '</text>';
+}
+function fit(s, width, base){          // one line, shrunk until it fits
+  return Math.min(base, width / (Math.max(1, String(s).length) * 0.56));
+}
+function wrapLines(s, per){
+  var words = String(s).split(/\s+/), out = [], line = '';
+  words.forEach(function(w){
+    if ((line + ' ' + w).trim().length > per && line) { out.push(line); line = w; } else line = (line + ' ' + w).trim();
+  });
+  if (line) out.push(line);
+  return out.slice(0, 4);
+}
+function block(x, y, size, s, fill, cls, per){
+  var ls = wrapLines(s, per || 22), step = size * 1.18, top = y - (ls.length - 1) * step / 2;
+  return ls.map(function(l, i){ return txt(x, top + i * step, size, l, fill, i === 0 ? cls : cls, 800); }).join('');
+}
+function emo(x, y, size, em, cls){
+  return '<text x="' + x + '" y="' + y + '" font-size="' + size + '" text-anchor="middle" dominant-baseline="central"' +
+         (cls ? ' class="' + cls + '"' : '') + '>' + em + '</text>';
+}
+function logoG(P, x, y, s, cls){
+  return '<g transform="translate(' + (x - s / 2) + ' ' + (y - s / 2) + ') scale(' + (s / 100) + ')"' + (cls ? ' class="' + cls + '"' : '') + '>' + P.mark + '</g>';
+}
+function rays(cx, cy, c){
+  var o = '<g class="spin" opacity=".35">';
+  for (var k = 0; k < 12; k++) {
+    var a = k * 30 * Math.PI / 180;
+    o += '<path d="M' + cx + ' ' + cy + ' L' + (cx + 300 * Math.cos(a - .12)) + ' ' + (cy + 300 * Math.sin(a - .12)) +
+         ' L' + (cx + 300 * Math.cos(a + .12)) + ' ' + (cy + 300 * Math.sin(a + .12)) + ' Z" fill="' + c + '"/>';
+  }
+  return o + '</g>';
+}
+function twinkle(n, c){
+  var o = '<g fill="' + c + '">';
+  for (var k = 0; k < n; k++) o += '<circle class="glow" cx="' + ((k * 71) % 310 + 5) + '" cy="' + ((k * 43) % 150 + 6) + '" r="' + (k % 3 ? 1 : 1.8) + '" style="animation-delay:' + (k % 7) * .2 + 's"/>';
+  return o + '</g>';
+}
+function ground(c){ return '<path d="M0 152 Q80 140 160 150 T320 146 V180 H0 Z" fill="' + c + '"/>'; }
+function phone(x, y, s, P, screen){
+  return '<g transform="translate(' + x + ' ' + y + ') scale(' + s + ')">' +
+    '<rect x="-31" y="-58" width="62" height="116" rx="9" fill="#101018" stroke="' + P.pal.acc + '" stroke-width="2"/>' +
+    '<rect x="-27" y="-50" width="54" height="100" fill="' + P.pal.bg + '"/>' +
+    '<rect x="-8" y="-56" width="16" height="4" rx="2" fill="#2a2a34"/>' + screen + '</g>';
+}
+function starRow(x, y, size, c, n){
+  var o = '';
+  for (var k = 0; k < (n || 5); k++) o += emo(x + (k - 2) * size * 1.15, y, size, '⭐', k === 4 ? 'pop' : '');
+  return o;
+}
+function propRow(P, y, size, cls){
+  var list = P.props.length ? P.props : [P.M.em, '⭐', '🎉'];
+  var use = list.slice(0, 4), gap = 62, x0 = 160 - (use.length - 1) * gap / 2;
+  return use.map(function(em, i){ return emo(x0 + i * gap, y, size, em, (cls || 'bob') + (i % 3 === 1 ? '2' : i % 3 === 2 ? '3' : '')); }).join('');
+}
+function vign(){ var g = nid();
+  return '<defs><radialGradient id="' + g + '"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></radialGradient></defs><rect width="320" height="180" fill="url(#' + g + ')"/>'; }
+
+/* ---------------------------------------------------------------------------
+   5. WRITING THE SCRIPT
+   An ad is the same seven or eight beats every time: get their attention,
+   show the problem, show the thing, show it working, and tell them what to
+   do. Each beat is one picture and one line of voice-over.
+   --------------------------------------------------------------------------- */
+var SCENE = {
+  hook: function(P){
+    return { cap: P.M.hook, svg: svg(
+      sky('#05050c', P.pal.bg) + twinkle(26, P.pal.acc) +
+      '<g opacity=".28">' + propRow(P, 150, 34) + '</g>' +
+      block(160, 74, 24, P.M.hook, P.pal.ink, 'rise', 22) +
+      (function(l){ return txt(160, 122, fit(l, 290, 11), l, P.pal.acc, 'glow', 700); })(P.M.em + '  ' + (P.lines[0] || P.name)) +
+      vign()) };
+  },
+  problem: function(P){
+    var line = 'Life without ' + P.name;
+    return { cap: line + '.', svg: svg(
+      sky('#2a2c31', '#15161a') +
+      '<g opacity=".5">' + ground('#3a3c42') + '</g>' +
+      emo(160, 78, 52, '💤', 'bob') +
+      '<g class="shake">' + emo(64, 96, 30, P.props[0] || '😑') + '</g>' +
+      '<line x1="44" y1="78" x2="84" y2="114" stroke="#ff3b30" stroke-width="5" stroke-linecap="round"/>' +
+      txt(160, 148, fit(line, 300, 17), line, '#c8ccd2', '', 800) +
+      txt(160, 166, 10, 'Every single day.', '#8a8f98', '', 700) + vign()) };
+  },
+  reveal: function(P){
+    return { cap: 'Then somebody made ' + P.name + '.', svg: svg(
+      sky(P.pal.bg, '#05050c') + rays(160, 74, P.pal.acc) +
+      logoG(P, 160, 68, 76, 'pop') +
+      block(160, 140, 21, P.name, P.pal.ink, 'rise', 26) +
+      '<rect x="110" y="152" width="100" height="4" fill="' + P.pal.acc + '" class="glow"/>') };
+  },
+  cast: function(P){
+    var line = P.feats[0] || P.tagline;
+    return { cap: line, svg: svg(
+      sky(P.pal.bg, '#05050c') + twinkle(14, P.pal.acc) + ground(P.pal.acc) +
+      '<g opacity=".25">' + logoG(P, 160, 70, 120) + '</g>' +
+      propRow(P, 96, 42) +
+      '<rect x="0" y="150" width="320" height="30" fill="' + P.pal.acc + '"/>' +
+      txt(160, 170, fit(line, 300, 15), line, P.pal.bg, 'slide', 800)) };
+  },
+  phone: function(P){
+    var line = P.feats[1] || P.feats[0];
+    var rows = '';
+    for (var i = 0; i < 4; i++) rows += '<rect x="-21" y="' + (-4 + i * 13) + '" width="' + (42 - (i % 2) * 12) + '" height="7" fill="' + P.pal.acc + '" opacity="' + (.85 - i * .15) + '" class="rise" style="animation-delay:' + (i * .15 + .2) + 's"/>';
+    var screen = '<g transform="scale(.9)">' + '<g transform="translate(0 -30)">' + logoG(P, 0, 0, 34, 'pop') + '</g>' + rows +
+                 '<rect x="-21" y="46" width="42" height="11" fill="' + P.pal.ink + '"/>' + '</g>';
+    return { cap: line, svg: svg(
+      sky('#0b0b12', P.pal.bg) +
+      '<g opacity=".5">' + rays(240, 90, P.pal.acc) + '</g>' +
+      phone(240, 90, .78, P, screen) +
+      block(102, 74, 18, line, P.pal.ink, 'slide', 16) +
+      emo(102, 138, 26, P.props[1] || P.props[0] || '👉', 'bob')) };
+  },
+  feature: function(P){
+    var line = P.feats[2] || P.feats[0];
+    return { cap: line, svg: svg(
+      sky(P.pal.acc, P.pal.bg) +
+      '<rect x="18" y="20" width="284" height="140" fill="#00000055" stroke="' + P.pal.ink + '" stroke-width="2"/>' +
+      emo(72, 90, 46, P.props[2] || P.props[0] || P.M.em, 'bob') +
+      block(206, 84, 17, line, P.pal.ink, 'rise', 17) +
+      txt(206, 132, 11, 'Yes, really.', P.pal.ink, 'glow', 700)) };
+  },
+  quote: function(P){
+    return { cap: '"' + P.tagline + '"', svg: svg(
+      sky('#05050c', P.pal.bg) + twinkle(20, P.pal.acc) +
+      txt(36, 74, 60, '“', P.pal.acc, 'glow', 800, 'start') +
+      block(160, 88, 22, P.tagline, P.pal.ink, 'rise', 20) +
+      txt(288, 138, 60, '”', P.pal.acc, 'glow', 800, 'end')) };
+  },
+  stars: function(P){
+    return { cap: 'Ask anybody who has it.', svg: svg(
+      sky(P.pal.bg, '#05050c') + rays(160, 90, P.pal.acc) +
+      starRow(160, 70, 30, P.pal.acc) +
+      txt(160, 120, 20, 'Ask anybody who has it', P.pal.ink, 'rise', 800) +
+      propRow(P, 156, 20)) };
+  },
+  price: function(P){
+    var big = P.price || 'FREE', sub = P.price ? 'and worth it' : 'Yes. Free.';
+    return { cap: P.price ? 'Only ' + P.price + '.' : 'And it is free.', svg: svg(
+      sky(P.pal.acc, P.pal.bg) +
+      '<g class="spin fast" opacity=".5">' + rays(160, 84, P.pal.ink) + '</g>' +
+      '<circle cx="160" cy="84" r="52" fill="' + P.pal.bg + '" stroke="' + P.pal.ink + '" stroke-width="3" class="pop"/>' +
+      txt(160, 94, 34, big, P.pal.ink, 'glow', 800) +
+      txt(160, 154, 14, sub, P.pal.ink, '', 800)) };
+  },
+  end: function(P){
+    return { cap: P.M.end, svg: svg(
+      sky(P.pal.bg, '#05050c') + twinkle(18, P.pal.acc) +
+      logoG(P, 54, 66, 58, 'bob') +
+      txt(202, 56, fit(P.name, 196, 22), P.name, P.pal.ink, 'rise', 800) +
+      block(202, 88, 12, P.tagline, P.pal.acc, '', 26) +
+      '<rect x="58" y="120" width="204" height="30" fill="' + P.pal.acc + '" class="pop"/>' +
+      txt(160, 140, fit(P.M.end, 190, 15), P.M.end, P.pal.bg, '', 800) +
+      txt(160, 170, 8, 'MADE IN AD BUILDER · NOT A REAL AD', P.pal.ink, '', 700)) };
+  }
+};
+function writeScript(P){
+  var keys;
+  if (P.len <= 15) keys = ['hook','reveal','cast','end'];
+  else if (P.len <= 30) keys = ['hook','problem','reveal','cast','phone','end'];
+  else keys = ['hook','problem','reveal','cast','phone','feature','quote','stars','end'];
+  if (P.len > 15 && (P.free || P.price)) keys.splice(keys.length - 1, 0, 'price');
+  if (P.len === 30 && P.quote) keys.splice(4, 0, 'quote');
+  return keys.map(function(k){ var s = SCENE[k](P); s.key = k; return s; });
+}
+
+/* ---------------------------------------------------------------------------
+   6. THE THIRTY SECONDS
+   Making the ad is quick; showing the making of it is the point. Each step
+   does its own bit of the job and says what it found, and the last thumbnail
+   lands as the clock hits zero.
+   --------------------------------------------------------------------------- */
+var BUILD_MS = 30000;
+var state = { P:null, scenes:null, len:30, timer:null, sound:true };
+try { state.sound = localStorage.getItem('adbuilder:sound') !== '0'; } catch(e){}
+
+function dialFace(){
+  return '<svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="#0d0718" stroke="#5a3a8a" stroke-width="3"/>' +
+    '<circle id="ring" cx="60" cy="60" r="48" fill="none" stroke="#4de8ff" stroke-width="7" transform="rotate(-90 60 60)" stroke-dasharray="301.6" stroke-dashoffset="301.6" style="transition:stroke-dashoffset .25s linear"/>' +
+    '<text id="dnum" x="60" y="58" font-size="30" font-weight="800" fill="#fff4d6" text-anchor="middle" font-family="Helvetica Neue, Arial">30</text>' +
+    '<text x="60" y="76" font-size="9" font-weight="800" fill="#b9a8d9" text-anchor="middle" font-family="Helvetica Neue, Arial">SECONDS LEFT</text></svg>';
+}
+function plural(n, one, many){ return n + ' ' + (n === 1 ? one : many); }
+
+function startBuild(text, len){
+  var P = read(text, len), scenes = writeScript(P);
+  state.P = P; state.scenes = scenes;
+
+  /* the list of jobs: a label, and what it turned out to be */
+  var jobs = [
+    { t:'Reading your words', d: plural(text.trim().split(/\s+/).length, 'word', 'words') + ' · ' + (P.props.length ? 'spotted ' + P.words.slice(0,3).join(', ') : 'no cast named, picking one') },
+    { t:'Working out who it is for', d: P.name + (P.brand ? (P.real ? ' · a real app, so its own look' : ' · an arcade app, so the ad opens it') : ' · your own idea') },
+    { t:'Choosing the colours', d: P.pal.acc + ' on ' + P.pal.bg },
+    { t:'Casting it', d: (P.props.length ? P.props.join(' ') : P.M.em) + ' · ' + P.mood },
+    { t:'Writing the script', d: plural(scenes.length, 'scene', 'scenes') + ' · ' + P.tagline.slice(0, 38) }
+  ];
+  scenes.forEach(function(s, i){ jobs.push({ t:'Drawing scene ' + (i + 1), d: s.cap.slice(0, 44), draw:i }); });
+  jobs.push({ t:'Adding the music', d: P.mood + ', ' + plural(scenes.length, 'note', 'notes') });
+  jobs.push({ t:'Timing it', d: len + ' seconds · ' + (len / scenes.length).toFixed(1) + 's a scene' });
+  jobs.push({ t:'Rendering', d:'done' });
+
+  $('ask').hidden = true; $('done').hidden = true; $('build').hidden = false;
+  $('dial').innerHTML = dialFace();
+  $('steps').innerHTML = jobs.map(function(j, i){ return '<li data-i="' + i + '"><b>' + (i + 1) + '.</b> ' + esc(j.t) + '</li>'; }).join('');
+  $('strip').innerHTML = scenes.map(function(){ return '<div></div>'; }).join('');
+
+  var t0 = Date.now(), each = BUILD_MS / jobs.length, at = -1;
+  // the skip button reaches in here and winds the clock forward
+  state.rush = function(){ t0 -= BUILD_MS + 2000; };
+  clearInterval(state.timer);
+  state.timer = setInterval(function(){
+    var gone = Date.now() - t0, left = Math.max(0, Math.ceil((BUILD_MS - gone) / 1000));
+    var ring = $('dial').querySelector('#ring'), num = $('dial').querySelector('#dnum');
+    if (ring) { ring.setAttribute('stroke-dashoffset', (301.6 * Math.max(0, 1 - gone / BUILD_MS)).toFixed(1)); num.textContent = left; }
+    var want = Math.min(jobs.length - 1, Math.floor(gone / each));
+    while (at < want) {
+      at++;
+      var li = $('steps').querySelector('[data-i="' + at + '"]'), j = jobs[at];
+      if (li) {
+        li.className = 'on';
+        li.innerHTML = '<b>' + (at + 1) + '.</b> ' + esc(j.t) + ' <span>' + esc(j.d) + '</span>';
+        $('steps').querySelectorAll('li').forEach(function(o, k){ if (k < at) { o.classList.remove('on'); o.classList.add('did'); } });
+      }
+      if (j.draw !== undefined) {
+        var cell = $('strip').children[j.draw];
+        if (cell) { cell.innerHTML = scenes[j.draw].svg; setTimeout(function(c){ return function(){ c.classList.add('in'); }; }(cell), 20); }
+      }
+      beep(at, jobs.length);
+    }
+    if (gone >= BUILD_MS) { clearInterval(state.timer); finish(); }
+  }, 120);
+}
+function finish(){
+  clearInterval(state.timer);
+  var P = state.P;
+  $('build').hidden = true; $('done').hidden = false;
+  // Drawn again rather than reusing the thumbnails: two copies of the same
+  // picture in one page would share the names of their colour fades, and the
+  // second copy would come out black.
+  var fresh = writeScript(P);
+  $('poster').innerHTML = fresh[Math.min(2, fresh.length - 1)].svg;
+  $('doneName').textContent = P.name;
+  $('doneLine').textContent = '“' + P.tagline + '”';
+  $('doneSpec').textContent = P.len + ' seconds · ' + state.scenes.length + ' scenes · ' + P.mood +
+    (P.props.length ? ' · starring ' + P.props.join(' ') : '') + (P.real ? ' · a fan ad for a real app' : '');
+  chime();
+}
+
+/* ---------------------------------------------------------------------------
+   7. THE MUSIC
+   Ads have a jingle. This one is four notes made by the browser itself, so
+   there is no file to load and nothing to wait for.
+   --------------------------------------------------------------------------- */
+var actx = null;
+function note(freq, at, dur, type, vol){
+  if (!state.sound) return;
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    var o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + at;
+    o.type = type || 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || .07, t + .02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur + .05);
+  } catch(e){}
+}
+var SCALE = [392, 440, 494, 523, 587, 659, 740, 784, 880, 988, 1047, 1175];
+function beep(i, n){ note(SCALE[Math.min(SCALE.length - 1, Math.round(i / Math.max(1, n - 1) * (SCALE.length - 1)))], 0, .12, 'square', .04); }
+function chime(){ [523, 659, 784, 1047].forEach(function(f, i){ note(f, i * .09, .5, 'triangle', .07); }); }
+function tick(i){ note(SCALE[i % SCALE.length], 0, .1, 'sine', .05); }
+
+/* ---------------------------------------------------------------------------
+   8. PLAYING IT
+   The same player the arcade's own ads use: a countdown you cannot skip
+   (except you can, it is your ad), a bar along the bottom, and the button.
+   --------------------------------------------------------------------------- */
+var play = { iv:null, to:null };
+function playAd(P){
+  var scenes = writeScript(P);            // fresh copy, for the same reason as the poster
+  var pl = $('player'), stage = $('stage'), cap = $('cap'), dots = $('dots');
+  pl.style.setProperty('--ad-bg', P.pal.bg); pl.style.setProperty('--ad-fg', P.pal.ink);
+  $('head').textContent = P.name;
+  $('cta').textContent = P.cta;
+  $('made').textContent = P.real ? 'A fan ad made in Ad Builder — not a real ad from ' + P.name : 'Made in Ad Builder';
+  $('mute').textContent = state.sound ? '🔊' : '🔇';
+  dots.innerHTML = scenes.map(function(){ return '<i></i>'; }).join('');
+
+  /* the last scene holds a little longer, the way real end cards do */
+  var w = scenes.map(function(s, i){ return i === scenes.length - 1 ? 1.35 : 1; });
+  var tot = w.reduce(function(a, b){ return a + b; }, 0), ms = P.len * 1000;
+  var starts = [], acc = 0;
+  w.forEach(function(x){ starts.push(acc); acc += x / tot * ms; });
+
+  var n = -1, t0 = Date.now();
+  function paintScene(i){
+    n = i;
+    stage.innerHTML = scenes[i].svg;
+    cap.textContent = scenes[i].cap;
+    dots.querySelectorAll('i').forEach(function(d, k){ d.classList.toggle('on', k === i); });
+    tick(i + 2);
+  }
+  pl.hidden = false; paintScene(0);
+  clearInterval(play.iv);
+  play.iv = setInterval(function(){
+    var gone = Date.now() - t0, left = Math.max(0, Math.ceil((ms - gone) / 1000));
+    $('left').textContent = '⏱ 0:' + ('0' + left).slice(-2);
+    $('adbar').style.width = Math.max(0, 100 - gone / ms * 100) + '%';
+    var want = 0;
+    for (var i = 0; i < starts.length; i++) if (gone >= starts[i]) want = i;
+    if (want !== n) paintScene(want);
+    if (gone >= ms) { clearInterval(play.iv); chime(); $('left').textContent = '✓ The end'; }
+  }, 100);
+}
+function stopAd(){ clearInterval(play.iv); $('player').hidden = true; $('stage').innerHTML = ''; }
+
+/* ---------------------------------------------------------------------------
+   9. MY ADS
+   An ad is only the words you typed plus how long it is, so that is all that
+   is kept; opening one makes it again from scratch, instantly.
+   --------------------------------------------------------------------------- */
+var KEY = 'adbuilder:ads';
+function load(){ try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch(e){ return []; } }
+function store(a){ try { localStorage.setItem(KEY, JSON.stringify(a.slice(0, 40))); } catch(e){} }
+function paintMine(){
+  var ads = load(), grid = $('mineGrid');
+  $('mine').hidden = !ads.length;
+  grid.innerHTML = ads.map(function(a, i){
+    var P = read(a.desc, a.len), sc = writeScript(P);
+    return '<div><div class="card" data-play="' + i + '" style="--c:' + P.pal.acc + '">' +
+      '<div class="face">' + sc[Math.min(2, sc.length - 1)].svg + '</div>' +
+      '<div class="t"><b>' + esc(P.name) + '</b><span>' + esc(a.desc) + '</span><i>' + a.len + 's · ' + sc.length + ' scenes</i></div></div>' +
+      '<button type="button" class="del" data-del="' + i + '">Delete</button></div>';
+  }).join('');
+}
+
+/* ---------------------------------------------------------------------------
+   10. THE BUTTONS
+   --------------------------------------------------------------------------- */
+$('chips').innerHTML = BRANDS.map(function(b){
+  return '<button type="button" class="chip" data-brand="' + b.id + '" style="--c:' + b.accent + '"><i></i>' + esc(b.name) + '</button>';
+}).join('');
+$('chips').addEventListener('click', function(e){
+  var c = e.target.closest('[data-brand]'); if (!c) return;
+  var b = BRANDS.filter(function(x){ return x.id === c.dataset.brand; })[0], box = $('desc');
+  var had = box.value.trim();
+  box.value = had ? had.replace(/\.?$/, '') + ', for ' + b.name + '.' : 'An ad for ' + b.name + '.';
+  box.focus();
+});
+$('lens').addEventListener('click', function(e){
+  var b = e.target.closest('[data-len]'); if (!b) return;
+  state.len = +b.dataset.len;
+  $('lens').querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x === b); });
+});
+var IDEAS = [
+  'A funny ad for Whack-a-Hedgehog. Green and fast, hedgehogs popping out of the grass, a big hammer, ending with "Can you catch Sonic?"',
+  'An epic ad for Minecraft with a dragon, a sword and a castle at night, purple and gold.',
+  'A cute ad for a dog walking app called Paw Patrol Time, pink, with a puppy and a park.',
+  'An exciting ad for All Live Baseball, blue, with a home run and the crowd going up.',
+  'A retro 8-bit ad for a pizza shop, orange, with a rocket delivering pizza.',
+  'A calm ad for Spotify at night, headphones, rain on a window, "press play and breathe".',
+  'A scary ad for a Halloween game with ghosts, a pumpkin and a locked door, purple and black.',
+  'An ad for Recipe Box that shows cookies, lemonade and a timer, warm and brown, free.'
+];
+$('lucky').addEventListener('click', function(){ $('desc').value = IDEAS[Math.floor(Math.random() * IDEAS.length)]; $('desc').focus(); });
+$('make').addEventListener('click', function(){
+  var t = $('desc').value.trim();
+  if (t.length < 3) { $('desc').focus(); $('desc').style.borderColor = '#ff4fa0'; setTimeout(function(){ $('desc').style.borderColor = ''; }, 900); return; }
+  note(660, 0, .15, 'square', .05);
+  startBuild(t, state.len);
+});
+$('skip').addEventListener('click', function(){ if (state.rush) state.rush(); });
+$('cancel').addEventListener('click', function(){ clearInterval(state.timer); $('build').hidden = true; $('ask').hidden = false; });
+$('play').addEventListener('click', function(){ playAd(state.P); });
+$('again').addEventListener('click', function(){ $('done').hidden = true; $('ask').hidden = false; $('desc').select(); });
+$('edit').addEventListener('click', function(){ $('done').hidden = true; $('ask').hidden = false; $('desc').focus(); });
+$('save').addEventListener('click', function(){
+  var ads = load();
+  ads.unshift({ desc: state.P.raw, len: state.P.len, name: state.P.name, at: Date.now() });
+  store(ads); paintMine(); chime();
+  $('save').textContent = '✓ Saved';
+  setTimeout(function(){ $('save').textContent = '💾 Save it'; }, 1600);
+});
+$('close').addEventListener('click', stopAd);
+$('mute').addEventListener('click', function(){
+  state.sound = !state.sound;
+  try { localStorage.setItem('adbuilder:sound', state.sound ? '1' : '0'); } catch(e){}
+  $('mute').textContent = state.sound ? '🔊' : '🔇';
+  if (state.sound) tick(3);
+});
+$('cta').addEventListener('click', function(){
+  var P = state.P;
+  if (P && P.url) { stopAd(); window.open(P.url, '_blank', 'noopener'); return; }
+  $('made').textContent = 'It is a pretend ad — it cannot actually get you anything. Sorry!';
+});
+$('mineGrid').addEventListener('click', function(e){
+  var d = e.target.closest('[data-del]');
+  if (d) { var ads = load(); ads.splice(+d.dataset.del, 1); store(ads); paintMine(); return; }
+  var c = e.target.closest('[data-play]');
+  if (!c) return;
+  var a = load()[+c.dataset.play]; if (!a) return;
+  state.P = read(a.desc, a.len); state.scenes = writeScript(state.P);
+  playAd(state.P);
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !$('player').hidden) stopAd(); });
+paintMine();
+})();
+</script>
+<!-- App Arcade ads + clock + store (shared, from github.com/cmadisons/app-arcade) -->
+<script src="https://cmadisons.github.io/app-arcade/app-ads.js" data-app="adbuilder" defer></script>
+</body></html>

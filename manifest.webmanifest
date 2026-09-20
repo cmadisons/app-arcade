@@ -1,0 +1,17 @@
+{
+  "name": "App Arcade",
+  "short_name": "Arcade",
+  "description": "The recipe apps, the big apps and every minigame, on one page.",
+  "start_url": "./app-arcade.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#120a24",
+  "theme_color": "#120a24",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

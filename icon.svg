@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="App Arcade">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a1a6a"/>
+      <stop offset="1" stop-color="#120a24"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="114" fill="url(#g)"/>
+  <!-- the cabinet: a marquee, a screen, and a joystick with two buttons -->
+  <rect x="104" y="84" width="304" height="300" rx="26" fill="#1e1238" stroke="#ffd84a" stroke-width="12"/>
+  <rect x="140" y="120" width="232" height="34" rx="10" fill="#ff4fa0"/>
+  <rect x="140" y="176" width="232" height="120" rx="12" fill="#0a0518" stroke="#4de8ff" stroke-width="8"/>
+  <circle cx="200" cy="236" r="15" fill="#ffd84a"/>
+  <circle cx="256" cy="236" r="15" fill="#4de8ff"/>
+  <circle cx="312" cy="236" r="15" fill="#ff4fa0"/>
+  <rect x="234" y="316" width="16" height="44" rx="8" fill="#b9a8d9"/>
+  <circle cx="242" cy="312" r="21" fill="#ff4fa0"/>
+  <circle cx="310" cy="344" r="16" fill="#ffd84a"/>
+  <circle cx="356" cy="344" r="16" fill="#4de8ff"/>
+  <rect x="150" y="404" width="212" height="26" rx="13" fill="#ffd84a"/>
+</svg>

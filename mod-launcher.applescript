@@ -1,7 +1,10 @@
 -- Mod Launcher: opens Minecraft with one of the user's Fabric mods.
 -- The App Arcade links to mcmod://<mod-folder>, e.g. mcmod://ship-life
 property javaHome : "/Users/themadison/Library/Application Support/minecraft/runtime/java-runtime-epsilon/mac-os/java-runtime-epsilon/jre.bundle/Contents/Home"
-property allowedMods : {"ship-life"}
+-- Every mod in ~ that has a gradlew and builds. The list is a safety catch:
+-- the URL names a folder to run gradlew in, so it has to be a folder we chose,
+-- not one the link gets to pick.
+property allowedMods : {"ship-life", "zelda-mod", "skyblock-mod", "blueprint-mod", "random-teleport", "world-downloader", "example-mod"}
 
 on open location theURL
 	set modName to text 9 thru -1 of theURL -- drop "mcmod://"

@@ -72,6 +72,8 @@
   <div class="grid" id="apps"></div>
   <h2 data-for="games">🎮 Minigames</h2>
   <div class="grid" id="games"></div>
+  <h2 data-for="mods">⛏️ Minecraft mods</h2>
+  <div class="grid" id="mods"></div>
   <p class="empty hide" id="empty">Nothing matches that.</p>
   <footer>Tap a tile to open it. · <span id="visits"></span></footer>
 </div>
@@ -88,6 +90,7 @@ var APPS = [
   { id:'baseball', name:'All Live Baseball', text:'Live games, stats, playoffs, levels and the Baseball Pass.', url: at('all-live-baseball-site/index.html', 'https://cmadisons.github.io/all-live-baseball/'), pic: P + 'baseball.jpg', c:'#4d7cff' },
   { id:'hedgehog', name:'Whack-a-Hedgehog', text:'How fast can you whack them? Catch Sonic for a reward.', url: at('minigames/hedgehog.html', 'https://cmadisons.github.io/minigames/hedgehog.html'), pic: P + 'hedgehog.jpg', c:'#7ccf2a' },
   { id:'walkup', name:'Walk Up Songs', text:'Every player, and the song they walk up to.', url: at('walk-up-songs/index.html', 'https://cmadisons.github.io/walk-up-songs/'), pic: P + 'walkup.jpg', c:'#b36cf0' },
+  { id:'reach', name:'Reach', text:'Everyone\'s account in one place \u2014 email, call, and keep the conversation.', url: at('reach/index.html', 'https://cmadisons.github.io/reach/'), em:'\uD83D\uDCDE', c:'#4de8ff' },
   { id:'lego', name:'LEGO Pic', text:'Drop in a photo and get it back as LEGO bricks.', url: at('lego-pic/index.html', 'https://cmadisons.github.io/lego-pic/'), pic: P + 'lego.jpg', c:'#ff4a3d' },
   { id:'ship', name:'Ship Life', text: at('Live on a giant space ship. Opens Minecraft with the Ship Life mod.', 'A Minecraft mod: live on a giant space ship. Opens the mod\'s page.'), url: at('mcmod://ship-life', 'https://github.com/cmadisons/ship-life'), pic: P + 'ship.jpg', c:'#ffd84a', tag: at('⛏️ Opens Minecraft', '⛏️ Minecraft mod') },
   { id:'zelda', name:'Zelda BOTW', text:'Wake up on the Great Plateau and explore Hyrule.', url: at('arcade/breath-of-the-wild/index.html', 'https://cmadisons.github.io/arcade/breath-of-the-wild/'), pic: P + 'zelda.jpg', c:'#4de8c0' }
@@ -113,6 +116,21 @@ var GAMES = [
   { id:'darts',   name:'Darts Counter',  text:'Keep score for a real game of darts.',   url: at('darts-counter/index.html', 'https://cmadisons.github.io/darts-counter/'), em:'🎯', c:'#7ccf2a' },
   { id:'times',   name:'TimesTanimals',  text:'The times tables, with animals.',        url:'https://www.timestanimals.com/', em:'🦁', c:'#ff4fa0' }
 ];
+// The Fabric mods. On this computer they open Minecraft through the Mod
+// Launcher; online they open the mod's page, since a web page cannot start
+// Minecraft on somebody else's machine. Ship Life has poster art and stays
+// up with the apps; these are the rest of them.
+var M = function (folder, repo) { return at('mcmod://' + folder, 'https://github.com/cmadisons/' + repo); };
+var MODTAG = at('⛏️ Opens Minecraft', '⛏️ Minecraft mod');
+var MODS = [
+  { id:'zeldamod',  name:'Zelda Mod',       text:'Hyrule in Minecraft: the items, the enemies and the shrines.', url: M('zelda-mod','zelda-mod'),             em:'🗡️', c:'#4de8c0', tag: MODTAG },
+  { id:'skyblockmod', name:'SkyBlock Mod',  text:'Hypixel SkyBlock: a thousand items, 300 people, 131 enemies.', url: M('skyblock-mod','skyblock-mod'),       em:'🏝️', c:'#ffd84a', tag: MODTAG },
+  { id:'blueprint', name:'Blueprint',       text:'Highlight something you built and save it to place again.',    url: M('blueprint-mod','blueprint-mod'),     em:'📐', c:'#4d7cff', tag: MODTAG },
+  { id:'rteleport', name:'Random Teleport', text:'Press G to jump somewhere random. Sheep in all 16 colours.',   url: M('random-teleport','random-teleport'), em:'🌀', c:'#b36cf0', tag: MODTAG },
+  { id:'worlddl',   name:'World Downloader',text:'Save a multiplayer world to singleplayer as you walk it.',     url: M('world-downloader','world-downloader'), em:'💾', c:'#7ccf2a', tag: MODTAG },
+  { id:'examplemod',name:'Example Mod',     text:'The first one. Where all the others started.',                 url: M('example-mod','example-mod'),         em:'🧪', c:'#ff4a3d', tag: MODTAG }
+];
+
 function tiles(list){
   return list.map(function(a){
     // A tile with poster art shows the photo; one without shows its emoji.
@@ -127,6 +145,7 @@ function tiles(list){
 document.getElementById('recipes').innerHTML = tiles(RECIPES);
 document.getElementById('apps').innerHTML = tiles(APPS);
 document.getElementById('games').innerHTML = tiles(GAMES);
+document.getElementById('mods').innerHTML = tiles(MODS);
 
 /* ---- search -------------------------------------------------------------
    Thirty-odd tiles is more than you can scan, so the box filters on name and

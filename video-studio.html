@@ -3,10 +3,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Video Studio</title>
 <style>
-  :root{
-    --bg:#11131a; --panel:#1b1f2b; --panel2:#232838; --line:#323a50;
-    --fg:#eef1f8; --muted:#9aa4bf; --accent:#6c8cff; --accent2:#33d6a6; --rec:#ff4d5e;
-  }
+  :root{ --bg:#11131a; --panel:#1b1f2b; --panel2:#232838; --line:#323a50;
+         --fg:#eef1f8; --muted:#9aa4bf; --accent:#6c8cff; --accent2:#33d6a6; --rec:#ff4d5e; }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 "Helvetica Neue",Helvetica,Arial,sans-serif}
   button,input,select{font:inherit}
@@ -17,8 +15,9 @@
   header .dot{width:14px;height:14px;border-radius:50%;background:var(--rec)}
   header .sub{color:var(--muted);font-size:14px;margin-left:auto}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:16px}
-  .panel h2{margin:0 0 10px;font-size:17px;letter-spacing:.3px}
+  .panel h2{margin:0 0 10px;font-size:17px}
   .panel h2 span{color:var(--muted);font-weight:400;font-size:14px;margin-left:8px}
+  h3{font-size:15px;margin:16px 0 8px}
   video{width:100%;background:#000;border-radius:12px;display:block}
   .cam video{aspect-ratio:16/9;object-fit:cover}
   .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
@@ -28,22 +27,44 @@
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#0b0e17}
   .btn.go{background:var(--accent2);border-color:var(--accent2);color:#07231b}
   .btn.rec{background:var(--rec);border-color:var(--rec);color:#fff}
-  .btn.small{padding:5px 11px;font-size:14px}
   .timer{font-variant-numeric:tabular-nums;font-weight:700;color:var(--muted)}
   .timer.on{color:var(--rec)}
   .hint{color:var(--muted);font-size:13.5px;margin:8px 0 0}
+  .hint b{color:var(--fg)}
+  /* the video stage, with the effect preview and the tap-a-spot layer on top */
+  .stagewrap{position:relative}
+  .stagewrap canvas{position:absolute;left:0;top:0;width:100%;height:100%;border-radius:12px;background:#000}
+  #pick{position:absolute;inset:0;border-radius:12px;cursor:crosshair;background:rgba(10,14,25,.45);
+        display:flex;align-items:flex-start;justify-content:center;padding-top:14px}
+  #pick b{background:var(--accent2);color:#07231b;border-radius:999px;padding:7px 15px;font-size:14.5px}
   /* trim */
   .track{position:relative;height:26px;border-radius:8px;background:var(--panel2);overflow:hidden;margin:12px 0 4px}
   .track .keep{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#6c8cff55,#33d6a655);border-left:3px solid var(--accent);border-right:3px solid var(--accent2)}
   .track .head{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+  .track .mk{position:absolute;top:2px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#ffd84a}
   .sliders label{display:block;font-size:13px;color:var(--muted);margin-top:6px}
   .sliders input[type=range]{width:100%}
   .times{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin-top:6px}
   .times b{color:var(--fg)}
+  /* effects */
+  .cmdbox{background:var(--panel2);border-radius:14px;padding:12px;margin-top:14px}
+  .cmdbox input[type=text]{flex:1 1 320px;min-width:200px;background:#161a25;color:var(--fg);
+    border:1px solid var(--line);border-radius:999px;padding:10px 16px}
+  .ex{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .ex button{background:#2c3348;border:none;color:var(--muted);border-radius:999px;padding:5px 11px;font-size:13px}
+  .ex button:hover{color:var(--fg)}
+  .fxlist{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .fx{display:flex;align-items:center;gap:8px;background:#161a25;border:1px solid var(--line);
+      border-radius:999px;padding:6px 8px 6px 14px;font-size:14px}
+  .fx i{font-style:normal;color:var(--accent2);font-weight:700}
+  .fx button{background:none;border:none;color:var(--muted);font-size:15px;padding:0 4px}
+  .fx button:hover{color:var(--rec)}
   /* timeline */
   .clips{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
   .clip{flex:none;width:168px;background:var(--panel2);border:2px solid transparent;border-radius:12px;padding:8px;cursor:pointer}
   .clip.sel{border-color:var(--accent)}
+  .clip.new{border-color:var(--accent2);animation:pop 1s ease-in-out 3}
+  @keyframes pop{50%{box-shadow:0 0 0 4px #33d6a655}}
   .clip img,.clip .noimg{width:100%;height:92px;object-fit:cover;border-radius:8px;background:#000;display:block}
   .clip .nm{font-size:13.5px;font-weight:600;margin:6px 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .clip .du{font-size:12.5px;color:var(--muted)}
@@ -56,15 +77,12 @@
   .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s}
   .drop{outline:3px dashed var(--accent2);outline-offset:-8px}
   a.dl{display:inline-block;background:var(--accent2);color:#07231b;font-weight:700;text-decoration:none;border-radius:999px;padding:9px 18px}
-  .warn{background:#3a2a17;border:1px solid #7a5a22;color:#ffd9a0;border-radius:10px;padding:10px 12px;font-size:14px;margin-top:10px}
+  .ok{background:#123a2c;border:1px solid #2b7d5f;color:#9df3d3;border-radius:10px;padding:10px 12px;font-size:14px;margin-top:10px}
+  label.chk{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:14px}
 </style>
 </head><body>
 <div class="wrap">
-  <header>
-    <div class="dot"></div>
-    <h1>Video Studio</h1>
-    <div class="sub">record &middot; cut &middot; join</div>
-  </header>
+  <header><div class="dot"></div><h1>Video Studio</h1><div class="sub">record &middot; cut &middot; effects &middot; join</div></header>
 
   <!-- 1. CAMERA -->
   <section class="panel cam">
@@ -72,7 +90,7 @@
     <video id="preview" autoplay muted playsinline></video>
     <div class="row">
       <button class="btn primary" id="btnCam">Turn on camera</button>
-      <button class="btn rec" id="btnRec" disabled>● Record</button>
+      <button class="btn rec" id="btnRec" disabled>&#9679; Record</button>
       <span class="timer" id="timer">0:00</span>
       <button class="btn" id="btnFlip" disabled>Flip camera</button>
       <label class="btn" for="fileIn">Add videos from files</label>
@@ -83,8 +101,12 @@
 
   <!-- 2. EDIT -->
   <section class="panel" id="editPanel" hidden>
-    <h2>2. Cut a clip <span id="editName"></span></h2>
-    <video id="editVid" controls playsinline></video>
+    <h2>2. Cut it and add effects <span id="editName"></span></h2>
+    <div class="stagewrap">
+      <video id="editVid" controls playsinline></video>
+      <canvas id="fxPrev" width="1280" height="720" hidden></canvas>
+      <div id="pick" hidden><b id="pickMsg">Tap the spot</b></div>
+    </div>
     <div class="track" id="track"><div class="keep" id="keep"></div><div class="head" id="head"></div></div>
     <div class="sliders">
       <label>Start of the part you keep</label>
@@ -98,28 +120,47 @@
       <span>whole clip <b id="tAll">0:00</b></span>
     </div>
     <div class="row">
-      <button class="btn" id="btnPlayKeep">▶ Play the kept part</button>
+      <button class="btn" id="btnPlayKeep">&#9654; Play the kept part</button>
       <button class="btn" id="btnSetStart">Start here</button>
       <button class="btn" id="btnSetEnd">End here</button>
-      <button class="btn" id="btnSplit">✂ Split here</button>
+      <button class="btn" id="btnSplit">&#9986; Split here</button>
       <button class="btn" id="btnReset">Undo the cut</button>
       <button class="btn" id="btnRename">Rename</button>
       <button class="btn" id="btnDel">Delete clip</button>
     </div>
+
+    <div class="cmdbox">
+      <h3 style="margin-top:0">Tell it what to do</h3>
+      <div class="row" style="margin-top:0">
+        <input type="text" id="cmd" placeholder="make smoke come out of his hand at second 11">
+        <button class="btn primary" id="btnCmd">Do it</button>
+        <button class="btn go" id="btnPrev">&#9654; Preview with effects</button>
+      </div>
+      <div class="ex" id="ex"></div>
+      <div class="fxlist" id="fxList"></div>
+      <p class="hint" id="cmdHint">Say what, and when. You can <b>take something out</b>, <b>paint it a colour</b>, <b>add a thing</b>, or throw smoke, fire, sparkles and the rest at it. If it needs a place, it asks you to tap the spot.</p>
+    </div>
     <p class="hint">To take a chunk out of the middle: park the playhead where the bad bit starts and press <b>Split here</b>, do it again where it ends, then delete the middle piece.</p>
   </section>
 
-  <!-- 3. TIMELINE -->
+  <!-- 3. CLIPS -->
   <section class="panel">
     <h2>3. Your clips <span id="tlCount"></span></h2>
     <div id="clips" class="clips"></div>
     <div id="clipsEmpty" class="empty">No clips yet. Record one above, or add video files.</div>
   </section>
 
-  <!-- 4. EXPORT -->
+  <!-- 4. JOIN -->
   <section class="panel">
     <h2>4. Join them into one video</h2>
     <div class="row">
+      <label>Join style
+        <select id="join" class="btn">
+          <option value="one" selected>Like one real video (blended)</option>
+          <option value="fade">Crossfade</option>
+          <option value="cut">Straight cut</option>
+        </select>
+      </label>
       <label>Size
         <select id="size" class="btn">
           <option value="1280x720" selected>720p (1280&times;720)</option>
@@ -127,6 +168,9 @@
           <option value="854x480">480p (854&times;480)</option>
         </select>
       </label>
+      <label class="chk"><input type="checkbox" id="hear" checked> Play the sound while it builds</label>
+    </div>
+    <div class="row">
       <button class="btn go" id="btnExport">Make the combined video</button>
       <button class="btn" id="btnCancel" hidden>Stop</button>
       <span class="timer" id="expInfo"></span>
@@ -134,175 +178,192 @@
     <div class="bar"><i id="bar"></i></div>
     <canvas id="stage" width="1280" height="720" style="width:100%;border-radius:12px;margin-top:10px;background:#000;display:none"></canvas>
     <div id="outWrap" hidden>
+      <div class="ok" id="okMsg">Done &mdash; and it has been added to your clips up in section&nbsp;3.</div>
       <video id="outVid" controls playsinline style="margin-top:12px"></video>
-      <div class="row"><a class="dl" id="dl" download="my-video.webm">⬇ Save the video</a>
-      <button class="btn" id="btnBack">Put it back in my clips</button></div>
+      <div class="row"><a class="dl" id="dl" download="my-video.webm">&#11015; Save the video</a></div>
     </div>
-    <p class="hint">Joining plays the clips through once in real time, so a 2&nbsp;minute movie takes about 2&nbsp;minutes.</p>
+    <p class="hint"><b>Like one real video</b> blends the picture and the sound across the join, fills the frame so there are no black bars, and evens out the brightness so the two clips match. It builds in real time, so a 2&nbsp;minute movie takes about 2&nbsp;minutes.</p>
   </section>
 </div>
 
 <script>
-/* ---------- tiny helpers ---------- */
-const $ = id => document.getElementById(id);
-const fmt = s => { s = Math.max(0, s||0); const m = Math.floor(s/60); const r = Math.floor(s%60); return m + ":" + String(r).padStart(2,"0"); };
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+/* ---------- helpers ---------- */
+var $ = function(id){ return document.getElementById(id); };
+function fmt(s){ s = Math.max(0, s||0); var m = Math.floor(s/60), r = Math.floor(s%60); return m + ":" + String(r).padStart(2,"0"); }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function esc(s){ return String(s).replace(/[<>&]/g, function(m){ return {"<":"&lt;",">":"&gt;","&":"&amp;"}[m]; }); }
 
 function pickMime(){
-  const list = ["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm","video/mp4"];
-  for (const m of list) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+  var list = ["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm","video/mp4"];
+  for (var i=0;i<list.length;i++) if (window.MediaRecorder && MediaRecorder.isTypeSupported(list[i])) return list[i];
   return "";
 }
 
 /* Blobs from MediaRecorder often report duration = Infinity, so seek far ahead first. */
 function probe(url){
-  return new Promise(res => {
-    const v = document.createElement("video");
+  return new Promise(function(res){
+    var v = document.createElement("video");
     v.preload = "metadata"; v.muted = true; v.src = url;
-    const done = () => res({ d: isFinite(v.duration) ? v.duration : 0, w: v.videoWidth, h: v.videoHeight });
-    v.onloadedmetadata = () => {
+    var done = function(){ res({ d: isFinite(v.duration) ? v.duration : 0, w: v.videoWidth, h: v.videoHeight }); };
+    v.onloadedmetadata = function(){
       if (!isFinite(v.duration) || v.duration === 0) {
         v.currentTime = 1e6;
-        v.ontimeupdate = () => { v.ontimeupdate = null; v.currentTime = 0; done(); };
+        v.ontimeupdate = function(){ v.ontimeupdate = null; v.currentTime = 0; done(); };
         setTimeout(done, 2500);
       } else done();
     };
-    v.onerror = () => res({ d:0, w:0, h:0 });
+    v.onerror = function(){ res({ d:0, w:0, h:0 }); };
   });
 }
 
+/* A thumbnail, and how bright the clip is (used to match two clips to each other). */
 function thumb(url, at){
-  return new Promise(res => {
-    const v = document.createElement("video");
+  return new Promise(function(res){
+    var v = document.createElement("video");
     v.preload = "metadata"; v.muted = true; v.playsInline = true; v.src = url;
-    v.onloadeddata = () => { v.currentTime = Math.min(at || 0.1, Math.max(0,(v.duration||1) - 0.05)); };
-    v.onseeked = () => {
+    v.onloadeddata = function(){ v.currentTime = Math.min(at || 0.1, Math.max(0,(v.duration||1) - 0.05)); };
+    v.onseeked = function(){
       try {
-        const c = document.createElement("canvas");
+        var c = document.createElement("canvas");
         c.width = 320; c.height = Math.round(320 * (v.videoHeight||9) / (v.videoWidth||16));
-        c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
-        res(c.toDataURL("image/jpeg", 0.7));
-      } catch(e){ res(""); }
+        var x = c.getContext("2d"); x.drawImage(v, 0, 0, c.width, c.height);
+        var lum = 0;
+        try {
+          var d = x.getImageData(0,0,c.width,c.height).data, n = 0;
+          for (var i=0;i<d.length;i+=64){ lum += (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114); n++; }
+          lum = n ? lum/n : 128;
+        } catch(e){ lum = 128; }
+        res({ url: c.toDataURL("image/jpeg", 0.7), lum: lum });
+      } catch(e){ res({ url:"", lum:128 }); }
     };
-    v.onerror = () => res("");
-    setTimeout(()=>res(""), 4000);
+    v.onerror = function(){ res({ url:"", lum:128 }); };
+    setTimeout(function(){ res({ url:"", lum:128 }); }, 4000);
   });
 }
 
-/* ---------- storage (clips survive a reload) ---------- */
-let db = null;
+/* ---------- storage ---------- */
+var db = null;
 function openDB(){
-  return new Promise(res => {
+  return new Promise(function(res){
     if (!window.indexedDB) return res(null);
-    const rq = indexedDB.open("video-studio", 1);
-    rq.onupgradeneeded = () => rq.result.createObjectStore("clips", { keyPath:"id" });
-    rq.onsuccess = () => res(rq.result);
-    rq.onerror = () => res(null);
+    var rq = indexedDB.open("video-studio", 1);
+    rq.onupgradeneeded = function(){ rq.result.createObjectStore("clips", { keyPath:"id" }); };
+    rq.onsuccess = function(){ res(rq.result); };
+    rq.onerror = function(){ res(null); };
   });
 }
-function put(rec){ if(!db) return; try{ db.transaction("clips","readwrite").objectStore("clips").put(rec); }catch(e){} }
+function put(r){ if(!db) return; try{ db.transaction("clips","readwrite").objectStore("clips").put(r); }catch(e){} }
 function del(id){ if(!db) return; try{ db.transaction("clips","readwrite").objectStore("clips").delete(id); }catch(e){} }
 function allRecs(){
-  return new Promise(res => {
+  return new Promise(function(res){
     if(!db) return res([]);
-    try { const rq = db.transaction("clips").objectStore("clips").getAll(); rq.onsuccess = () => res(rq.result||[]); rq.onerror = ()=>res([]); }
+    try { var rq = db.transaction("clips").objectStore("clips").getAll();
+          rq.onsuccess = function(){ res(rq.result||[]); }; rq.onerror = function(){ res([]); }; }
     catch(e){ res([]); }
   });
 }
-const rec = c => ({ id:c.id, name:c.name, blob:c.blob, duration:c.duration, start:c.start, end:c.end, order:c.order, thumb:c.thumb, w:c.w, h:c.h });
+function rec(c){ return { id:c.id, name:c.name, blob:c.blob, duration:c.duration, start:c.start, end:c.end,
+                          order:c.order, thumb:c.thumb, w:c.w, h:c.h, lum:c.lum, fx:c.fx }; }
 
 /* ---------- state ---------- */
-let clips = [];        // {id,name,blob,url,duration,start,end,thumb,order,w,h}
-let selId = null;
-let stream = null, recorder = null, chunks = [], tick = null, t0 = 0, facing = "user";
-let cancelExport = false, exporting = false;
+var clips = [], selId = null;
+var stream = null, recorder = null, chunks = [], tick = null, t0 = 0, facing = "user";
+var cancelExport = false, exporting = false, newId = null;
 
 /* ---------- adding clips ---------- */
-async function addClip(blob, name){
-  const url = URL.createObjectURL(blob);
-  const { d, w, h } = await probe(url);
-  const c = { id: uid(), name: name || "Clip", blob, url, duration: d, start: 0, end: d, order: clips.length, thumb: "", w, h };
-  clips.push(c);
-  draw();
-  c.thumb = await thumb(url, 0.1);
-  put(rec(c));
-  draw();
-  select(c.id);
-  return c;
+function addClip(blob, name){
+  var url = URL.createObjectURL(blob);
+  return probe(url).then(function(m){
+    var c = { id: uid(), name: name || "Clip", blob: blob, url: url, duration: m.d, start: 0, end: m.d,
+              order: clips.length, thumb: "", w: m.w, h: m.h, lum: 128, fx: [] };
+    clips.push(c); draw();
+    return thumb(url, 0.1).then(function(t){
+      c.thumb = t.url; c.lum = t.lum; put(rec(c)); draw();
+      return c;
+    });
+  });
 }
 
 /* ---------- camera ---------- */
-$("btnCam").onclick = async () => {
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; $("preview").srcObject = null;
-    $("btnCam").textContent = "Turn on camera"; $("btnRec").disabled = true; $("btnFlip").disabled = true; return; }
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode: facing, width:{ideal:1280}, height:{ideal:720} }, audio:true });
-    $("preview").srcObject = stream;
-    $("btnCam").textContent = "Turn off camera";
-    $("btnRec").disabled = false; $("btnFlip").disabled = false;
-    $("camHint").textContent = "Press Record to start, press it again to stop.";
-  } catch(e){
-    $("camHint").innerHTML = "<b>The camera did not open.</b> " + (e && e.message ? e.message : "") + " (Safari and Chrome only allow the camera on a web page or on localhost, not on a file:// page.)";
-  }
+$("btnCam").onclick = function(){
+  if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; $("preview").srcObject = null;
+    $("btnCam").textContent = "Turn on camera"; $("btnRec").disabled = true; $("btnFlip").disabled = true; return Promise.resolve(); }
+  return navigator.mediaDevices.getUserMedia({ video:{ facingMode: facing, width:{ideal:1280}, height:{ideal:720} }, audio:true })
+    .then(function(s){
+      stream = s; $("preview").srcObject = s;
+      $("btnCam").textContent = "Turn off camera";
+      $("btnRec").disabled = false; $("btnFlip").disabled = false;
+      $("camHint").textContent = "Press Record to start, press it again to stop.";
+    })
+    .catch(function(e){
+      $("camHint").innerHTML = "<b>The camera did not open.</b> " + (e && e.message ? e.message : "") +
+        " (Safari and iPhones only allow the camera on an https page, not on a file:// page.)";
+    });
 };
-
-$("btnFlip").onclick = async () => {
+$("btnFlip").onclick = function(){
   facing = facing === "user" ? "environment" : "user";
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; $("btnCam").textContent = "Turn on camera"; await $("btnCam").onclick(); }
+  if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null;
+    $("btnCam").textContent = "Turn on camera"; $("btnCam").onclick(); }
 };
-
-$("btnRec").onclick = () => {
+$("btnRec").onclick = function(){
   if (recorder && recorder.state === "recording") { recorder.stop(); return; }
   chunks = [];
-  const mime = pickMime();
+  var mime = pickMime();
   try { recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined); }
   catch(e){ $("camHint").textContent = "This browser cannot record video."; return; }
-  recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-  recorder.onstop = async () => {
+  recorder.ondataavailable = function(e){ if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = function(){
     clearInterval(tick); $("timer").classList.remove("on"); $("timer").textContent = "0:00";
-    $("btnRec").textContent = "● Record"; $("btnRec").classList.add("rec");
-    const blob = new Blob(chunks, { type: chunks[0] ? chunks[0].type : "video/webm" });
-    if (blob.size) await addClip(blob, "Take " + (clips.length + 1));
+    $("btnRec").textContent = "● Record";
+    var blob = new Blob(chunks, { type: chunks[0] ? chunks[0].type : "video/webm" });
+    if (blob.size) addClip(blob, "Take " + (clips.length + 1)).then(function(c){ select(c.id); });
   };
   recorder.start(100);
-  t0 = Date.now();
-  $("timer").classList.add("on");
-  tick = setInterval(() => $("timer").textContent = fmt((Date.now()-t0)/1000), 200);
+  t0 = Date.now(); $("timer").classList.add("on");
+  tick = setInterval(function(){ $("timer").textContent = fmt((Date.now()-t0)/1000); }, 200);
   $("btnRec").textContent = "■ Stop";
 };
 
 /* ---------- files & drag-drop ---------- */
-$("fileIn").onchange = async e => {
-  for (const f of e.target.files) await addClip(f, f.name.replace(/\.[^.]+$/, ""));
+$("fileIn").onchange = function(e){
+  var files = Array.prototype.slice.call(e.target.files);
+  files.reduce(function(p,f){ return p.then(function(){ return addClip(f, f.name.replace(/\.[^.]+$/,"")); }); }, Promise.resolve())
+       .then(function(c){ if (c) select(c.id); });
   e.target.value = "";
 };
-document.addEventListener("dragover", e => { e.preventDefault(); document.body.classList.add("drop"); });
-document.addEventListener("dragleave", e => { if (e.relatedTarget === null) document.body.classList.remove("drop"); });
-document.addEventListener("drop", async e => {
+document.addEventListener("dragover", function(e){ e.preventDefault(); document.body.classList.add("drop"); });
+document.addEventListener("dragleave", function(e){ if (e.relatedTarget === null) document.body.classList.remove("drop"); });
+document.addEventListener("drop", function(e){
   e.preventDefault(); document.body.classList.remove("drop");
-  for (const f of e.dataTransfer.files) if (f.type.startsWith("video")) await addClip(f, f.name.replace(/\.[^.]+$/, ""));
+  var files = Array.prototype.slice.call(e.dataTransfer.files).filter(function(f){ return f.type.indexOf("video") === 0; });
+  files.reduce(function(p,f){ return p.then(function(){ return addClip(f, f.name.replace(/\.[^.]+$/,"")); }); }, Promise.resolve())
+       .then(function(c){ if (c) select(c.id); });
 });
 
-/* ---------- timeline ---------- */
-function ordered(){ return clips.slice().sort((a,b) => a.order - b.order); }
-
+/* ---------- the clip strip ---------- */
+function ordered(){ return clips.slice().sort(function(a,b){ return a.order - b.order; }); }
 function draw(){
-  const box = $("clips"); box.innerHTML = "";
-  const list = ordered();
+  var box = $("clips"); box.innerHTML = "";
+  var list = ordered();
   $("clipsEmpty").hidden = list.length > 0;
-  $("tlCount").textContent = list.length ? list.length + " clip" + (list.length>1?"s":"") + " · " + fmt(list.reduce((s,c)=>s + (c.end-c.start), 0)) + " altogether" : "";
-  list.forEach((c, i) => {
-    const el = document.createElement("div");
-    el.className = "clip" + (c.id === selId ? " sel" : "");
+  $("tlCount").textContent = list.length ? list.length + " clip" + (list.length>1?"s":"") + " · " +
+      fmt(list.reduce(function(s,c){ return s + (c.end-c.start); },0)) + " altogether" : "";
+  list.forEach(function(c, i){
+    var el = document.createElement("div");
+    el.className = "clip" + (c.id === selId ? " sel" : "") + (c.id === newId ? " new" : "");
+    var nfx = (c.fx||[]).length;
     el.innerHTML =
       (c.thumb ? '<img src="' + c.thumb + '" alt="">' : '<div class="noimg"></div>') +
       '<div class="nm">' + (i+1) + '. ' + esc(c.name) + '</div>' +
-      '<div class="du">' + fmt(c.end - c.start) + ((c.end - c.start) < c.duration - 0.05 ? " (cut)" : "") + '</div>' +
-      '<div class="ops"><button data-a="l" title="Move earlier">←</button>' +
-      '<button data-a="c" title="Copy">⧉</button>' +
-      '<button data-a="x" title="Delete">✕</button></div>';
-    el.onclick = ev => {
-      const a = ev.target.dataset ? ev.target.dataset.a : null;
+      '<div class="du">' + fmt(c.end - c.start) +
+        ((c.end - c.start) < c.duration - 0.05 ? " (cut)" : "") +
+        (nfx ? " · " + nfx + " fx" : "") + '</div>' +
+      '<div class="ops"><button data-a="l" title="Move earlier">&larr;</button>' +
+      '<button data-a="c" title="Copy">&#10697;</button>' +
+      '<button data-a="x" title="Delete">&#10005;</button></div>';
+    el.onclick = function(ev){
+      var a = ev.target.dataset ? ev.target.dataset.a : null;
       if (a === "l") { move(c.id, -1); ev.stopPropagation(); return; }
       if (a === "c") { copyClip(c); ev.stopPropagation(); return; }
       if (a === "x") { removeClip(c.id); ev.stopPropagation(); return; }
@@ -311,47 +372,45 @@ function draw(){
     box.appendChild(el);
   });
 }
-function esc(s){ return String(s).replace(/[<>&]/g, m => ({"<":"&lt;",">":"&gt;","&":"&amp;"}[m])); }
-
 function move(id, dir){
-  const list = ordered(); const i = list.findIndex(c => c.id === id); const j = i + dir;
+  var list = ordered(), i = list.findIndex(function(c){ return c.id === id; }), j = i + dir;
   if (j < 0 || j >= list.length) return;
-  const a = list[i], b = list[j]; const o = a.order; a.order = b.order; b.order = o;
-  put(rec(a)); put(rec(b)); draw();
+  var o = list[i].order; list[i].order = list[j].order; list[j].order = o;
+  put(rec(list[i])); put(rec(list[j])); draw();
 }
-async function copyClip(c){
-  const url = URL.createObjectURL(c.blob);
-  const n = { id: uid(), name: c.name + " copy", blob: c.blob, url, duration: c.duration, start: c.start, end: c.end, order: clips.length, thumb: c.thumb, w:c.w, h:c.h };
+function copyClip(c){
+  var n = { id: uid(), name: c.name + " copy", blob: c.blob, url: URL.createObjectURL(c.blob), duration: c.duration,
+            start: c.start, end: c.end, order: clips.length, thumb: c.thumb, w:c.w, h:c.h, lum:c.lum,
+            fx: (c.fx||[]).map(function(f){ return Object.assign({}, f, { id: uid() }); }) };
   clips.push(n); put(rec(n)); draw();
 }
 function removeClip(id){
-  const c = clips.find(x => x.id === id); if (!c) return;
+  var c = clips.find(function(x){ return x.id === id; }); if (!c) return;
   if (!confirm("Delete “" + c.name + "”?")) return;
-  clips = clips.filter(x => x.id !== id); del(id);
-  ordered().forEach((x, i) => { x.order = i; put(rec(x)); });
+  clips = clips.filter(function(x){ return x.id !== id; }); del(id);
+  ordered().forEach(function(x,i){ x.order = i; put(rec(x)); });
   if (selId === id) { selId = null; $("editPanel").hidden = true; }
   draw();
 }
 
-/* ---------- the cutting room ---------- */
-function sel(){ return clips.find(c => c.id === selId); }
-
+/* ---------- cutting ---------- */
+function sel(){ return clips.find(function(c){ return c.id === selId; }); }
 function select(id){
-  selId = id; const c = sel(); if (!c) return;
+  selId = id; var c = sel(); if (!c) return;
+  stopPreview();
   $("editPanel").hidden = false;
   $("editName").textContent = c.name;
-  const v = $("editVid");
+  var v = $("editVid");
   v.src = c.url;
   $("rStart").max = $("rEnd").max = c.duration || 1;
   $("rStart").value = c.start; $("rEnd").value = c.end;
-  v.onloadedmetadata = () => { try { v.currentTime = c.start; } catch(e){} };
+  v.onloadedmetadata = function(){ try { v.currentTime = c.start; } catch(e){} };
   try { v.currentTime = c.start; } catch(e){}
-  paint(); draw();
+  paint(); drawFxList(); draw();
 }
-
 function paint(){
-  const c = sel(); if (!c) return;
-  const d = c.duration || 1;
+  var c = sel(); if (!c) return;
+  var d = c.duration || 1;
   $("keep").style.left = (c.start / d * 100) + "%";
   $("keep").style.width = ((c.end - c.start) / d * 100) + "%";
   $("tKeep").textContent = fmt(c.end - c.start);
@@ -359,145 +418,532 @@ function paint(){
   $("tEnd").textContent = fmt(c.end);
   $("tAll").textContent = fmt(d);
   $("editName").textContent = c.name;
+  Array.prototype.slice.call($("track").querySelectorAll(".mk")).forEach(function(m){ m.remove(); });
+  (c.fx||[]).forEach(function(f){
+    var m = document.createElement("div"); m.className = "mk";
+    m.style.left = (f.at / d * 100) + "%"; m.title = f.label; $("track").appendChild(m);
+  });
 }
-
-function store(){ const c = sel(); if (c) put(rec(c)); draw(); paint(); }
-
-$("rStart").oninput = () => { const c = sel(); if(!c) return; c.start = Math.min(+$("rStart").value, c.end - 0.1); $("rStart").value = c.start; $("editVid").currentTime = c.start; store(); };
-$("rEnd").oninput = () => { const c = sel(); if(!c) return; c.end = Math.max(+$("rEnd").value, c.start + 0.1); $("rEnd").value = c.end; $("editVid").currentTime = c.end; store(); };
-$("btnSetStart").onclick = () => { const c = sel(); if(!c) return; c.start = Math.min($("editVid").currentTime, c.end - 0.1); $("rStart").value = c.start; store(); };
-$("btnSetEnd").onclick = () => { const c = sel(); if(!c) return; c.end = Math.max($("editVid").currentTime, c.start + 0.1); $("rEnd").value = c.end; store(); };
-$("btnReset").onclick = () => { const c = sel(); if(!c) return; c.start = 0; c.end = c.duration; $("rStart").value = 0; $("rEnd").value = c.duration; store(); };
-$("btnDel").onclick = () => removeClip(selId);
-$("btnRename").onclick = () => { const c = sel(); if(!c) return; const n = prompt("Name for this clip:", c.name); if (n) { c.name = n; store(); } };
-
-$("btnPlayKeep").onclick = () => {
-  const c = sel(); if(!c) return; const v = $("editVid");
+function store(){ var c = sel(); if (c) put(rec(c)); draw(); paint(); }
+$("rStart").oninput = function(){ var c = sel(); if(!c) return; c.start = Math.min(+$("rStart").value, c.end - 0.1); $("rStart").value = c.start; $("editVid").currentTime = c.start; store(); };
+$("rEnd").oninput = function(){ var c = sel(); if(!c) return; c.end = Math.max(+$("rEnd").value, c.start + 0.1); $("rEnd").value = c.end; $("editVid").currentTime = c.end; store(); };
+$("btnSetStart").onclick = function(){ var c = sel(); if(!c) return; c.start = Math.min($("editVid").currentTime, c.end - 0.1); $("rStart").value = c.start; store(); };
+$("btnSetEnd").onclick = function(){ var c = sel(); if(!c) return; c.end = Math.max($("editVid").currentTime, c.start + 0.1); $("rEnd").value = c.end; store(); };
+$("btnReset").onclick = function(){ var c = sel(); if(!c) return; c.start = 0; c.end = c.duration; $("rStart").value = 0; $("rEnd").value = c.duration; store(); };
+$("btnDel").onclick = function(){ removeClip(selId); };
+$("btnRename").onclick = function(){ var c = sel(); if(!c) return; var n = prompt("Name for this clip:", c.name); if (n) { c.name = n; store(); } };
+$("btnPlayKeep").onclick = function(){
+  var c = sel(); if(!c) return; var v = $("editVid");
   v.currentTime = c.start; v.play();
-  const stop = () => { if (v.currentTime >= c.end) { v.pause(); v.removeEventListener("timeupdate", stop); } };
+  var stop = function(){ if (v.currentTime >= c.end) { v.pause(); v.removeEventListener("timeupdate", stop); } };
   v.addEventListener("timeupdate", stop);
 };
-
-$("editVid").ontimeupdate = () => { const c = sel(); if(!c) return; $("head").style.left = ($("editVid").currentTime / (c.duration||1) * 100) + "%"; };
-
-$("btnSplit").onclick = async () => {
-  const c = sel(); if(!c) return;
-  const t = $("editVid").currentTime;
+$("editVid").ontimeupdate = function(){ var c = sel(); if(!c) return; $("head").style.left = ($("editVid").currentTime / (c.duration||1) * 100) + "%"; };
+$("btnSplit").onclick = function(){
+  var c = sel(); if(!c) return;
+  var t = $("editVid").currentTime;
   if (t <= c.start + 0.1 || t >= c.end - 0.1) { alert("Move the playhead into the middle of the kept part first."); return; }
-  const after = { id: uid(), name: c.name + " (b)", blob: c.blob, url: URL.createObjectURL(c.blob),
-                  duration: c.duration, start: t, end: c.end, order: c.order + 0.5, thumb: "", w:c.w, h:c.h };
-  c.end = t; c.name = c.name.replace(/ \(a\)$/,"") + " (a)";
+  var after = { id: uid(), name: c.name + " (b)", blob: c.blob, url: URL.createObjectURL(c.blob), duration: c.duration,
+                start: t, end: c.end, order: c.order + 0.5, thumb: "", w:c.w, h:c.h, lum:c.lum,
+                fx: (c.fx||[]).filter(function(f){ return f.at >= t; }).map(function(f){ return Object.assign({}, f, { id: uid() }); }) };
+  c.end = t; c.fx = (c.fx||[]).filter(function(f){ return f.at < t; });
+  c.name = c.name.replace(/ \(a\)$/,"") + " (a)";
   clips.push(after);
-  ordered().forEach((x, i) => { x.order = i; put(rec(x)); });
-  after.thumb = await thumb(after.url, t + 0.05); put(rec(after));
+  ordered().forEach(function(x,i){ x.order = i; put(rec(x)); });
+  thumb(after.url, t + 0.05).then(function(r){ after.thumb = r.url; put(rec(after)); draw(); });
   select(c.id);
 };
 
-/* ---------- joining it all together ---------- */
-function fit(v, ctx, W, H){
-  ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
-  const vw = v.videoWidth || 16, vh = v.videoHeight || 9;
-  const s = Math.min(W / vw, H / vh), w = vw * s, h = vh * s;
-  ctx.drawImage(v, (W-w)/2, (H-h)/2, w, h);
+/* ================= EFFECTS =================
+   You type what you want in plain words. Each entry below is one effect:
+   the words that mean it, whether it needs a spot on the picture, and how
+   long it runs by default (null = from that moment to the end of the clip). */
+var KINDS = [
+  { t:"hide",     w:["disappear","vanish","dissapear","gone","remove","erase","take away","take out","hide",
+                  "not in the video","not in the picture","not in it","not there","invisible","get rid of","without"], spot:1, dur:null, nm:"gone" },
+  /* "make the pen orange" -- paints one thing a colour, keeping its shadows */
+  { t:"paint",    w:["red","orange","yellow","green","blue","purple","pink","black","white","brown",
+                  "grey","gray","gold","silver","teal","cyan"], spot:1, dur:null, nm:"colour" },
+  /* "add a dog at second 4" -- drops a thing into the picture where you tap */
+  { t:"add",      w:["ball","football","basketball","baseball","hat","crown","sunglasses","glasses","dog","puppy","cat","bird","dragon","dinosaur","monkey","star","sun","moon","cloud","rainbow","tree","flower","pizza","cake","burger","apple","banana","ice cream","balloon","car","truck","rocket","plane","boat","train","sword","shield","guitar","drum","trumpet","phone","book","money","trophy","medal","ghost","alien","robot","skull","fish","butterfly","bee","snowman","pumpkin","gift","present","bell","key","clock","lightbulb","umbrella","hammer","camera","microphone","piano","pen","hand","eyes","fire hydrant"], spot:1, dur:null, nm:"added" },
+  { t:"smoke",    w:["smoke","steam","fog","mist"], spot:1, dur:3, nm:"smoke" },
+  { t:"fire",     w:["fire","flame","flames","burn","burning"], spot:1, dur:3, nm:"fire" },
+  { t:"sparkle",  w:["sparkle","sparkles","magic","glitter","shine","twinkle","stars","star"], spot:1, dur:2.5, nm:"sparkles" },
+  { t:"explode",  w:["explode","explosion","boom","blast","bomb"], spot:1, dur:1.6, nm:"explosion" },
+  { t:"lightning",w:["lightning","electric","electricity","zap","thunder"], spot:1, dur:1.2, nm:"lightning" },
+  { t:"hearts",   w:["hearts","heart","love"], spot:1, dur:4, nm:"hearts" },
+  { t:"bubbles",  w:["bubbles","bubble"], spot:1, dur:4, nm:"bubbles" },
+  { t:"glow",     w:["glow","glowing","aura","shining light"], spot:1, dur:3, nm:"glow" },
+  { t:"spot",     w:["spotlight","focus on","highlight"], spot:1, dur:3, nm:"spotlight" },
+  { t:"confetti", w:["confetti","party","celebrate"], spot:0, dur:4, nm:"confetti" },
+  { t:"snow",     w:["snow","snowing","snowflakes"], spot:0, dur:5, nm:"snow" },
+  { t:"rain",     w:["rain","raining"], spot:0, dur:5, nm:"rain" },
+  { t:"flash",    w:["flash","blink"], spot:0, dur:0.5, nm:"flash" },
+  { t:"shake",    w:["shake","shaking","earthquake","wobble"], spot:0, dur:1, nm:"shake" },
+  { t:"zoomout",  w:["zoom out"], spot:0, dur:2, nm:"zoom out" },
+  { t:"zoomin",   w:["zoom in","zoom"], spot:0, dur:2, nm:"zoom in" },
+  { t:"blur",     w:["blur","blurry","fuzzy"], spot:0, dur:2, nm:"blur" },
+  { t:"bw",       w:["black and white","grayscale","greyscale","no colour","no color","grey","gray"], spot:0, dur:null, nm:"black and white" },
+  { t:"old",      w:["old film","vintage","sepia","olden","old"], spot:0, dur:null, nm:"old film" },
+  { t:"bright",   w:["brighter","brighten","lighter"], spot:0, dur:null, nm:"brighter" },
+  { t:"dark",     w:["darker","darken","night","dark"], spot:0, dur:null, nm:"darker" },
+  { t:"slow",     w:["slow motion","slow-mo","slomo","slow down","slower","slow"], spot:0, dur:null, nm:"slow motion" },
+  { t:"fast",     w:["speed up","fast forward","faster","speed"], spot:0, dur:null, nm:"speeded up" },
+  { t:"mute",     w:["mute","silence","no sound","quiet"], spot:0, dur:null, nm:"no sound" },
+  { t:"text",     w:["say","caption","write","title","words"], spot:0, dur:3, nm:"words" }
+];
+
+var COL = { red:"#e02b20", orange:"#ff8a1f", yellow:"#ffd400", green:"#2fbf3f", blue:"#2b6cff",
+  purple:"#8b3ff0", pink:"#ff5fae", black:"#101010", white:"#f2f2f2", brown:"#7a4a1f",
+  grey:"#8a8a8a", gray:"#8a8a8a", gold:"#d4af37", silver:"#c0c0c0", teal:"#17c3c3", cyan:"#17c3c3" };
+
+var OBJ = {"ball":"⚽", "football":"🏈", "basketball":"🏀", "baseball":"⚾", "hat":"🎩", "crown":"👑", "sunglasses":"🕶️", "glasses":"👓", "dog":"🐶", "puppy":"🐶", "cat":"🐱", "bird":"🐦", "dragon":"🐉", "dinosaur":"🦖", "monkey":"🐒", "star":"⭐", "sun":"☀️", "moon":"🌙", "cloud":"☁️", "rainbow":"🌈", "tree":"🌳", "flower":"🌸", "pizza":"🍕", "cake":"🎂", "burger":"🍔", "apple":"🍎", "banana":"🍌", "ice cream":"🍦", "balloon":"🎈", "car":"🚗", "truck":"🚚", "rocket":"🚀", "plane":"✈️", "boat":"⛵", "train":"🚂", "sword":"⚔️", "shield":"🛡️", "guitar":"🎸", "drum":"🥁", "trumpet":"🎺", "phone":"📱", "book":"📚", "money":"💰", "trophy":"🏆", "medal":"🏅", "ghost":"👻", "alien":"👽", "robot":"🤖", "skull":"💀", "fish":"🐟", "butterfly":"🦋", "bee":"🐝", "snowman":"⛄", "pumpkin":"🎃", "gift":"🎁", "present":"🎁", "bell":"🔔", "key":"🔑", "clock":"⏰", "lightbulb":"💡", "umbrella":"☂️", "hammer":"🔨", "camera":"📷", "microphone":"🎤", "piano":"🎹", "pen":"🖊️", "hand":"👋", "eyes":"👀", "fire hydrant":"🚒"};
+
+function secs(str){
+  if (str.indexOf(":") > -1) { var p = str.split(":"); return (+p[0])*60 + (+p[1]); }
+  return parseFloat(str);
+}
+/* Pull the "when" out of the sentence. */
+function parseWhen(s, c){
+  var L = c.end - c.start, m;
+  if (/\b(whole|entire|all the way|the whole time|all of it)\b/.test(s)) return { at:0, dur:null };
+  m = s.match(/from\s+(\d+(?::\d\d)?(?:\.\d+)?)\s*(?:s\b|sec\w*|seconds?)?\s*(?:to|until|till|-|and)\s*(\d+(?::\d\d)?(?:\.\d+)?)/);
+  if (m) return { at: secs(m[1]), dur: Math.max(0.2, secs(m[2]) - secs(m[1])) };
+  var at = null;
+  m = s.match(/\b(?:second|sec|minute)\s+(\d+(?::\d\d)?(?:\.\d+)?)/);        /* "second 11" */
+  if (m) at = secs(m[1]);
+  if (at === null) { m = s.match(/(\d+:\d\d)/); if (m) at = secs(m[1]); }     /* "1:05" */
+  if (at === null) { m = s.match(/(\d+(?:\.\d+)?)\s*(?:s\b|secs?\b|seconds?\b)/); if (m) at = +m[1]; }
+  if (at === null && /\bend\b/.test(s)) at = Math.max(0, L - 2);
+  if (at === null && /\b(start|beginning)\b/.test(s)) at = 0;
+  var dur;
+  m = s.match(/for\s+(\d+(?:\.\d+)?)\s*(?:s\b|secs?\b|seconds?\b)?/);
+  if (m) dur = +m[1];
+  return { at: at, dur: dur };
+}
+function parseCmd(s, c){
+  var low = " " + s.toLowerCase().replace(/[.!,]/g," ") + " ", best = null, bestLen = 0, bestWord = "";
+  KINDS.forEach(function(k){
+    k.w.forEach(function(w){
+      if (low.indexOf(" " + w) > -1 && w.length > bestLen) { best = k; bestLen = w.length; bestWord = w; }
+    });
+  });
+  if (!best) return null;
+  var when = parseWhen(low, c);
+  var at = when.at === null || isNaN(when.at) ? 0 : when.at;
+  var dur = when.dur !== undefined && !isNaN(when.dur) ? when.dur : best.dur;
+  /* what are we pointing at? ("out of his hand" -> "his hand") */
+  var tgt = "", m = s.match(/make\s+((?:the|his|her|their|my|a)\s+[a-z]{2,})\b/i);
+  if (m) tgt = m[1].trim();
+  if (!tgt) {
+    m = s.match(/(?:out of|from|on|over|at|above|around|behind)\s+((?:his|her|their|the|my)\s+[a-z ]{2,18}?)(?:\s+(?:at|on|in|for|from|second|when)\b|$)/i);
+    if (m) tgt = m[1].trim();
+  }
+  if (/\b(video|picture|clip|frame|screen|it)\b/i.test(tgt)) tgt = "";
+  var txt = "";
+  if (best.t === "text") {
+    var q = s.match(/["“]([^"”]+)["”]/);
+    txt = q ? q[1] : (s.replace(/^.*?\b(say|caption|write|title|words)\b\s*/i, "").replace(/\bat\b.*$/i,"").trim() || "Hello");
+  }
+  var big = /\b(huge|giant|massive|enormous)\b/.test(low) ? 2.2 : /\bbig(ger)?\b/.test(low) ? 1.6
+          : /\b(tiny|little)\b/.test(low) ? 0.5 : /\bsmall(er)?\b/.test(low) ? 0.7 : 1;
+  var nm = best.t === "paint" ? bestWord : best.nm;
+  var word = best.t === "add"   ? (OBJ[bestWord] || "") + " " + bestWord + " added"
+           : best.t === "paint" ? (tgt ? tgt + " painted " + bestWord : bestWord)
+           : best.t === "hide"  ? (tgt ? tgt + " gone" : "gone")
+           : nm + (tgt ? " on " + tgt : "");
+  return { id: uid(), type: best.t, at: at, dur: dur === null ? null : dur, x: 0.5, y: 0.5,
+           need: !!best.spot, target: tgt, text: txt, col: COL[bestWord] || "#ff8a1f",
+           emoji: OBJ[bestWord] || "\u2b50", size: big,
+           label: word + " at " + fmt(at) };
 }
 
-function playInto(c, ctx, W, H, actx, dest, onTime){
-  return new Promise(resolve => {
-    const v = document.createElement("video");
-    v.src = c.url; v.playsInline = true; v.preload = "auto";
-    let node = null, done = false;
-    const finish = () => { if (done) return; done = true; try{ v.pause(); }catch(e){} try{ node && node.disconnect(); }catch(e){} resolve(); };
-    v.onloadeddata = () => {
-      try { node = actx.createMediaElementSource(v); node.connect(dest); } catch(e){}
-      v.currentTime = c.start;
-      v.onseeked = () => {
-        v.onseeked = null;
-        v.play().then(() => {
-          const step = () => {
-            if (done) return;
-            if (cancelExport || v.ended || v.currentTime >= c.end - 0.03) { fit(v, ctx, W, H); finish(); return; }
-            fit(v, ctx, W, H); onTime(v.currentTime - c.start);
-            requestAnimationFrame(step);
-          };
-          requestAnimationFrame(step);
-        }).catch(finish);
-      };
-    };
-    v.onerror = finish;
+/* tap a spot on the picture */
+var picking = null;
+$("pick").onclick = function(e){
+  if (!picking) return;
+  var r = $("pick").getBoundingClientRect();
+  picking({ x: clamp((e.clientX - r.left) / r.width, 0, 1), y: clamp((e.clientY - r.top) / r.height, 0, 1) });
+};
+function askSpot(what){
+  return new Promise(function(res){
+    $("pickMsg").textContent = "Tap " + (what || "the spot") + " on the video";
+    $("pick").hidden = false;
+    picking = function(p){ $("pick").hidden = true; picking = null; res(p); };
   });
 }
 
-$("btnExport").onclick = async () => {
-  const list = ordered(); if (!list.length) { alert("Add some clips first."); return; }
+$("btnCmd").onclick = function(){ runCmd($("cmd").value); };
+$("cmd").onkeydown = function(e){ if (e.key === "Enter") runCmd($("cmd").value); };
+function runCmd(text){
+  var c = sel(); if (!c) { alert("Pick a clip first."); return; }
+  if (!text.trim()) return;
+  var f = parseCmd(text, c);
+  if (!f) { $("cmdHint").innerHTML = "<b>I did not understand that one.</b> Try one of the examples below."; return; }
+  var go = function(){
+    c.fx = c.fx || []; c.fx.push(f);
+    c.fx.sort(function(a,b){ return a.at - b.at; });
+    $("cmd").value = "";
+    $("cmdHint").innerHTML = "Added: <b>" + esc(f.label) + "</b>. Press Preview with effects to watch it.";
+    store(); drawFxList();
+    $("editVid").currentTime = clamp(c.start + f.at, c.start, c.end);
+  };
+  if (f.need) askSpot(f.target || "the spot").then(function(p){ f.x = p.x; f.y = p.y; go(); });
+  else go();
+}
+function drawFxList(){
+  var c = sel(), box = $("fxList"); box.innerHTML = "";
+  if (!c || !(c.fx||[]).length) return;
+  c.fx.forEach(function(f){
+    var el = document.createElement("div"); el.className = "fx";
+    el.innerHTML = '<i>' + fmt(f.at) + '</i> ' + esc(f.label.replace(/ at \d+:\d\d$/,"")) + ' <button title="Remove">&#10005;</button>';
+    el.querySelector("button").onclick = function(){
+      c.fx = c.fx.filter(function(x){ return x.id !== f.id; }); store(); drawFxList();
+    };
+    box.appendChild(el);
+  });
+}
+var EXAMPLES = ["make his hand disappear at second 13","make smoke come out of his hand at second 11",
+  "make the piano not in the video","make the pen orange",
+  "add a dog at second 4","put a big crown on his head",
+  "fire from the ball at 4 seconds","sparkles on her head at second 2","explosion at second 6",
+  "shake at second 3","slow motion from 5 to 9 seconds","black and white","confetti at second 8",
+  "zoom in at second 2","say “Watch this!” at second 1","lightning at second 5"];
+$("ex").innerHTML = EXAMPLES.map(function(e){ return '<button>' + esc(e) + '</button>'; }).join("");
+Array.prototype.slice.call($("ex").children).forEach(function(b){
+  b.onclick = function(){ $("cmd").value = b.textContent; $("cmd").focus(); };
+});
+
+/* ---------- drawing a frame, effects and all ---------- */
+function newFx(){ return { p: [], seen: {} }; }
+function rectOf(v, W, H, fill){
+  var vw = v.videoWidth || 16, vh = v.videoHeight || 9;
+  var s = fill ? Math.max(W/vw, H/vh) : Math.min(W/vw, H/vh);
+  return { x:(W - vw*s)/2, y:(H - vh*s)/2, w: vw*s, h: vh*s };
+}
+function liveFx(c, t){
+  return (c.fx||[]).filter(function(f){ return t >= f.at - 0.02 && (f.dur === null || t <= f.at + f.dur); });
+}
+function rateAt(c, t){
+  var r = 1;
+  liveFx(c, t).forEach(function(f){ if (f.type === "slow") r = 0.5; if (f.type === "fast") r = 2; });
+  return r;
+}
+function mutedAt(c, t){ return liveFx(c, t).some(function(f){ return f.type === "mute"; }); }
+/* how long the kept part really lasts once slow motion is taken into account */
+function realLen(c){
+  var L = c.end - c.start;
+  if (!(c.fx||[]).some(function(f){ return f.type === "slow" || f.type === "fast"; })) return L;
+  var total = 0;
+  for (var x = 0; x < L; x += 0.1) total += 0.1 / rateAt(c, x);
+  return total;
+}
+
+function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
+  opt = opt || {};
+  var S = H / 720, live = liveFx(c, t), filt = [], shx = 0, shy = 0, scale = 1;
+  live.forEach(function(f){
+    var p = f.dur === null ? 1 : clamp((t - f.at) / Math.max(0.001, f.dur), 0, 1);
+    if (f.type === "bw") filt.push("grayscale(1)");
+    if (f.type === "old") filt.push("sepia(.65) contrast(1.08) saturate(.8)");
+    if (f.type === "bright") filt.push("brightness(1.35)");
+    if (f.type === "dark") filt.push("brightness(.5)");
+    if (f.type === "blur") filt.push("blur(" + (7*S).toFixed(1) + "px)");
+    if (f.type === "shake") { var k = 14 * S * (1 - p); shx = (Math.random()-.5)*k*2; shy = (Math.random()-.5)*k*2; }
+    if (f.type === "zoomin") scale *= 1 + 0.4 * p;
+    if (f.type === "zoomout") scale *= 1.4 - 0.4 * p;
+  });
+  if (opt.k && Math.abs(opt.k - 1) > 0.02) filt.push("brightness(" + opt.k.toFixed(2) + ")");
+
+  var r = rectOf(v, W, H, opt.fill);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.filter = filt.length ? filt.join(" ") : "none";
+  ctx.translate(W/2 + shx, H/2 + shy); ctx.scale(scale, scale); ctx.translate(-W/2, -H/2);
+  try { ctx.drawImage(v, r.x, r.y, r.w, r.h); } catch(e){}
+  ctx.filter = "none";
+
+  /* --- make something disappear: cover it with a patch of what is beside it --- */
+  live.forEach(function(f){
+    if (f.type !== "hide") return;
+    var px = r.x + f.x * r.w, py = r.y + f.y * r.h, rad = Math.max(r.w, r.h) * 0.10;
+    var age = t - f.at, fade = clamp(age / 0.35, 0, 1);
+    var dx = (f.x > 0.5 ? -1 : 1) * rad * 2.1;
+    ctx.save();
+    ctx.globalAlpha = alpha * fade;
+    ctx.beginPath(); ctx.arc(px, py, rad, 0, 7); ctx.clip();
+    ctx.filter = "blur(" + (3*S).toFixed(1) + "px)";
+    try { ctx.drawImage(v, r.x + dx, r.y, r.w, r.h); } catch(e){}
+    ctx.restore();
+    if (age < 0.9) puff(st, px, py, rad, S, dt, 1 - age/0.9);
+  });
+
+  /* --- paint one thing a different colour, keeping its light and shadow --- */
+  live.forEach(function(f){
+    if (f.type !== "paint") return;
+    var px = r.x + f.x * r.w, py = r.y + f.y * r.h, rad = Math.max(r.w, r.h) * 0.085;
+    ctx.save();
+    ctx.globalAlpha = alpha * clamp((t - f.at) / 0.2, 0, 1);
+    ctx.beginPath(); ctx.arc(px, py, rad, 0, 7); ctx.clip();
+    ctx.globalCompositeOperation = "color";
+    ctx.fillStyle = f.col || "#ff8a1f";
+    ctx.fillRect(px - rad, py - rad, rad*2, rad*2);
+    ctx.restore();
+  });
+  ctx.restore();
+
+  /* --- particles and the rest, drawn over the picture --- */
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  live.forEach(function(f){
+    var px = r.x + f.x * r.w, py = r.y + f.y * r.h;
+    var p = f.dur === null ? 0 : clamp((t - f.at) / Math.max(0.001, f.dur), 0, 1);
+    var once = function(fn){ if (!st.seen[f.id]) { st.seen[f.id] = 1; fn(); } };
+    if (f.type === "smoke")    spawn(st, dt * 34, function(){ return { k:"smoke", x:px + rnd(14*S), y:py + rnd(8*S), vx:rnd(22*S), vy:-(45+Math.random()*45)*S, r:11*S, a:0, m:2.0 }; });
+    if (f.type === "fire")     spawn(st, dt * 70, function(){ return { k:"fire", x:px + rnd(12*S), y:py + rnd(6*S), vx:rnd(28*S), vy:-(110+Math.random()*90)*S, r:(7+Math.random()*7)*S, a:0, m:.75 }; });
+    if (f.type === "sparkle")  spawn(st, dt * 30, function(){ return { k:"spark", x:px + rnd(55*S), y:py + rnd(55*S), vx:rnd(18*S), vy:rnd(18*S) - 12*S, r:(2+Math.random()*3)*S, a:0, m:.9 }; });
+    if (f.type === "hearts")   spawn(st, dt * 7,  function(){ return { k:"heart", x:px + rnd(40*S), y:py, vx:rnd(16*S), vy:-(45+Math.random()*30)*S, r:(14+Math.random()*12)*S, a:0, m:2.4 }; });
+    if (f.type === "bubbles")  spawn(st, dt * 12, function(){ return { k:"bub", x:px + rnd(45*S), y:py, vx:rnd(14*S), vy:-(55+Math.random()*40)*S, r:(5+Math.random()*12)*S, a:0, m:3 }; });
+    if (f.type === "confetti") spawn(st, dt * 55, function(){ return { k:"conf", x:Math.random()*W, y:-20*S, vx:rnd(45*S), vy:(90+Math.random()*130)*S, r:(5+Math.random()*6)*S, a:0, m:5,
+                                                                        c:"hsl(" + Math.floor(Math.random()*360) + ",90%,60%)", rot:Math.random()*6, vr:rnd(7) }; });
+    if (f.type === "snow")     spawn(st, dt * 40, function(){ return { k:"snow", x:Math.random()*W, y:-10*S, vx:rnd(20*S), vy:(40+Math.random()*60)*S, r:(2+Math.random()*4)*S, a:0, m:9 }; });
+    if (f.type === "rain")     spawn(st, dt * 160,function(){ return { k:"rain", x:Math.random()*W, y:-20*S, vx:-60*S, vy:(900+Math.random()*350)*S, r:(11+Math.random()*13)*S, a:0, m:2 }; });
+    if (f.type === "explode")  once(function(){
+        spawn(st, 90, function(){ var an = Math.random()*6.3, sp = (180 + Math.random()*420)*S;
+          return { k:"fire", x:px, y:py, vx:Math.cos(an)*sp, vy:Math.sin(an)*sp, r:(6+Math.random()*10)*S, a:0, m:.9 }; });
+        spawn(st, 45, function(){ var an = Math.random()*6.3, sp = (60 + Math.random()*190)*S;
+          return { k:"smoke", x:px, y:py, vx:Math.cos(an)*sp, vy:Math.sin(an)*sp - 25*S, r:16*S, a:0, m:2.4 }; });
+      });
+    if (f.type === "add")      { var sz = Math.max(r.w, r.h) * 0.14 * (f.size || 1);
+        ctx.save(); ctx.globalAlpha = alpha * clamp((t - f.at) / 0.25, 0, 1);
+        ctx.font = Math.round(sz) + "px \"Apple Color Emoji\", \"Segoe UI Emoji\", serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(0,0,0,.45)"; ctx.shadowBlur = 18 * S; ctx.shadowOffsetY = 6 * S;
+        ctx.fillText(f.emoji, px, py + Math.sin(t * 2.2) * sz * 0.035); ctx.restore(); }
+    if (f.type === "flash")    { ctx.save(); ctx.globalAlpha = alpha * (1 - p) * 0.9; ctx.fillStyle = "#fff"; ctx.fillRect(0,0,W,H); ctx.restore(); }
+    if (f.type === "lightning" && Math.random() < 0.55) bolt(ctx, px, py, W, S);
+    if (f.type === "glow")     { var g = ctx.createRadialGradient(px,py,0,px,py,120*S);
+        g.addColorStop(0,"rgba(255,245,180,.85)"); g.addColorStop(1,"rgba(255,245,180,0)");
+        ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.fillRect(px-140*S,py-140*S,280*S,280*S); ctx.restore(); }
+    if (f.type === "spot")     { ctx.save(); ctx.fillStyle = "rgba(0,0,0,.62)"; ctx.fillRect(0,0,W,H);
+        ctx.globalCompositeOperation = "destination-out";
+        var g2 = ctx.createRadialGradient(px,py,10*S,px,py,170*S);
+        g2.addColorStop(0,"rgba(0,0,0,1)"); g2.addColorStop(1,"rgba(0,0,0,0)");
+        ctx.fillStyle = g2; ctx.fillRect(px-200*S,py-200*S,400*S,400*S); ctx.restore(); }
+    if (f.type === "text")     { ctx.save(); ctx.font = "700 " + Math.round(52*S) + "px Helvetica, Arial, sans-serif";
+        ctx.textAlign = "center"; ctx.lineWidth = 8*S; ctx.strokeStyle = "rgba(0,0,0,.75)"; ctx.fillStyle = "#fff";
+        ctx.strokeText(f.text, W/2, H - 60*S); ctx.fillText(f.text, W/2, H - 60*S); ctx.restore(); }
+  });
+  step(ctx, st, dt, H, S);
+  ctx.restore();
+}
+function rnd(n){ return (Math.random() - 0.5) * 2 * n; }
+function spawn(st, n, make){ var k = Math.floor(n) + (Math.random() < (n % 1) ? 1 : 0); for (var i=0;i<k;i++) st.p.push(make()); }
+function puff(st, x, y, rad, S, dt, f){ spawn(st, dt * 90 * f, function(){ var a = Math.random()*6.3, s = Math.random()*rad*2.6;
+  return { k:"smoke", x:x + Math.cos(a)*s*0.5, y:y + Math.sin(a)*s*0.5, vx:Math.cos(a)*60*S, vy:Math.sin(a)*60*S - 30*S, r:rad*0.5, a:0, m:1.6 }; }); }
+function bolt(ctx, x, y, W, S){
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  ctx.strokeStyle = "rgba(190,225,255,.95)"; ctx.lineWidth = 3.5*S; ctx.shadowColor = "#9fd0ff"; ctx.shadowBlur = 24*S;
+  ctx.beginPath(); var cx = x, cy = 0; ctx.moveTo(cx, cy);
+  while (cy < y) { cy += 26*S + Math.random()*34*S; cx += rnd(40*S); ctx.lineTo(cx, Math.min(cy, y)); }
+  ctx.lineTo(x, y); ctx.stroke(); ctx.restore();
+}
+function step(ctx, st, dt, H, S){
+  var keep = [];
+  for (var i=0;i<st.p.length;i++){
+    var p = st.p[i];
+    p.a += dt; if (p.a > p.m) continue;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    var life = 1 - p.a / p.m;
+    ctx.save();
+    if (p.k === "smoke") { p.r += 26*S*dt; p.vy -= 12*S*dt;
+      ctx.globalAlpha *= life * 0.5; ctx.fillStyle = "#c9cbd2";
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+    else if (p.k === "fire") { p.r *= (1 - 0.9*dt); p.vy += 60*S*dt;
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha *= life;
+      ctx.fillStyle = "hsl(" + Math.floor(12 + life*45) + ",100%," + Math.floor(45 + life*25) + "%)";
+      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.5,p.r), 0, 7); ctx.fill(); }
+    else if (p.k === "spark") { ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha *= Math.abs(Math.sin(p.a*14)) * life; ctx.fillStyle = "#fff6b0";
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+    else if (p.k === "heart") { ctx.globalAlpha *= life; ctx.font = p.r*2 + "px serif"; ctx.fillText("❤️", p.x, p.y); }
+    else if (p.k === "bub") { ctx.globalAlpha *= life * .8; ctx.strokeStyle = "#dff6ff"; ctx.lineWidth = 2*S;
+      ctx.beginPath(); ctx.arc(p.x + Math.sin(p.a*3)*8*S, p.y, p.r, 0, 7); ctx.stroke(); }
+    else if (p.k === "conf") { p.rot += p.vr*dt; ctx.globalAlpha *= life; ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.r/2, -p.r/4, p.r, p.r/2); }
+    else if (p.k === "snow") { ctx.globalAlpha *= life; ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(p.x + Math.sin(p.a*2)*14*S, p.y, p.r, 0, 7); ctx.fill(); }
+    else if (p.k === "rain") { ctx.globalAlpha *= .5; ctx.strokeStyle = "#bcd8ff"; ctx.lineWidth = 1.6*S;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - 3*S, p.y + p.r); ctx.stroke(); }
+    ctx.restore();
+    if (p.y < H + 60 && st.p.length < 1400) keep.push(p);
+  }
+  st.p = keep;
+}
+
+/* ---------- preview one clip with its effects ---------- */
+var prevRun = null;
+function stopPreview(){
+  if (prevRun) { cancelAnimationFrame(prevRun.raf); prevRun = null; }
+  $("fxPrev").hidden = true;
+  $("btnPrev").textContent = "▶ Preview with effects";
+}
+$("btnPrev").onclick = function(){
+  var c = sel(); if (!c) return;
+  if (prevRun) { $("editVid").pause(); stopPreview(); return; }
+  var v = $("editVid"), cv = $("fxPrev"), ctx = cv.getContext("2d");
+  cv.width = 1280; cv.height = Math.round(1280 * (v.videoHeight || 720) / (v.videoWidth || 1280));
+  cv.hidden = false;
+  $("btnPrev").textContent = "■ Stop preview";
+  var st = newFx(), last = performance.now();
+  v.currentTime = c.start; v.play();
+  prevRun = { raf: 0 };
+  var loop = function(){
+    if (!prevRun) return;
+    var now = performance.now(), dt = Math.min(0.1, (now - last)/1000); last = now;
+    var t = v.currentTime - c.start;
+    v.playbackRate = rateAt(c, t);
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0,cv.width,cv.height);
+    drawFrame(ctx, cv.width, cv.height, v, c, t, 1, dt, st, { fill:false, k:1 });
+    if (v.currentTime >= c.end || v.ended) { v.pause(); v.playbackRate = 1; stopPreview(); return; }
+    prevRun.raf = requestAnimationFrame(loop);
+  };
+  prevRun.raf = requestAnimationFrame(loop);
+};
+
+/* ---------- join everything into one video ---------- */
+$("btnCancel").onclick = function(){ cancelExport = true; };
+$("btnExport").onclick = function(){
+  var list = ordered();
+  if (!list.length) { alert("Add some clips first."); return; }
   if (exporting) return;
+  stopPreview();
   exporting = true; cancelExport = false;
   $("btnExport").disabled = true; $("btnCancel").hidden = false; $("outWrap").hidden = true;
 
-  const [W, H] = $("size").value.split("x").map(Number);
-  const cv = $("stage"); cv.width = W; cv.height = H; cv.style.display = "block";
-  const ctx = cv.getContext("2d");
+  var mode = $("join").value, OV = mode === "cut" ? 0 : 0.6, fill = mode === "one", match = mode === "one";
+  var wh = $("size").value.split("x"), W = +wh[0], H = +wh[1];
+  var cv = $("stage"); cv.width = W; cv.height = H; cv.style.display = "block";
+  var ctx = cv.getContext("2d");
   ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
 
-  const actx = new (window.AudioContext || window.webkitAudioContext)();
-  if (actx.state === "suspended") await actx.resume();
-  const dest = actx.createMediaStreamDestination();
+  /* even the clips out so two takes look like one video */
+  var lums = list.map(function(c){ return c.lum || 128; }).sort(function(a,b){ return a-b; });
+  var target = lums[Math.floor(lums.length/2)] || 128;
 
-  const out = cv.captureStream(30);
-  dest.stream.getAudioTracks().forEach(t => out.addTrack(t));
+  var A = new (window.AudioContext || window.webkitAudioContext)();
+  var dest = A.createMediaStreamDestination();
+  var hear = $("hear").checked;
 
-  const mime = pickMime();
-  let mr;
-  try { mr = new MediaRecorder(out, mime ? { mimeType: mime, videoBitsPerSecond: 4000000 } : undefined); }
+  var plan = [], cur = 0, total = 0;
+  list.forEach(function(c, i){
+    var len = realLen(c);
+    plan.push({ c:c, i:i, t0:cur, len:len, st:newFx(), k: match ? clamp(target / (c.lum || target), 0.72, 1.45) : 1 });
+    total = cur + len;
+    cur += len - (i < list.length - 1 ? Math.min(OV, len * 0.4) : 0);
+  });
+
+  var out = cv.captureStream(30);
+  dest.stream.getAudioTracks().forEach(function(t){ out.addTrack(t); });
+  var mime = pickMime(), mr;
+  try { mr = new MediaRecorder(out, mime ? { mimeType: mime, videoBitsPerSecond: 5000000, audioBitsPerSecond: 128000 } : undefined); }
   catch(e){ alert("This browser cannot join videos."); exporting = false; $("btnExport").disabled = false; $("btnCancel").hidden = true; return; }
-  const parts = [];
-  mr.ondataavailable = e => { if (e.data && e.data.size) parts.push(e.data); };
+  var parts = [];
+  mr.ondataavailable = function(e){ if (e.data && e.data.size) parts.push(e.data); };
+  mr.onstop = function(){ finish(parts); };
 
-  const total = list.reduce((s,c) => s + (c.end - c.start), 0);
-  let elapsed = 0;
-  const show = extra => {
-    const p = Math.min(100, (elapsed + (extra||0)) / total * 100);
-    $("bar").style.width = p + "%";
-    $("expInfo").textContent = fmt(elapsed + (extra||0)) + " / " + fmt(total);
-  };
-
-  const finished = new Promise(r => { mr.onstop = r; });
-  mr.start(200);
-  for (const c of list) {
-    if (cancelExport) break;
-    await playInto(c, ctx, W, H, actx, dest, t => show(t));
-    elapsed += (c.end - c.start); show(0);
+  function prep(p){
+    var v = document.createElement("video");
+    v.src = p.c.url; v.playsInline = true; v.preload = "auto"; v.muted = false; v.volume = 1;
+    p.v = v;
+    v.onloadeddata = function(){
+      try {
+        p.src = A.createMediaElementSource(v);
+        p.gain = A.createGain(); p.gain.gain.value = 0;
+        p.src.connect(p.gain); p.gain.connect(dest);
+        if (hear) p.gain.connect(A.destination);   /* so you can hear it while it builds */
+      } catch(e){}
+      v.currentTime = p.c.start;
+      v.onseeked = function(){ v.onseeked = null; p.ready = 1; };
+    };
+    v.onerror = function(){ p.ready = 1; p.dead = 1; };
   }
-  mr.stop();
-  await finished;
-  try { actx.close(); } catch(e){}
 
-  const blob = new Blob(parts, { type: parts[0] ? parts[0].type : "video/webm" });
-  const url = URL.createObjectURL(blob);
-  const ext = (blob.type.indexOf("mp4") > -1) ? "mp4" : "webm";
-  $("outVid").src = url;
-  $("dl").href = url; $("dl").download = "my-video." + ext;
-  $("outWrap").hidden = false;
-  $("outWrap").dataset.blob = "1";
-  window.__lastOut = blob;
-  $("bar").style.width = "100%";
-  $("expInfo").textContent = cancelExport ? "stopped early" : "done!";
-  exporting = false; $("btnExport").disabled = false; $("btnCancel").hidden = true;
-  $("outVid").scrollIntoView({ behavior:"smooth", block:"center" });
+  var startWall = 0, lastWall = 0;
+  A.resume().then(function(){
+    mr.start(250);
+    startWall = performance.now(); lastWall = startWall;
+    requestAnimationFrame(loop);
+  });
+
+  function loop(){
+    var now = (performance.now() - startWall) / 1000;
+    var dt = Math.min(0.1, (performance.now() - lastWall) / 1000); lastWall = performance.now();
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+
+    plan.forEach(function(p){
+      var rel = now - p.t0;
+      if (rel < -1.3 || rel > p.len + 0.3) {
+        if (p.v && rel > p.len && !p.done) { p.done = 1; try { p.v.pause(); } catch(e){} if (p.gain) p.gain.gain.value = 0; }
+        return;
+      }
+      if (!p.v) prep(p);
+      if (p.dead) return;
+      if (rel >= 0 && p.ready && p.v.paused && !p.done) { p.v.play().catch(function(){}); }
+      if (rel < 0) return;
+      var a = 1;
+      if (OV > 0) {
+        var ov = Math.min(OV, p.len * 0.4);
+        if (p.i > 0 && rel < ov) a = rel / ov;
+        if (p.i < plan.length - 1 && rel > p.len - ov) a = Math.min(a, (p.len - rel) / ov);
+      }
+      a = clamp(a, 0, 1);
+      var t = p.v.currentTime - p.c.start;
+      p.v.playbackRate = rateAt(p.c, t);
+      if (p.gain) p.gain.gain.value = mutedAt(p.c, t) ? 0 : a;
+      drawFrame(ctx, W, H, p.v, p.c, t, a, dt, p.st, { fill: fill, k: p.k });
+    });
+
+    $("bar").style.width = clamp(now / total * 100, 0, 100) + "%";
+    $("expInfo").textContent = fmt(now) + " / " + fmt(total);
+
+    if (cancelExport || now >= total + 0.25) { try { mr.stop(); } catch(e){} return; }
+    requestAnimationFrame(loop);
+  }
+
+  function finish(parts){
+    plan.forEach(function(p){ if (p.v) { try { p.v.pause(); } catch(e){} } });
+    try { A.close(); } catch(e){}
+    var blob = new Blob(parts, { type: parts[0] ? parts[0].type : "video/webm" });
+    var url = URL.createObjectURL(blob);
+    var ext = blob.type.indexOf("mp4") > -1 ? "mp4" : "webm";
+    $("outVid").src = url; $("dl").href = url; $("dl").download = "my-video." + ext;
+    $("outWrap").hidden = false;
+    $("bar").style.width = "100%";
+    $("expInfo").textContent = cancelExport ? "stopped early" : "done!";
+    exporting = false; $("btnExport").disabled = false; $("btnCancel").hidden = true;
+    /* the joined video goes straight back into the clips, ready to use again */
+    addClip(blob, "Joined video").then(function(c){
+      newId = c.id; draw();
+      $("okMsg").innerHTML = "Done — <b>" + esc(c.name) + "</b> has been added to your clips up in section 3.";
+      setTimeout(function(){ newId = null; draw(); }, 6000);
+    });
+  }
 };
 
-$("btnCancel").onclick = () => { cancelExport = true; };
-$("btnBack").onclick = async () => { if (window.__lastOut) await addClip(window.__lastOut, "Joined video"); };
-
 /* ---------- start up ---------- */
-(async () => {
-  db = await openDB();
-  const recs = await allRecs();
-  recs.sort((a,b) => a.order - b.order).forEach(r => {
-    clips.push({ ...r, url: URL.createObjectURL(r.blob) });
+openDB().then(function(d){
+  db = d;
+  return allRecs();
+}).then(function(recs){
+  recs.sort(function(a,b){ return a.order - b.order; }).forEach(function(r){
+    var c = Object.assign({}, r, { url: URL.createObjectURL(r.blob) });
+    c.fx = c.fx || []; c.lum = c.lum || 128;
+    clips.push(c);
   });
-  clips.forEach((c,i) => c.order = i);
+  clips.forEach(function(c,i){ c.order = i; });
   draw();
   if (!window.MediaRecorder) $("camHint").innerHTML = "<b>This browser cannot record or join video.</b> Try Chrome.";
-})();
+});
 </script>
 </body></html>

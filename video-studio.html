@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video Studio</title>
+<style>
+  :root{
+    --bg:#11131a; --panel:#1b1f2b; --panel2:#232838; --line:#323a50;
+    --fg:#eef1f8; --muted:#9aa4bf; --accent:#6c8cff; --accent2:#33d6a6; --rec:#ff4d5e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  button,input,select{font:inherit}
+  button{cursor:pointer}
+  .wrap{max-width:980px;margin:0 auto;padding:16px 16px 70px}
+  header{display:flex;align-items:center;gap:12px;margin:6px 0 16px}
+  header h1{font-size:26px;margin:0}
+  header .dot{width:14px;height:14px;border-radius:50%;background:var(--rec)}
+  header .sub{color:var(--muted);font-size:14px;margin-left:auto}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:16px}
+  .panel h2{margin:0 0 10px;font-size:17px;letter-spacing:.3px}
+  .panel h2 span{color:var(--muted);font-weight:400;font-size:14px;margin-left:8px}
+  video{width:100%;background:#000;border-radius:12px;display:block}
+  .cam video{aspect-ratio:16/9;object-fit:cover}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+  .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:999px;padding:9px 16px;font-weight:600}
+  .btn:hover{border-color:var(--accent)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#0b0e17}
+  .btn.go{background:var(--accent2);border-color:var(--accent2);color:#07231b}
+  .btn.rec{background:var(--rec);border-color:var(--rec);color:#fff}
+  .btn.small{padding:5px 11px;font-size:14px}
+  .timer{font-variant-numeric:tabular-nums;font-weight:700;color:var(--muted)}
+  .timer.on{color:var(--rec)}
+  .hint{color:var(--muted);font-size:13.5px;margin:8px 0 0}
+  /* trim */
+  .track{position:relative;height:26px;border-radius:8px;background:var(--panel2);overflow:hidden;margin:12px 0 4px}
+  .track .keep{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#6c8cff55,#33d6a655);border-left:3px solid var(--accent);border-right:3px solid var(--accent2)}
+  .track .head{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+  .sliders label{display:block;font-size:13px;color:var(--muted);margin-top:6px}
+  .sliders input[type=range]{width:100%}
+  .times{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin-top:6px}
+  .times b{color:var(--fg)}
+  /* timeline */
+  .clips{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
+  .clip{flex:none;width:168px;background:var(--panel2);border:2px solid transparent;border-radius:12px;padding:8px;cursor:pointer}
+  .clip.sel{border-color:var(--accent)}
+  .clip img,.clip .noimg{width:100%;height:92px;object-fit:cover;border-radius:8px;background:#000;display:block}
+  .clip .nm{font-size:13.5px;font-weight:600;margin:6px 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .clip .du{font-size:12.5px;color:var(--muted)}
+  .clip .ops{display:flex;gap:4px;margin-top:6px}
+  .clip .ops button{flex:1;background:#2c3348;border:none;color:var(--fg);border-radius:7px;padding:4px 0;font-size:13px}
+  .clip .ops button:hover{background:var(--accent);color:#0b0e17}
+  .empty{color:var(--muted);padding:14px;text-align:center;border:1px dashed var(--line);border-radius:12px}
+  /* export */
+  .bar{height:12px;background:var(--panel2);border-radius:999px;overflow:hidden;margin-top:10px}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s}
+  .drop{outline:3px dashed var(--accent2);outline-offset:-8px}
+  a.dl{display:inline-block;background:var(--accent2);color:#07231b;font-weight:700;text-decoration:none;border-radius:999px;padding:9px 18px}
+  .warn{background:#3a2a17;border:1px solid #7a5a22;color:#ffd9a0;border-radius:10px;padding:10px 12px;font-size:14px;margin-top:10px}
+</style>
+</head><body>
+<div class="wrap">
+  <header>
+    <div class="dot"></div>
+    <h1>Video Studio</h1>
+    <div class="sub">record &middot; cut &middot; join</div>
+  </header>
+
+  <!-- 1. CAMERA -->
+  <section class="panel cam">
+    <h2>1. Take a video <span>camera + microphone</span></h2>
+    <video id="preview" autoplay muted playsinline></video>
+    <div class="row">
+      <button class="btn primary" id="btnCam">Turn on camera</button>
+      <button class="btn rec" id="btnRec" disabled>● Record</button>
+      <span class="timer" id="timer">0:00</span>
+      <button class="btn" id="btnFlip" disabled>Flip camera</button>
+      <label class="btn" for="fileIn">Add videos from files</label>
+      <input type="file" id="fileIn" accept="video/*" multiple hidden>
+    </div>
+    <p class="hint" id="camHint">You can also drag video files anywhere onto this page.</p>
+  </section>
+
+  <!-- 2. EDIT -->
+  <section class="panel" id="editPanel" hidden>
+    <h2>2. Cut a clip <span id="editName"></span></h2>
+    <video id="editVid" controls playsinline></video>
+    <div class="track" id="track"><div class="keep" id="keep"></div><div class="head" id="head"></div></div>
+    <div class="sliders">
+      <label>Start of the part you keep</label>
+      <input type="range" id="rStart" min="0" max="100" step="0.01" value="0">
+      <label>End of the part you keep</label>
+      <input type="range" id="rEnd" min="0" max="100" step="0.01" value="100">
+    </div>
+    <div class="times">
+      <span>Keeps: <b id="tKeep">0:00</b></span>
+      <span>from <b id="tStart">0:00</b> to <b id="tEnd">0:00</b></span>
+      <span>whole clip <b id="tAll">0:00</b></span>
+    </div>
+    <div class="row">
+      <button class="btn" id="btnPlayKeep">▶ Play the kept part</button>
+      <button class="btn" id="btnSetStart">Start here</button>
+      <button class="btn" id="btnSetEnd">End here</button>
+      <button class="btn" id="btnSplit">✂ Split here</button>
+      <button class="btn" id="btnReset">Undo the cut</button>
+      <button class="btn" id="btnRename">Rename</button>
+      <button class="btn" id="btnDel">Delete clip</button>
+    </div>
+    <p class="hint">To take a chunk out of the middle: park the playhead where the bad bit starts and press <b>Split here</b>, do it again where it ends, then delete the middle piece.</p>
+  </section>
+
+  <!-- 3. TIMELINE -->
+  <section class="panel">
+    <h2>3. Your clips <span id="tlCount"></span></h2>
+    <div id="clips" class="clips"></div>
+    <div id="clipsEmpty" class="empty">No clips yet. Record one above, or add video files.</div>
+  </section>
+
+  <!-- 4. EXPORT -->
+  <section class="panel">
+    <h2>4. Join them into one video</h2>
+    <div class="row">
+      <label>Size
+        <select id="size" class="btn">
+          <option value="1280x720" selected>720p (1280&times;720)</option>
+          <option value="1920x1080">1080p (1920&times;1080)</option>
+          <option value="854x480">480p (854&times;480)</option>
+        </select>
+      </label>
+      <button class="btn go" id="btnExport">Make the combined video</button>
+      <button class="btn" id="btnCancel" hidden>Stop</button>
+      <span class="timer" id="expInfo"></span>
+    </div>
+    <div class="bar"><i id="bar"></i></div>
+    <canvas id="stage" width="1280" height="720" style="width:100%;border-radius:12px;margin-top:10px;background:#000;display:none"></canvas>
+    <div id="outWrap" hidden>
+      <video id="outVid" controls playsinline style="margin-top:12px"></video>
+      <div class="row"><a class="dl" id="dl" download="my-video.webm">⬇ Save the video</a>
+      <button class="btn" id="btnBack">Put it back in my clips</button></div>
+    </div>
+    <p class="hint">Joining plays the clips through once in real time, so a 2&nbsp;minute movie takes about 2&nbsp;minutes.</p>
+  </section>
+</div>
+
+<script>
+/* ---------- tiny helpers ---------- */
+const $ = id => document.getElementById(id);
+const fmt = s => { s = Math.max(0, s||0); const m = Math.floor(s/60); const r = Math.floor(s%60); return m + ":" + String(r).padStart(2,"0"); };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+function pickMime(){
+  const list = ["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm","video/mp4"];
+  for (const m of list) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+  return "";
+}
+
+/* Blobs from MediaRecorder often report duration = Infinity, so seek far ahead first. */
+function probe(url){
+  return new Promise(res => {
+    const v = document.createElement("video");
+    v.preload = "metadata"; v.muted = true; v.src = url;
+    const done = () => res({ d: isFinite(v.duration) ? v.duration : 0, w: v.videoWidth, h: v.videoHeight });
+    v.onloadedmetadata = () => {
+      if (!isFinite(v.duration) || v.duration === 0) {
+        v.currentTime = 1e6;
+        v.ontimeupdate = () => { v.ontimeupdate = null; v.currentTime = 0; done(); };
+        setTimeout(done, 2500);
+      } else done();
+    };
+    v.onerror = () => res({ d:0, w:0, h:0 });
+  });
+}
+
+function thumb(url, at){
+  return new Promise(res => {
+    const v = document.createElement("video");
+    v.preload = "metadata"; v.muted = true; v.playsInline = true; v.src = url;
+    v.onloadeddata = () => { v.currentTime = Math.min(at || 0.1, Math.max(0,(v.duration||1) - 0.05)); };
+    v.onseeked = () => {
+      try {
+        const c = document.createElement("canvas");
+        c.width = 320; c.height = Math.round(320 * (v.videoHeight||9) / (v.videoWidth||16));
+        c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+        res(c.toDataURL("image/jpeg", 0.7));
+      } catch(e){ res(""); }
+    };
+    v.onerror = () => res("");
+    setTimeout(()=>res(""), 4000);
+  });
+}
+
+/* ---------- storage (clips survive a reload) ---------- */
+let db = null;
+function openDB(){
+  return new Promise(res => {
+    if (!window.indexedDB) return res(null);
+    const rq = indexedDB.open("video-studio", 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore("clips", { keyPath:"id" });
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => res(null);
+  });
+}
+function put(rec){ if(!db) return; try{ db.transaction("clips","readwrite").objectStore("clips").put(rec); }catch(e){} }
+function del(id){ if(!db) return; try{ db.transaction("clips","readwrite").objectStore("clips").delete(id); }catch(e){} }
+function allRecs(){
+  return new Promise(res => {
+    if(!db) return res([]);
+    try { const rq = db.transaction("clips").objectStore("clips").getAll(); rq.onsuccess = () => res(rq.result||[]); rq.onerror = ()=>res([]); }
+    catch(e){ res([]); }
+  });
+}
+const rec = c => ({ id:c.id, name:c.name, blob:c.blob, duration:c.duration, start:c.start, end:c.end, order:c.order, thumb:c.thumb, w:c.w, h:c.h });
+
+/* ---------- state ---------- */
+let clips = [];        // {id,name,blob,url,duration,start,end,thumb,order,w,h}
+let selId = null;
+let stream = null, recorder = null, chunks = [], tick = null, t0 = 0, facing = "user";
+let cancelExport = false, exporting = false;
+
+/* ---------- adding clips ---------- */
+async function addClip(blob, name){
+  const url = URL.createObjectURL(blob);
+  const { d, w, h } = await probe(url);
+  const c = { id: uid(), name: name || "Clip", blob, url, duration: d, start: 0, end: d, order: clips.length, thumb: "", w, h };
+  clips.push(c);
+  draw();
+  c.thumb = await thumb(url, 0.1);
+  put(rec(c));
+  draw();
+  select(c.id);
+  return c;
+}
+
+/* ---------- camera ---------- */
+$("btnCam").onclick = async () => {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; $("preview").srcObject = null;
+    $("btnCam").textContent = "Turn on camera"; $("btnRec").disabled = true; $("btnFlip").disabled = true; return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode: facing, width:{ideal:1280}, height:{ideal:720} }, audio:true });
+    $("preview").srcObject = stream;
+    $("btnCam").textContent = "Turn off camera";
+    $("btnRec").disabled = false; $("btnFlip").disabled = false;
+    $("camHint").textContent = "Press Record to start, press it again to stop.";
+  } catch(e){
+    $("camHint").innerHTML = "<b>The camera did not open.</b> " + (e && e.message ? e.message : "") + " (Safari and Chrome only allow the camera on a web page or on localhost, not on a file:// page.)";
+  }
+};
+
+$("btnFlip").onclick = async () => {
+  facing = facing === "user" ? "environment" : "user";
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; $("btnCam").textContent = "Turn on camera"; await $("btnCam").onclick(); }
+};
+
+$("btnRec").onclick = () => {
+  if (recorder && recorder.state === "recording") { recorder.stop(); return; }
+  chunks = [];
+  const mime = pickMime();
+  try { recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined); }
+  catch(e){ $("camHint").textContent = "This browser cannot record video."; return; }
+  recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = async () => {
+    clearInterval(tick); $("timer").classList.remove("on"); $("timer").textContent = "0:00";
+    $("btnRec").textContent = "● Record"; $("btnRec").classList.add("rec");
+    const blob = new Blob(chunks, { type: chunks[0] ? chunks[0].type : "video/webm" });
+    if (blob.size) await addClip(blob, "Take " + (clips.length + 1));
+  };
+  recorder.start(100);
+  t0 = Date.now();
+  $("timer").classList.add("on");
+  tick = setInterval(() => $("timer").textContent = fmt((Date.now()-t0)/1000), 200);
+  $("btnRec").textContent = "■ Stop";
+};
+
+/* ---------- files & drag-drop ---------- */
+$("fileIn").onchange = async e => {
+  for (const f of e.target.files) await addClip(f, f.name.replace(/\.[^.]+$/, ""));
+  e.target.value = "";
+};
+document.addEventListener("dragover", e => { e.preventDefault(); document.body.classList.add("drop"); });
+document.addEventListener("dragleave", e => { if (e.relatedTarget === null) document.body.classList.remove("drop"); });
+document.addEventListener("drop", async e => {
+  e.preventDefault(); document.body.classList.remove("drop");
+  for (const f of e.dataTransfer.files) if (f.type.startsWith("video")) await addClip(f, f.name.replace(/\.[^.]+$/, ""));
+});
+
+/* ---------- timeline ---------- */
+function ordered(){ return clips.slice().sort((a,b) => a.order - b.order); }
+
+function draw(){
+  const box = $("clips"); box.innerHTML = "";
+  const list = ordered();
+  $("clipsEmpty").hidden = list.length > 0;
+  $("tlCount").textContent = list.length ? list.length + " clip" + (list.length>1?"s":"") + " · " + fmt(list.reduce((s,c)=>s + (c.end-c.start), 0)) + " altogether" : "";
+  list.forEach((c, i) => {
+    const el = document.createElement("div");
+    el.className = "clip" + (c.id === selId ? " sel" : "");
+    el.innerHTML =
+      (c.thumb ? '<img src="' + c.thumb + '" alt="">' : '<div class="noimg"></div>') +
+      '<div class="nm">' + (i+1) + '. ' + esc(c.name) + '</div>' +
+      '<div class="du">' + fmt(c.end - c.start) + ((c.end - c.start) < c.duration - 0.05 ? " (cut)" : "") + '</div>' +
+      '<div class="ops"><button data-a="l" title="Move earlier">←</button>' +
+      '<button data-a="c" title="Copy">⧉</button>' +
+      '<button data-a="x" title="Delete">✕</button></div>';
+    el.onclick = ev => {
+      const a = ev.target.dataset ? ev.target.dataset.a : null;
+      if (a === "l") { move(c.id, -1); ev.stopPropagation(); return; }
+      if (a === "c") { copyClip(c); ev.stopPropagation(); return; }
+      if (a === "x") { removeClip(c.id); ev.stopPropagation(); return; }
+      select(c.id);
+    };
+    box.appendChild(el);
+  });
+}
+function esc(s){ return String(s).replace(/[<>&]/g, m => ({"<":"&lt;",">":"&gt;","&":"&amp;"}[m])); }
+
+function move(id, dir){
+  const list = ordered(); const i = list.findIndex(c => c.id === id); const j = i + dir;
+  if (j < 0 || j >= list.length) return;
+  const a = list[i], b = list[j]; const o = a.order; a.order = b.order; b.order = o;
+  put(rec(a)); put(rec(b)); draw();
+}
+async function copyClip(c){
+  const url = URL.createObjectURL(c.blob);
+  const n = { id: uid(), name: c.name + " copy", blob: c.blob, url, duration: c.duration, start: c.start, end: c.end, order: clips.length, thumb: c.thumb, w:c.w, h:c.h };
+  clips.push(n); put(rec(n)); draw();
+}
+function removeClip(id){
+  const c = clips.find(x => x.id === id); if (!c) return;
+  if (!confirm("Delete “" + c.name + "”?")) return;
+  clips = clips.filter(x => x.id !== id); del(id);
+  ordered().forEach((x, i) => { x.order = i; put(rec(x)); });
+  if (selId === id) { selId = null; $("editPanel").hidden = true; }
+  draw();
+}
+
+/* ---------- the cutting room ---------- */
+function sel(){ return clips.find(c => c.id === selId); }
+
+function select(id){
+  selId = id; const c = sel(); if (!c) return;
+  $("editPanel").hidden = false;
+  $("editName").textContent = c.name;
+  const v = $("editVid");
+  v.src = c.url;
+  $("rStart").max = $("rEnd").max = c.duration || 1;
+  $("rStart").value = c.start; $("rEnd").value = c.end;
+  v.onloadedmetadata = () => { try { v.currentTime = c.start; } catch(e){} };
+  try { v.currentTime = c.start; } catch(e){}
+  paint(); draw();
+}
+
+function paint(){
+  const c = sel(); if (!c) return;
+  const d = c.duration || 1;
+  $("keep").style.left = (c.start / d * 100) + "%";
+  $("keep").style.width = ((c.end - c.start) / d * 100) + "%";
+  $("tKeep").textContent = fmt(c.end - c.start);
+  $("tStart").textContent = fmt(c.start);
+  $("tEnd").textContent = fmt(c.end);
+  $("tAll").textContent = fmt(d);
+  $("editName").textContent = c.name;
+}
+
+function store(){ const c = sel(); if (c) put(rec(c)); draw(); paint(); }
+
+$("rStart").oninput = () => { const c = sel(); if(!c) return; c.start = Math.min(+$("rStart").value, c.end - 0.1); $("rStart").value = c.start; $("editVid").currentTime = c.start; store(); };
+$("rEnd").oninput = () => { const c = sel(); if(!c) return; c.end = Math.max(+$("rEnd").value, c.start + 0.1); $("rEnd").value = c.end; $("editVid").currentTime = c.end; store(); };
+$("btnSetStart").onclick = () => { const c = sel(); if(!c) return; c.start = Math.min($("editVid").currentTime, c.end - 0.1); $("rStart").value = c.start; store(); };
+$("btnSetEnd").onclick = () => { const c = sel(); if(!c) return; c.end = Math.max($("editVid").currentTime, c.start + 0.1); $("rEnd").value = c.end; store(); };
+$("btnReset").onclick = () => { const c = sel(); if(!c) return; c.start = 0; c.end = c.duration; $("rStart").value = 0; $("rEnd").value = c.duration; store(); };
+$("btnDel").onclick = () => removeClip(selId);
+$("btnRename").onclick = () => { const c = sel(); if(!c) return; const n = prompt("Name for this clip:", c.name); if (n) { c.name = n; store(); } };
+
+$("btnPlayKeep").onclick = () => {
+  const c = sel(); if(!c) return; const v = $("editVid");
+  v.currentTime = c.start; v.play();
+  const stop = () => { if (v.currentTime >= c.end) { v.pause(); v.removeEventListener("timeupdate", stop); } };
+  v.addEventListener("timeupdate", stop);
+};
+
+$("editVid").ontimeupdate = () => { const c = sel(); if(!c) return; $("head").style.left = ($("editVid").currentTime / (c.duration||1) * 100) + "%"; };
+
+$("btnSplit").onclick = async () => {
+  const c = sel(); if(!c) return;
+  const t = $("editVid").currentTime;
+  if (t <= c.start + 0.1 || t >= c.end - 0.1) { alert("Move the playhead into the middle of the kept part first."); return; }
+  const after = { id: uid(), name: c.name + " (b)", blob: c.blob, url: URL.createObjectURL(c.blob),
+                  duration: c.duration, start: t, end: c.end, order: c.order + 0.5, thumb: "", w:c.w, h:c.h };
+  c.end = t; c.name = c.name.replace(/ \(a\)$/,"") + " (a)";
+  clips.push(after);
+  ordered().forEach((x, i) => { x.order = i; put(rec(x)); });
+  after.thumb = await thumb(after.url, t + 0.05); put(rec(after));
+  select(c.id);
+};
+
+/* ---------- joining it all together ---------- */
+function fit(v, ctx, W, H){
+  ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+  const vw = v.videoWidth || 16, vh = v.videoHeight || 9;
+  const s = Math.min(W / vw, H / vh), w = vw * s, h = vh * s;
+  ctx.drawImage(v, (W-w)/2, (H-h)/2, w, h);
+}
+
+function playInto(c, ctx, W, H, actx, dest, onTime){
+  return new Promise(resolve => {
+    const v = document.createElement("video");
+    v.src = c.url; v.playsInline = true; v.preload = "auto";
+    let node = null, done = false;
+    const finish = () => { if (done) return; done = true; try{ v.pause(); }catch(e){} try{ node && node.disconnect(); }catch(e){} resolve(); };
+    v.onloadeddata = () => {
+      try { node = actx.createMediaElementSource(v); node.connect(dest); } catch(e){}
+      v.currentTime = c.start;
+      v.onseeked = () => {
+        v.onseeked = null;
+        v.play().then(() => {
+          const step = () => {
+            if (done) return;
+            if (cancelExport || v.ended || v.currentTime >= c.end - 0.03) { fit(v, ctx, W, H); finish(); return; }
+            fit(v, ctx, W, H); onTime(v.currentTime - c.start);
+            requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        }).catch(finish);
+      };
+    };
+    v.onerror = finish;
+  });
+}
+
+$("btnExport").onclick = async () => {
+  const list = ordered(); if (!list.length) { alert("Add some clips first."); return; }
+  if (exporting) return;
+  exporting = true; cancelExport = false;
+  $("btnExport").disabled = true; $("btnCancel").hidden = false; $("outWrap").hidden = true;
+
+  const [W, H] = $("size").value.split("x").map(Number);
+  const cv = $("stage"); cv.width = W; cv.height = H; cv.style.display = "block";
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+
+  const actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === "suspended") await actx.resume();
+  const dest = actx.createMediaStreamDestination();
+
+  const out = cv.captureStream(30);
+  dest.stream.getAudioTracks().forEach(t => out.addTrack(t));
+
+  const mime = pickMime();
+  let mr;
+  try { mr = new MediaRecorder(out, mime ? { mimeType: mime, videoBitsPerSecond: 4000000 } : undefined); }
+  catch(e){ alert("This browser cannot join videos."); exporting = false; $("btnExport").disabled = false; $("btnCancel").hidden = true; return; }
+  const parts = [];
+  mr.ondataavailable = e => { if (e.data && e.data.size) parts.push(e.data); };
+
+  const total = list.reduce((s,c) => s + (c.end - c.start), 0);
+  let elapsed = 0;
+  const show = extra => {
+    const p = Math.min(100, (elapsed + (extra||0)) / total * 100);
+    $("bar").style.width = p + "%";
+    $("expInfo").textContent = fmt(elapsed + (extra||0)) + " / " + fmt(total);
+  };
+
+  const finished = new Promise(r => { mr.onstop = r; });
+  mr.start(200);
+  for (const c of list) {
+    if (cancelExport) break;
+    await playInto(c, ctx, W, H, actx, dest, t => show(t));
+    elapsed += (c.end - c.start); show(0);
+  }
+  mr.stop();
+  await finished;
+  try { actx.close(); } catch(e){}
+
+  const blob = new Blob(parts, { type: parts[0] ? parts[0].type : "video/webm" });
+  const url = URL.createObjectURL(blob);
+  const ext = (blob.type.indexOf("mp4") > -1) ? "mp4" : "webm";
+  $("outVid").src = url;
+  $("dl").href = url; $("dl").download = "my-video." + ext;
+  $("outWrap").hidden = false;
+  $("outWrap").dataset.blob = "1";
+  window.__lastOut = blob;
+  $("bar").style.width = "100%";
+  $("expInfo").textContent = cancelExport ? "stopped early" : "done!";
+  exporting = false; $("btnExport").disabled = false; $("btnCancel").hidden = true;
+  $("outVid").scrollIntoView({ behavior:"smooth", block:"center" });
+};
+
+$("btnCancel").onclick = () => { cancelExport = true; };
+$("btnBack").onclick = async () => { if (window.__lastOut) await addClip(window.__lastOut, "Joined video"); };
+
+/* ---------- start up ---------- */
+(async () => {
+  db = await openDB();
+  const recs = await allRecs();
+  recs.sort((a,b) => a.order - b.order).forEach(r => {
+    clips.push({ ...r, url: URL.createObjectURL(r.blob) });
+  });
+  clips.forEach((c,i) => c.order = i);
+  draw();
+  if (!window.MediaRecorder) $("camHint").innerHTML = "<b>This browser cannot record or join video.</b> Try Chrome.";
+})();
+</script>
+</body></html>

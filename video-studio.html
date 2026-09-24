@@ -36,7 +36,12 @@
   .stagewrap canvas{position:absolute;left:0;top:0;width:100%;height:100%;border-radius:12px;background:#000}
   #pick{position:absolute;inset:0;border-radius:12px;cursor:crosshair;background:rgba(10,14,25,.45);
         display:flex;align-items:flex-start;justify-content:center;padding-top:14px}
-  #pick b{background:var(--accent2);color:#07231b;border-radius:999px;padding:7px 15px;font-size:14.5px}
+  #pick b{background:var(--accent2);color:#07231b;border-radius:999px;padding:7px 15px;font-size:14.5px;pointer-events:none}
+  #ring{position:absolute;border:3px dashed var(--accent2);border-radius:50%;pointer-events:none;background:rgba(51,214,166,.14)}
+  details#help{margin-top:10px;color:var(--muted);font-size:13.5px}
+  details#help summary{cursor:pointer;color:var(--accent2);font-weight:600}
+  details#help b{color:var(--fg)}
+  details#help p{margin:8px 0 0}
   /* trim */
   .track{position:relative;height:26px;border-radius:8px;background:var(--panel2);overflow:hidden;margin:12px 0 4px}
   .track .keep{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#6c8cff55,#33d6a655);border-left:3px solid var(--accent);border-right:3px solid var(--accent2)}
@@ -105,7 +110,7 @@
     <div class="stagewrap">
       <video id="editVid" controls playsinline></video>
       <canvas id="fxPrev" width="1280" height="720" hidden></canvas>
-      <div id="pick" hidden><b id="pickMsg">Tap the spot</b></div>
+      <div id="pick" hidden><b id="pickMsg">Tap the spot</b><div id="ring" hidden></div></div>
     </div>
     <div class="track" id="track"><div class="keep" id="keep"></div><div class="head" id="head"></div></div>
     <div class="sliders">
@@ -138,6 +143,7 @@
       </div>
       <div class="ex" id="ex"></div>
       <div class="fxlist" id="fxList"></div>
+      <details id="help"><summary>Everything you can say</summary><div id="helpBody"></div></details>
       <p class="hint" id="cmdHint">Say what, and when. You can <b>take something out</b>, <b>paint it a colour</b>, <b>add a thing</b>, or throw smoke, fire, sparkles and the rest at it. If it needs a place, it asks you to tap the spot.</p>
     </div>
     <p class="hint">To take a chunk out of the middle: park the playhead where the bad bit starts and press <b>Split here</b>, do it again where it ends, then delete the middle piece.</p>
@@ -466,6 +472,12 @@ var KINDS = [
                   "grey","gray","gold","silver","teal","cyan"], spot:1, dur:null, nm:"colour" },
   /* "add a dog at second 4" -- drops a thing into the picture where you tap */
   { t:"add",      w:["ball","football","basketball","baseball","hat","crown","sunglasses","glasses","dog","puppy","cat","bird","dragon","dinosaur","monkey","star","sun","moon","cloud","rainbow","tree","flower","pizza","cake","burger","apple","banana","ice cream","balloon","car","truck","rocket","plane","boat","train","sword","shield","guitar","drum","trumpet","phone","book","money","trophy","medal","ghost","alien","robot","skull","fish","butterfly","bee","snowman","pumpkin","gift","present","bell","key","clock","lightbulb","umbrella","hammer","camera","microphone","piano","pen","hand","eyes","fire hydrant"], spot:1, dur:null, nm:"added" },
+  { t:"censor",   w:["censor","pixelate","blur out","blur his face","blur her face","blur the face"], spot:1, dur:null, nm:"blurred out" },
+  { t:"freeze",   w:["freeze","freeze frame","hold the frame","stop time","pause there"], spot:0, dur:2, nm:"freeze" },
+  { t:"mirror",   w:["mirror","flip it","flipped","back to front"], spot:0, dur:null, nm:"mirrored" },
+  { t:"flipv",    w:["upside down","upside-down"], spot:0, dur:null, nm:"upside down" },
+  { t:"loud",     w:["louder","turn it up","volume up"], spot:0, dur:null, nm:"louder" },
+  { t:"quiet",    w:["quieter","turn it down","volume down","softer"], spot:0, dur:null, nm:"quieter" },
   { t:"smoke",    w:["smoke","steam","fog","mist"], spot:1, dur:3, nm:"smoke" },
   { t:"fire",     w:["fire","flame","flames","burn","burning"], spot:1, dur:3, nm:"fire" },
   { t:"sparkle",  w:["sparkle","sparkles","magic","glitter","shine","twinkle","stars","star"], spot:1, dur:2.5, nm:"sparkles" },
@@ -509,6 +521,9 @@ function parseWhen(s, c){
   if (/\b(whole|entire|all the way|the whole time|all of it)\b/.test(s)) return { at:0, dur:null };
   m = s.match(/from\s+(\d+(?::\d\d)?(?:\.\d+)?)\s*(?:s\b|sec\w*|seconds?)?\s*(?:to|until|till|-|and)\s*(\d+(?::\d\d)?(?:\.\d+)?)/);
   if (m) return { at: secs(m[1]), dur: Math.max(0.2, secs(m[2]) - secs(m[1])) };
+  /* "at seconds 11 to 15", "11-15", "second 4 through 9" -- a range without the word "from" */
+  m = s.match(/(\d+(?::\d\d)?(?:\.\d+)?)\s*(?:s\b|secs?\b|seconds?\b)?\s*(?:to|until|till|through|-)\s*(\d+(?::\d\d)?(?:\.\d+)?)/);
+  if (m && secs(m[2]) > secs(m[1])) return { at: secs(m[1]), dur: Math.max(0.2, secs(m[2]) - secs(m[1])) };
   var at = null;
   m = s.match(/\b(?:second|sec|minute)\s+(\d+(?::\d\d)?(?:\.\d+)?)/);        /* "second 11" */
   if (m) at = secs(m[1]);
@@ -521,6 +536,24 @@ function parseWhen(s, c){
   if (m) dur = +m[1];
   return { at: at, dur: dur };
 }
+/* One sentence can hold several orders ("add a dog and make it black and white"),
+   so the phrases that contain the word "and" are hidden before the split. */
+function parseAll(s, c){
+  var keep = [], t = s;
+  t = t.replace(/black and white/gi, function(m){ keep.push(m); return "\u0001" + (keep.length-1) + "\u0001"; });
+  t = t.replace(/(\d+(?::\d\d)?)\s+and\s+(\d+)/gi, "$1 to $2");
+  var parts = t.split(/\s+and then\s+|\s+then\s+|\s+and\s+|;|,/);
+  var out = [];
+  parts.forEach(function(x){
+    x = x.replace(/\u0001(\d+)\u0001/g, function(_,i){ return keep[+i]; }).trim();
+    if (!x) return;
+    var f = parseCmd(x, c);
+    if (f) out.push(f);
+  });
+  if (!out.length) { var one = parseCmd(s, c); if (one) out.push(one); }
+  return out;
+}
+
 function parseCmd(s, c){
   var low = " " + s.toLowerCase().replace(/[.!,]/g," ") + " ", best = null, bestLen = 0, bestWord = "";
   KINDS.forEach(function(k){
@@ -547,29 +580,57 @@ function parseCmd(s, c){
   }
   var big = /\b(huge|giant|massive|enormous)\b/.test(low) ? 2.2 : /\bbig(ger)?\b/.test(low) ? 1.6
           : /\b(tiny|little)\b/.test(low) ? 0.5 : /\bsmall(er)?\b/.test(low) ? 0.7 : 1;
+  /* "everywhere" spreads it over the whole picture; "but not the human" keeps a hole for them */
+  var area = /\b(everywhere|all over|the whole screen|whole picture|over everything|all of it|everything)\b/.test(low) ? "all" : "";
+  var notT = "", nm2 = low.match(/\b(?:but not|except for|except|apart from|but|not on|not over|around)\s+(?:the|his|her|their|a|my)?\s*([a-z][a-z ]{1,18}?)\s*(?:$|\bat\b|\bfrom\b|\bfor\b|\bsecond\b)/);
+  if (nm2) notT = nm2[1].trim();
+  if (notT && /^(the )?(video|picture|clip|frame|screen|it)$/.test(notT)) notT = "";
+  if (area) tgt = "";
   var nm = best.t === "paint" ? bestWord : best.nm;
   var word = best.t === "add"   ? (OBJ[bestWord] || "") + " " + bestWord + " added"
            : best.t === "paint" ? (tgt ? tgt + " painted " + bestWord : bestWord)
            : best.t === "hide"  ? (tgt ? tgt + " gone" : "gone")
            : nm + (tgt ? " on " + tgt : "");
-  return { id: uid(), type: best.t, at: at, dur: dur === null ? null : dur, x: 0.5, y: 0.5,
-           need: !!best.spot, target: tgt, text: txt, col: COL[bestWord] || "#ff8a1f",
+  return { id: uid(), type: best.t, at: at, dur: dur === null ? null : dur, x: 0.5, y: 0.5, r: 0,
+           need: best.spot && !area, area: area, notT: notT, nx: 0, ny: 0, nr: 0,
+           target: tgt, text: txt, col: COL[bestWord] || "#ff8a1f",
            emoji: OBJ[bestWord] || "\u2b50", size: big,
-           label: word + " at " + fmt(at) };
+           label: word + (area ? " everywhere" : "") + (notT ? " but not " + notT : "") + " at " + fmt(at) };
 }
 
 /* tap a spot on the picture */
-var picking = null;
-$("pick").onclick = function(e){
-  if (!picking) return;
-  var r = $("pick").getBoundingClientRect();
-  picking({ x: clamp((e.clientX - r.left) / r.width, 0, 1), y: clamp((e.clientY - r.top) / r.height, 0, 1) });
+var picking = null, down = null;
+function ptOf(e){
+  var b = $("pick").getBoundingClientRect();
+  return { x: clamp((e.clientX - b.left) / b.width, 0, 1), y: clamp((e.clientY - b.top) / b.height, 0, 1), w: b.width, h: b.height };
+}
+function ringAt(p, rad){
+  var b = $("pick").getBoundingClientRect(), R = $("ring");
+  R.hidden = false;
+  R.style.left = (p.x * b.width - rad * b.width) + "px";
+  R.style.top  = (p.y * b.height - rad * b.width) + "px";
+  R.style.width = R.style.height = (rad * 2 * b.width) + "px";
+}
+$("pick").onpointerdown = function(e){ if (!picking) return; down = ptOf(e); ringAt(down, 0.02); };
+$("pick").onpointermove = function(e){
+  if (!picking || !down) return;
+  var p = ptOf(e), dx = (p.x - down.x), dy = (p.y - down.y) * (p.h / p.w);
+  ringAt(down, Math.max(0.02, Math.sqrt(dx*dx + dy*dy)));
 };
-function askSpot(what){
+$("pick").onpointerup = function(e){
+  if (!picking) return;
+  var p = ptOf(e), start = down || p;
+  var dx = (p.x - start.x), dy = (p.y - start.y) * (p.h / p.w);
+  var rad = Math.sqrt(dx*dx + dy*dy);
+  down = null; $("ring").hidden = true; $("pick").hidden = true;
+  var f = picking; picking = null;
+  f({ x: start.x, y: start.y, r: rad > 0.03 ? rad : 0 });
+};
+function askSpot(what, circle){
   return new Promise(function(res){
-    $("pickMsg").textContent = "Tap " + (what || "the spot") + " on the video";
-    $("pick").hidden = false;
-    picking = function(p){ $("pick").hidden = true; picking = null; res(p); };
+    $("pickMsg").textContent = (circle ? "Drag a circle round " : "Tap ") + (what || "the spot") + " on the video";
+    $("pick").hidden = false; $("ring").hidden = true;
+    picking = res;
   });
 }
 
@@ -578,18 +639,59 @@ $("cmd").onkeydown = function(e){ if (e.key === "Enter") runCmd($("cmd").value);
 function runCmd(text){
   var c = sel(); if (!c) { alert("Pick a clip first."); return; }
   if (!text.trim()) return;
-  var f = parseCmd(text, c);
-  if (!f) { $("cmdHint").innerHTML = "<b>I did not understand that one.</b> Try one of the examples below."; return; }
-  var go = function(){
-    c.fx = c.fx || []; c.fx.push(f);
-    c.fx.sort(function(a,b){ return a.at - b.at; });
-    $("cmd").value = "";
-    $("cmdHint").innerHTML = "Added: <b>" + esc(f.label) + "</b>. Press Preview with effects to watch it.";
-    store(); drawFxList();
-    $("editVid").currentTime = clamp(c.start + f.at, c.start, c.end);
+
+  /* "cut out from 5 to 9 seconds" is a real edit, not an effect */
+  var cut = text.toLowerCase().match(/\b(?:cut|delete|skip|chop|drop)\b[^0-9]*(\d+(?::\d\d)?(?:\.\d+)?)\s*(?:s\b|secs?\b|seconds?\b)?\s*(?:to|until|till|-|and)\s*(\d+(?::\d\d)?(?:\.\d+)?)/);
+  if (cut) { cutOut(c, secs(cut[1]), secs(cut[2])); $("cmd").value = ""; return; }
+
+  var list = parseAll(text, c);
+  if (!list.length) {
+    $("cmdHint").innerHTML = "<b>I did not understand \u201c" + esc(text) + "\u201d.</b> Open " +
+      "<b>Everything you can say</b> below for the whole list \u2014 or say it a different way, like " +
+      "\u201cmake the chair disappear at second 4\u201d.";
+    return;
+  }
+  var i = 0;
+  var next = function(){
+    if (i >= list.length) {
+      $("cmd").value = "";
+      $("cmdHint").innerHTML = "Added: <b>" + esc(list.map(function(f){ return f.label; }).join(", ")) +
+        "</b>. Press Preview with effects to watch it.";
+      store(); drawFxList();
+      $("editVid").currentTime = clamp(c.start + list[0].at, c.start, c.end);
+      return;
+    }
+    var f = list[i++];
+    c.fx = c.fx || []; c.fx.push(f); c.fx.sort(function(a,b){ return a.at - b.at; });
+    var second = function(){
+      if (!f.notT) return next();
+      askSpot(f.notT, true).then(function(p){ f.nx = p.x; f.ny = p.y; f.nr = p.r || 0.16; next(); });
+    };
+    if (f.need) askSpot(f.target || "the spot", f.type === "hide" || f.type === "censor").then(function(p){
+      f.x = p.x; f.y = p.y; f.r = p.r; second();
+    });
+    else second();
   };
-  if (f.need) askSpot(f.target || "the spot").then(function(p){ f.x = p.x; f.y = p.y; go(); });
-  else go();
+  next();
+}
+
+/* take a piece out of the middle of a clip for real: the clip becomes two */
+function cutOut(c, a, b){
+  if (b < a) { var t = a; a = b; b = t; }
+  a = clamp(a, c.start, c.end); b = clamp(b, c.start, c.end);
+  if (b - a < 0.15) { $("cmdHint").innerHTML = "<b>That piece is too short to cut.</b>"; return; }
+  if (b >= c.end - 0.05) { c.end = a; store(); $("cmdHint").innerHTML = "Cut \u2014 the clip now stops at <b>" + fmt(a) + "</b>."; return; }
+  if (a <= c.start + 0.05) { c.start = b; store(); $("cmdHint").innerHTML = "Cut \u2014 the clip now starts at <b>" + fmt(b) + "</b>."; return; }
+  var after = { id: uid(), name: c.name + " (b)", blob: c.blob, url: URL.createObjectURL(c.blob), duration: c.duration,
+                start: b, end: c.end, order: c.order + 0.5, thumb: "", w: c.w, h: c.h, lum: c.lum,
+                fx: (c.fx||[]).filter(function(f){ return f.at >= b; }).map(function(f){ return Object.assign({}, f, { id: uid() }); }) };
+  c.end = a; c.fx = (c.fx||[]).filter(function(f){ return f.at < a; });
+  c.name = c.name.replace(/ \(a\)$/,"") + " (a)";
+  clips.push(after);
+  ordered().forEach(function(x,i){ x.order = i; put(rec(x)); });
+  thumb(after.url, b + 0.05).then(function(r){ after.thumb = r.url; put(rec(after)); draw(); });
+  store(); drawFxList();
+  $("cmdHint").innerHTML = "Cut <b>" + fmt(a) + " to " + fmt(b) + "</b> out \u2014 it is two clips now, and they play one after the other.";
 }
 function drawFxList(){
   var c = sel(), box = $("fxList"); box.innerHTML = "";
@@ -603,9 +705,29 @@ function drawFxList(){
     box.appendChild(el);
   });
 }
+/* built from the table above, so the list can never drift from what it really knows */
+(function(){
+  var rows = KINDS.map(function(k){
+    return '<b>' + esc(k.t === "paint" ? "a colour" : k.t === "add" ? "a thing" : k.nm) + '</b> \u2014 ' +
+           esc(k.w.slice(0, k.t === "add" ? 8 : 6).join(", ")) + (k.w.length > 8 ? ", \u2026" : "");
+  });
+  $("helpBody").innerHTML =
+    "<p>" + rows.join("<br>") + "</p>" +
+    "<p><b>When:</b> at second 11 \u00b7 at 13 seconds \u00b7 at 1:05 \u00b7 from 11 to 15 \u00b7 for 3 seconds \u00b7 " +
+    "at the start \u00b7 at the end \u00b7 the whole video. Say nothing and it starts at the beginning.</p>" +
+    "<p><b>Where:</b> everywhere \u00b7 all over \u00b7 but not the human \u00b7 except the dog. Anything pointing at a " +
+    "thing asks you to tap it, or drag a circle round it.</p>" +
+    "<p><b>How big:</b> tiny \u00b7 small \u00b7 big \u00b7 huge \u2014 or drag the circle bigger.</p>" +
+    "<p><b>Several at once:</b> \u201cadd a dog at second 4 and make it black and white\u201d.</p>" +
+    "<p><b>Real cutting:</b> \u201ccut out from 5 to 9 seconds\u201d takes that piece out for good.</p>" +
+    "<p>It cannot see your video, so it cannot find the human by itself \u2014 that is what the one tap is for.</p>";
+})();
+
 var EXAMPLES = ["make his hand disappear at second 13","make smoke come out of his hand at second 11",
   "make the piano not in the video","make the pen orange",
   "add a dog at second 4","put a big crown on his head",
+  "from 11 to 15 smoke everywhere but not the human","cut out from 5 to 9 seconds",
+  "blur his face","freeze at second 6 for 2 seconds",
   "fire from the ball at 4 seconds","sparkles on her head at second 2","explosion at second 6",
   "shake at second 3","slow motion from 5 to 9 seconds","black and white","confetti at second 8",
   "zoom in at second 2","say “Watch this!” at second 1","lightning at second 5"];
@@ -615,7 +737,7 @@ Array.prototype.slice.call($("ex").children).forEach(function(b){
 });
 
 /* ---------- drawing a frame, effects and all ---------- */
-function newFx(){ return { p: [], seen: {} }; }
+function newFx(){ return { p: [], seen: {}, fz: {}, fzUntil: 0 }; }
 function rectOf(v, W, H, fill){
   var vw = v.videoWidth || 16, vh = v.videoHeight || 9;
   var s = fill ? Math.max(W/vw, H/vh) : Math.min(W/vw, H/vh);
@@ -630,18 +752,41 @@ function rateAt(c, t){
   return r;
 }
 function mutedAt(c, t){ return liveFx(c, t).some(function(f){ return f.type === "mute"; }); }
+function volAt(c, t){
+  var g = 1;
+  liveFx(c, t).forEach(function(f){ if (f.type === "loud") g = 1.9; if (f.type === "quiet") g = 0.35; });
+  return g;
+}
+/* while the picture is frozen the video is paused, so the clip lasts that much longer */
+function freezeTime(c){
+  return (c.fx||[]).filter(function(f){ return f.type === "freeze" && f.at >= 0 && f.at <= c.end - c.start; })
+                   .reduce(function(a,f){ return a + (f.dur || 2); }, 0);
+}
+/* pauses the picture when a freeze is due, and starts it again when the time is up */
+function doFreeze(v, c, st, wall){
+  if (st.fzUntil) {
+    if (wall < st.fzUntil) { if (!v.paused) { try { v.pause(); } catch(e){} } return true; }
+    st.fzUntil = 0; if (v.paused) v.play().catch(function(){});
+    return false;
+  }
+  var t = v.currentTime - c.start;
+  var f = (c.fx||[]).find(function(f){ return f.type === "freeze" && !st.fz[f.id] && t >= f.at; });
+  if (f) { st.fz[f.id] = 1; st.fzUntil = wall + (f.dur || 2); try { v.pause(); } catch(e){} return true; }
+  return false;
+}
 /* how long the kept part really lasts once slow motion is taken into account */
 function realLen(c){
-  var L = c.end - c.start;
-  if (!(c.fx||[]).some(function(f){ return f.type === "slow" || f.type === "fast"; })) return L;
-  var total = 0;
-  for (var x = 0; x < L; x += 0.1) total += 0.1 / rateAt(c, x);
-  return total;
+  var L = c.end - c.start, total = L;
+  if ((c.fx||[]).some(function(f){ return f.type === "slow" || f.type === "fast"; })) {
+    total = 0;
+    for (var x = 0; x < L; x += 0.1) total += 0.1 / rateAt(c, x);
+  }
+  return total + freezeTime(c);
 }
 
 function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   opt = opt || {};
-  var S = H / 720, live = liveFx(c, t), filt = [], shx = 0, shy = 0, scale = 1;
+  var S = H / 720, live = liveFx(c, t), filt = [], shx = 0, shy = 0, scale = 1, sx = 1, sy = 1;
   live.forEach(function(f){
     var p = f.dur === null ? 1 : clamp((t - f.at) / Math.max(0.001, f.dur), 0, 1);
     if (f.type === "bw") filt.push("grayscale(1)");
@@ -652,6 +797,8 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
     if (f.type === "shake") { var k = 14 * S * (1 - p); shx = (Math.random()-.5)*k*2; shy = (Math.random()-.5)*k*2; }
     if (f.type === "zoomin") scale *= 1 + 0.4 * p;
     if (f.type === "zoomout") scale *= 1.4 - 0.4 * p;
+    if (f.type === "mirror") sx = -1;
+    if (f.type === "flipv") sy = -1;
   });
   if (opt.k && Math.abs(opt.k - 1) > 0.02) filt.push("brightness(" + opt.k.toFixed(2) + ")");
 
@@ -659,14 +806,14 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.filter = filt.length ? filt.join(" ") : "none";
-  ctx.translate(W/2 + shx, H/2 + shy); ctx.scale(scale, scale); ctx.translate(-W/2, -H/2);
+  ctx.translate(W/2 + shx, H/2 + shy); ctx.scale(scale * sx, scale * sy); ctx.translate(-W/2, -H/2);
   try { ctx.drawImage(v, r.x, r.y, r.w, r.h); } catch(e){}
   ctx.filter = "none";
 
   /* --- make something disappear: cover it with a patch of what is beside it --- */
   live.forEach(function(f){
     if (f.type !== "hide") return;
-    var px = r.x + f.x * r.w, py = r.y + f.y * r.h, rad = Math.max(r.w, r.h) * 0.10;
+    var px = r.x + f.x * r.w, py = r.y + f.y * r.h, rad = f.r ? f.r * r.w : Math.max(r.w, r.h) * 0.10;
     var age = t - f.at, fade = clamp(age / 0.35, 0, 1);
     var dx = (f.x > 0.5 ? -1 : 1) * rad * 2.1;
     ctx.save();
@@ -676,6 +823,18 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
     try { ctx.drawImage(v, r.x + dx, r.y, r.w, r.h); } catch(e){}
     ctx.restore();
     if (age < 0.9) puff(st, px, py, rad, S, dt, 1 - age/0.9);
+  });
+
+  /* --- blur one thing out (a face, a name on a shirt) --- */
+  live.forEach(function(f){
+    if (f.type !== "censor") return;
+    var px = r.x + f.x * r.w, py = r.y + f.y * r.h, rad = f.r ? f.r * r.w : Math.max(r.w, r.h) * 0.09;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath(); ctx.arc(px, py, rad, 0, 7); ctx.clip();
+    ctx.filter = "blur(" + (26 * S).toFixed(1) + "px)";
+    try { ctx.drawImage(v, r.x, r.y, r.w, r.h); } catch(e){}
+    ctx.restore();
   });
 
   /* --- paint one thing a different colour, keeping its light and shadow --- */
@@ -699,11 +858,20 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
     var px = r.x + f.x * r.w, py = r.y + f.y * r.h;
     var p = f.dur === null ? 0 : clamp((t - f.at) / Math.max(0.001, f.dur), 0, 1);
     var once = function(fn){ if (!st.seen[f.id]) { st.seen[f.id] = 1; fn(); } };
-    if (f.type === "smoke")    spawn(st, dt * 34, function(){ return { k:"smoke", x:px + rnd(14*S), y:py + rnd(8*S), vx:rnd(22*S), vy:-(45+Math.random()*45)*S, r:11*S, a:0, m:2.0 }; });
-    if (f.type === "fire")     spawn(st, dt * 70, function(){ return { k:"fire", x:px + rnd(12*S), y:py + rnd(6*S), vx:rnd(28*S), vy:-(110+Math.random()*90)*S, r:(7+Math.random()*7)*S, a:0, m:.75 }; });
-    if (f.type === "sparkle")  spawn(st, dt * 30, function(){ return { k:"spark", x:px + rnd(55*S), y:py + rnd(55*S), vx:rnd(18*S), vy:rnd(18*S) - 12*S, r:(2+Math.random()*3)*S, a:0, m:.9 }; });
-    if (f.type === "hearts")   spawn(st, dt * 7,  function(){ return { k:"heart", x:px + rnd(40*S), y:py, vx:rnd(16*S), vy:-(45+Math.random()*30)*S, r:(14+Math.random()*12)*S, a:0, m:2.4 }; });
-    if (f.type === "bubbles")  spawn(st, dt * 12, function(){ return { k:"bub", x:px + rnd(45*S), y:py, vx:rnd(14*S), vy:-(55+Math.random()*40)*S, r:(5+Math.random()*12)*S, a:0, m:3 }; });
+    /* "everywhere" spreads the same effect over the whole picture */
+    var ALL = f.area === "all";
+    var from = function(sp){ return ALL ? { x: Math.random()*W, y: H * (0.15 + Math.random()*0.95) }
+                                        : { x: px + rnd(sp), y: py + rnd(sp*0.6) }; };
+    if (f.type === "smoke")    spawn(st, dt * (ALL ? 120 : 34), function(){ var q = from(14*S);
+        return { k:"smoke", x:q.x, y:q.y, vx:rnd(22*S), vy:-(45+Math.random()*45)*S, r:(ALL?24:11)*S, a:0, m:ALL?3.4:2.0 }; });
+    if (f.type === "fire")     spawn(st, dt * (ALL ? 190 : 70), function(){ var q = ALL ? { x:Math.random()*W, y:H*(0.75+Math.random()*0.3) } : from(12*S);
+        return { k:"fire", x:q.x, y:q.y, vx:rnd(28*S), vy:-(110+Math.random()*90)*S, r:(7+Math.random()*7)*S, a:0, m:.75 }; });
+    if (f.type === "sparkle")  spawn(st, dt * (ALL ? 110 : 30), function(){ var q = from(55*S);
+        return { k:"spark", x:q.x, y:q.y, vx:rnd(18*S), vy:rnd(18*S) - 12*S, r:(2+Math.random()*3)*S, a:0, m:.9 }; });
+    if (f.type === "hearts")   spawn(st, dt * (ALL ? 26 : 7), function(){ var q = ALL ? { x:Math.random()*W, y:H } : from(40*S);
+        return { k:"heart", x:q.x, y:q.y, vx:rnd(16*S), vy:-(45+Math.random()*30)*S, r:(14+Math.random()*12)*S, a:0, m:2.4 }; });
+    if (f.type === "bubbles")  spawn(st, dt * (ALL ? 45 : 12), function(){ var q = ALL ? { x:Math.random()*W, y:H } : from(45*S);
+        return { k:"bub", x:q.x, y:q.y, vx:rnd(14*S), vy:-(55+Math.random()*40)*S, r:(5+Math.random()*12)*S, a:0, m:3 }; });
     if (f.type === "confetti") spawn(st, dt * 55, function(){ return { k:"conf", x:Math.random()*W, y:-20*S, vx:rnd(45*S), vy:(90+Math.random()*130)*S, r:(5+Math.random()*6)*S, a:0, m:5,
                                                                         c:"hsl(" + Math.floor(Math.random()*360) + ",90%,60%)", rot:Math.random()*6, vr:rnd(7) }; });
     if (f.type === "snow")     spawn(st, dt * 40, function(){ return { k:"snow", x:Math.random()*W, y:-10*S, vx:rnd(20*S), vy:(40+Math.random()*60)*S, r:(2+Math.random()*4)*S, a:0, m:9 }; });
@@ -735,6 +903,22 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
         ctx.strokeText(f.text, W/2, H - 60*S); ctx.fillText(f.text, W/2, H - 60*S); ctx.restore(); }
   });
   step(ctx, st, dt, H, S);
+
+  /* --- "but not the human": the picture of them is painted back over the effect --- */
+  var holes = live.filter(function(f){ return f.nr > 0; });
+  if (holes.length) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(W/2 + shx, H/2 + shy); ctx.scale(scale * sx, scale * sy); ctx.translate(-W/2, -H/2);
+    ctx.beginPath();
+    holes.forEach(function(f){
+      ctx.ellipse(r.x + f.nx * r.w, r.y + f.ny * r.h, f.nr * r.w, f.nr * r.w * 1.55, 0, 0, 7);
+    });
+    ctx.clip();
+    ctx.filter = filt.length ? filt.join(" ") : "none";
+    try { ctx.drawImage(v, r.x, r.y, r.w, r.h); } catch(e){}
+    ctx.restore();
+  }
   ctx.restore();
 }
 function rnd(n){ return (Math.random() - 0.5) * 2 * n; }
@@ -802,7 +986,8 @@ $("btnPrev").onclick = function(){
     if (!prevRun) return;
     var now = performance.now(), dt = Math.min(0.1, (now - last)/1000); last = now;
     var t = v.currentTime - c.start;
-    v.playbackRate = rateAt(c, t);
+    var frozen = doFreeze(v, c, st, now / 1000);
+    if (!frozen) v.playbackRate = rateAt(c, t);
     ctx.fillStyle = "#000"; ctx.fillRect(0,0,cv.width,cv.height);
     drawFrame(ctx, cv.width, cv.height, v, c, t, 1, dt, st, { fill:false, k:1 });
     if (v.currentTime >= c.end || v.ended) { v.pause(); v.playbackRate = 1; stopPreview(); return; }
@@ -899,8 +1084,9 @@ $("btnExport").onclick = function(){
       }
       a = clamp(a, 0, 1);
       var t = p.v.currentTime - p.c.start;
-      p.v.playbackRate = rateAt(p.c, t);
-      if (p.gain) p.gain.gain.value = mutedAt(p.c, t) ? 0 : a;
+      var frozen = doFreeze(p.v, p.c, p.st, performance.now() / 1000);
+      if (!frozen) p.v.playbackRate = rateAt(p.c, t);
+      if (p.gain) p.gain.gain.value = (mutedAt(p.c, t) || frozen) ? 0 : a * volAt(p.c, t);
       drawFrame(ctx, W, H, p.v, p.c, t, a, dt, p.st, { fill: fill, k: p.k });
     });
 

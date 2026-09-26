@@ -37,6 +37,7 @@
   .meter{display:inline-block;width:96px;height:10px;background:var(--panel2);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
   .meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#33d6a6,#ffd84a,#ff4d5e);transition:width .06s}
   .btn.small{padding:5px 11px;font-size:14px}
+  .btn.warn{border-color:#ffb020;color:#ffd48a}
   .btn.on{background:var(--accent2);border-color:var(--accent2);color:#07231b}
   .live{display:inline-flex;align-items:center;gap:6px;color:var(--accent2);font-size:13.5px}
   .live i{width:9px;height:9px;border-radius:50%;background:var(--accent2);animation:redpulse 1.6s infinite}
@@ -157,6 +158,7 @@
       <label class="chk"><input type="checkbox" id="optBeep" checked> Beep</label>
       <button class="btn small" id="btnGuide">Face guide</button>
       <button class="btn small" id="btnTorch" disabled title="Only some phone cameras have a light">&#128294; Torch</button>
+      <button class="btn small" id="btnPlate" title="Point at the empty room and press this">&#127968; Empty room</button>
       <button class="btn small" id="btnBright" title="Records the same, but brightens the picture in the finished video">&#9728; Brighten</button>
       <span class="live" id="camState" hidden><i></i> camera live</span>
       <button class="btn small" id="btnClap" disabled title="Clap, or shout GO, and it starts filming">&#128066; Clap to start</button>
@@ -230,6 +232,8 @@
       <button class="btn small" id="btnPasteTrim" disabled>Paste trim</button>
       <button class="btn small" id="btnCopyFx">Copy effects</button>
       <button class="btn small" id="btnPasteFx" disabled>Paste effects</button>
+      <button class="btn small" id="btnPlate2" title="Scrub to a moment with nobody in shot, then press this">&#127968; This frame is the empty room</button>
+      <button class="btn small" id="btnPlateOff" title="Forget it">no empty room</button>
     </div>
 
     <div class="cmdbox">
@@ -380,7 +384,8 @@ function allRecs(){
   });
 }
 function rec(c){ return { id:c.id, name:c.name, blob:c.blob, duration:c.duration, start:c.start, end:c.end,
-                          order:c.order, thumb:c.thumb, w:c.w, h:c.h, lum:c.lum, fx:c.fx, card:c.card }; }
+                          order:c.order, thumb:c.thumb, w:c.w, h:c.h, lum:c.lum, fx:c.fx, card:c.card,
+                          plate:c.plate, camPin:c.camPin }; }
 
 /* ---------- state ---------- */
 var clips = [], selId = null;
@@ -453,6 +458,7 @@ $("cardSec").oninput = function(){
 $("cardDel").onclick = function(){ removeClip(selId); };
 
 /* ---------- camera ---------- */
+var rehearse = [];
 var livePeaks = [], lastPeakAt = 0;
 var vTrack = null, torchOn = false, autoBright = false, darkTimer = 0;
 var micCtx = null, micNode = null, micBuf = null, micRaf = 0, micPeak = 0, clapArm = false, lastTake = null, counting = false;
@@ -533,6 +539,34 @@ function checkDark(){
   $("btnBright").classList.toggle("warn", dark);
   $("btnBright").textContent = dark ? "\u2600 Brighten \u2014 it is dark" : (autoBright ? "\u2600 Brightening" : "\u2600 Brighten");
 }
+var roomPlate = null;                 /* the empty room, waiting for the next take */
+$("btnPlate").onclick = function(){
+  if (!stream) { $("camHint").innerHTML = "Turn the camera on first."; return; }
+  var cv = document.createElement("canvas");
+  var v = $("preview");
+  cv.width = v.videoWidth || 1280; cv.height = v.videoHeight || 720;
+  try { cv.getContext("2d").drawImage(v, 0, 0, cv.width, cv.height); } catch(e){ return; }
+  roomPlate = cv.toDataURL("image/jpeg", 0.75);
+  $("btnPlate").classList.add("on");
+  beep(520, 70);
+  $("camHint").innerHTML = "<b>Empty room kept.</b> Every take from now on can put things in front of the " +
+    "effects and fill a vanish with the real background \u2014 as long as the camera does not move.";
+};
+$("btnPlate2").onclick = function(){
+  var c = sel(); if (!c || c.card) return;
+  var v = $("editVid"), cv = document.createElement("canvas");
+  cv.width = v.videoWidth || 1280; cv.height = v.videoHeight || 720;
+  try { cv.getContext("2d").drawImage(v, 0, 0, cv.width, cv.height); } catch(e){ return; }
+  c.plate = cv.toDataURL("image/jpeg", 0.75);
+  store();
+  $("cmdHint").innerHTML = "<b>That frame is now the empty room for this clip.</b> Anything that is not in it " +
+    "will be drawn in front of the effects, and a vanish will be filled with it.";
+};
+$("btnPlateOff").onclick = function(){
+  var c = sel(); if (!c) return;
+  c.plate = null; store();
+  $("cmdHint").innerHTML = "Forgotten. Effects go back to being drawn over everything.";
+};
 $("btnTorch").onclick = function(){
   if (!vTrack) return;
   torchOn = !torchOn;
@@ -626,6 +660,7 @@ function startRec(){
       var blob = new Blob(chunks, { type: chunks[0] ? chunks[0].type : "video/webm" });
       if (!blob.size) return;
       addClip(blob, "Take " + (clips.length + 1)).then(function(c){
+        if (roomPlate) c.plate = roomPlate;
         if (autoBright) {
           c.fx.push({ id: uid(), type: "bright", at: 0, dur: null, x: .5, y: .5, r: 0, area: "", notT: "",
                       nx: 0, ny: 0, nr: 0, pos: "bottom", label: "brighter at 0:00" });
@@ -650,12 +685,25 @@ function startRec(){
     recorder.start(100);
     document.body.classList.add("filming");
     beep(880, 130);
+    /* rehearsing: a beep at every moment an effect is due on the clip you are copying */
+    rehearse.forEach(clearTimeout); rehearse = [];
+    var rc = sel();
+    if (rc && (rc.fx || []).length && $("optBeep").checked) {
+      rc.fx.forEach(function(f){
+        if (f.at >= 0 && f.at < 120) rehearse.push(setTimeout(function(){ beep(1250, 70); }, f.at * 1000));
+      });
+      $("camHint").innerHTML = "Filming to <b>" + esc(rc.name) + "</b> \u2014 a beep at each of its " +
+        rc.fx.length + " effect" + (rc.fx.length > 1 ? "s" : "") + ", so you know when to react.";
+    }
     t0 = Date.now(); $("timer").classList.add("on");
     tick = setInterval(function(){ $("timer").textContent = fmt((Date.now() - t0) / 1000); }, 200);
     $("btnRec").textContent = "\u25A0 Stop";
   });
 }
-function stopRec(){ if (recorder && recorder.state === "recording") recorder.stop(); }
+function stopRec(){
+  rehearse.forEach(clearTimeout); rehearse = [];
+  if (recorder && recorder.state === "recording") recorder.stop();
+}
 $("btnRec").onclick = function(){ if (recorder && recorder.state === "recording") stopRec(); else startRec(); };
 
 /* throw the last take away and go again */
@@ -1236,6 +1284,19 @@ $("camPin").onchange = function(){
 };
 $("btnCmd").onclick = function(){ runCmd($("cmd").value); };
 $("cmd").onkeydown = function(e){ if (e.key === "Enter") runCmd($("cmd").value); };
+/* the nearest loud moment within half a second -- a hand clap, a thump, a word */
+function snapTime(c, t){
+  var pk = c.peaks;
+  if (!pk || !pk.length || !c.duration) return t;
+  var idx = function(x){ return clamp(Math.round(x / c.duration * pk.length), 0, pk.length - 1); };
+  var here = idx(t), w = Math.max(2, Math.round(0.5 / c.duration * pk.length));
+  var best = here, bv = pk[here];
+  for (var i = Math.max(0, here - w); i <= Math.min(pk.length - 1, here + w); i++)
+    if (pk[i] > bv) { bv = pk[i]; best = i; }
+  if (bv < (pk[here] || 0) * 1.6 || bv < 0.12) return t;     /* nothing worth moving to */
+  return clamp(best / pk.length * c.duration, 0, c.duration);
+}
+
 function runCmd(text){
   var c = sel(); if (!c) { alert("Pick a clip first."); return; }
   if (!text.trim()) return;
@@ -1256,12 +1317,20 @@ function runCmd(text){
     if (i >= list.length) {
       $("cmd").value = "";
       $("cmdHint").innerHTML = "Added: <b>" + esc(list.map(function(f){ return f.label; }).join(", ")) +
-        "</b>. Press Preview with effects to watch it.";
+        "</b>. Press Preview with effects to watch it." +
+        (list.some(function(f){ return f.snapped; })
+          ? " <i>Moved onto the nearest sharp moment in the sound \u2014 change the number on the chip if you want it exactly where you said.</i>" : "");
       store(); drawFxList();
       $("editVid").currentTime = clamp(c.start + list[0].at, c.start, c.end);
       return;
     }
     var f = list[i++];
+    var snapped = snapTime(c, f.at);
+    if (Math.abs(snapped - f.at) > 0.06) {
+      f.at = snapped;
+      f.label = f.label.replace(/ at \d+:\d\d$/, "") + " at " + fmt(f.at);
+      f.snapped = 1;
+    }
     c.fx = c.fx || []; c.fx.push(f); c.fx.sort(function(a,b){ return a.at - b.at; });
     var second = function(){
       if (!f.notT) return next();
@@ -1625,6 +1694,40 @@ function trackFrame(st, v, live, t){
   }
 }
 
+/* ---------- the clean plate ----------
+   A picture of the room with nobody in it. Anything that differs from it is a
+   person or a thing, which is how an effect can be drawn behind them and how a
+   vanished object can be filled in with the real background. It only works
+   from a camera that has not moved. */
+function plateImg(st, c){
+  if (!c.plate) return null;
+  if (st.plateSrc !== c.plate) { st.plateSrc = c.plate; st.plateIm = new Image(); st.plateIm.src = c.plate; }
+  return (st.plateIm && st.plateIm.complete && st.plateIm.naturalWidth) ? st.plateIm : null;
+}
+function buildMask(st, v, c){
+  var pl = plateImg(st, c); if (!pl) return null;
+  var MW = 192, MH = Math.max(50, Math.round(MW * (v.videoHeight || 720) / (v.videoWidth || 1280)));
+  var a = st.mA || (st.mA = document.createElement("canvas"));
+  var b = st.mB || (st.mB = document.createElement("canvas"));
+  var m = st.mM || (st.mM = document.createElement("canvas"));
+  if (a.width !== MW) { a.width = b.width = m.width = MW; a.height = b.height = m.height = MH; }
+  var ga = a.getContext("2d", { willReadFrequently: true });
+  var gb = b.getContext("2d", { willReadFrequently: true });
+  try { ga.drawImage(v, 0, 0, MW, MH); } catch(e){ return null; }
+  if (st.plateDrawn !== c.plate) { gb.drawImage(pl, 0, 0, MW, MH); st.plateDrawn = c.plate; }
+  var cur, old;
+  try { cur = ga.getImageData(0,0,MW,MH).data; old = gb.getImageData(0,0,MW,MH).data; } catch(e){ return null; }
+  var gm = m.getContext("2d"), im = gm.createImageData(MW, MH), th = (c.plateTol || 34) * 3, any = false;
+  for (var i = 0; i < cur.length; i += 4) {
+    var d0 = Math.abs(cur[i]-old[i]) + Math.abs(cur[i+1]-old[i+1]) + Math.abs(cur[i+2]-old[i+2]);
+    var on = d0 > th ? 255 : 0;
+    if (on) any = true;
+    im.data[i] = im.data[i+1] = im.data[i+2] = 255; im.data[i+3] = on;
+  }
+  gm.putImageData(im, 0, 0);
+  return any ? m : null;
+}
+
 /* where an effect is at this moment: one spot, a path you tapped out, or a thing it follows */
 function posAt(f, t, r, st){
   if (st && st.pos && st.pos[f.id + ":p"]) {
@@ -1786,9 +1889,13 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
       var rad = ar.r ? ar.r * r.w : Math.max(r.w, r.h) * 0.10;
       var dx = (ar.x > 0.5 ? -1 : 1) * rad * 2.1;
       ctx.save(); ctx.globalAlpha = alpha * fade;
+      var pl = plateImg(st, c);
       soft(ctx, W, H, st, px, py, rad, function(g){
         g.filter = FILT;                                  /* the patch wears the same look as the frame */
-        try { g.drawImage(src, r.x + dx, r.y, r.w, r.h); } catch(e){}
+        try {
+          if (pl) g.drawImage(pl, r.x, r.y, r.w, r.h);    /* the real empty background, not a copy of next door */
+          else g.drawImage(src, r.x + dx, r.y, r.w, r.h);
+        } catch(e){}
       });
       ctx.restore();
       if (age < 0.9 && idx === 0) puff(st, f, px, py, rad, S, dt, 1 - age/0.9);
@@ -1945,6 +2052,27 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
     ctx.restore();
   }
   if (live.length) grainOver(ctx, W, H, st);
+
+  /* --- anything that is not part of the empty room goes in front of the effects --- */
+  if (c.plate) {
+    var mk = buildMask(st, v, c);
+    if (mk) {
+      var o3 = st.off3 || (st.off3 = document.createElement("canvas"));
+      if (o3.width !== W || o3.height !== H) { o3.width = W; o3.height = H; }
+      var g3 = o3.getContext("2d");
+      g3.setTransform(1,0,0,1,0,0); g3.globalCompositeOperation = "source-over"; g3.clearRect(0,0,W,H);
+      g3.filter = FILT; try { g3.drawImage(src, r.x, r.y, r.w, r.h); } catch(e){} g3.filter = "none";
+      g3.globalCompositeOperation = "destination-in";
+      g3.filter = "blur(" + (3.5 * S).toFixed(1) + "px)";   /* soft edge, so the cut-out does not show */
+      try { g3.drawImage(mk, r.x, r.y, r.w, r.h); } catch(e){}
+      g3.filter = "none"; g3.globalCompositeOperation = "source-over";
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(W/2 + shx, H/2 + shy); ctx.scale(scale * sx, scale * sy); ctx.translate(-W/2, -H/2);
+      ctx.drawImage(o3, 0, 0);
+      ctx.restore();
+    }
+  }
 
   /* --- "but not the human": their picture painted back over the effect --- */
   var holes = [];
@@ -2271,6 +2399,34 @@ $("btnExport").onclick = function(){
    any other clip, so it is only downloaded the once, and it is put back at the
    front every time the page opens. */
 var FIRST_ID = "first-video", FIRST_SRC = "video-studio-first.webm";
+/* the clip it ships with comes with a run through everything the effects can do */
+function mkfx(type, at, dur, o){
+  o = o || {};
+  var f = { id: uid(), type: type, at: at, dur: dur, x: o.x === undefined ? 0.5 : o.x,
+            y: o.y === undefined ? 0.55 : o.y, r: o.r || 0, need: false, area: o.area || "",
+            notT: "", nx: 0, ny: 0, nr: 0, target: "", text: o.text || "", col: o.col || "#ff8a1f",
+            emoji: o.emoji || "\u2b50", size: o.size || 1, pos: o.pos || "middle",
+            sound: o.sound || "on", vol: o.vol || 1, wind: o.wind || 0, lamp: false,
+            extra: [], holes: [], trk: o.trk !== false, trkHole: false, grow: o.grow };
+  f.label = (o.label || type) + " at " + fmt(at);
+  return f;
+}
+function demoFx(){
+  return [
+    mkfx("title",    0.2,  2.4, { text: "Part 1", trk: false, label: "\u201cPart 1\u201d" }),
+    mkfx("subtitle", 2.9,  2.4, { text: "everything it can do", trk: false, label: "\u201ceverything it can do\u201d" }),
+    mkfx("smoke",    5.5,  3.5, { x: 0.5, y: 0.62, r: 0.06, wind: 1, label: "smoke" }),
+    mkfx("sparkle",  9.2,  2.5, { x: 0.36, y: 0.42, label: "sparkles" }),
+    mkfx("add",     11.5,  4.5, { x: 0.72, y: 0.66, emoji: "\uD83D\uDC36", grow: 1.5, label: "\uD83D\uDC36 dog" }),
+    mkfx("fire",    14.0,  3.0, { x: 0.28, y: 0.68, label: "fire" }),
+    mkfx("lightning",17.5, 1.4, { x: 0.5,  y: 0.35, label: "lightning" }),
+    mkfx("flash",   17.5,  0.5, { x: 0.5,  trk: false, label: "flash" }),
+    mkfx("explode", 19.5,  1.6, { x: 0.55, y: 0.5, vol: 1.6, label: "explosion" }),
+    mkfx("confetti",21.5,  4.0, { area: "all", trk: false, label: "confetti" }),
+    mkfx("slow",    26.0,  3.0, { trk: false, label: "slow motion" }),
+    mkfx("freeze",  30.0,  1.5, { trk: false, label: "freeze" })
+  ];
+}
 function ensureFirst(){
   var have = clips.find(function(c){ return c.id === FIRST_ID; });
   if (have) { have.order = -1; renumber(); return Promise.resolve(); }
@@ -2281,7 +2437,8 @@ function ensureFirst(){
     var url = URL.createObjectURL(blob);
     return probe(url).then(function(m){
       var c = { id: FIRST_ID, name: "My video", blob: blob, url: url, duration: m.d, start: 0, end: m.d,
-                order: -1, thumb: "", w: m.w, h: m.h, lum: 128, fx: [] };
+                order: -1, thumb: "", w: m.w, h: m.h, lum: 128,
+                fx: demoFx().filter(function(f){ return f.at < Math.max(3, m.d - 1); }) };
       clips.push(c); renumber(); draw();
       return thumb(url, 0.1).then(function(tn){ c.thumb = tn.url; c.lum = tn.lum; put(rec(c)); draw(); });
     });

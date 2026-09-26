@@ -38,6 +38,25 @@
   .meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#33d6a6,#ffd84a,#ff4d5e);transition:width .06s}
   .btn.small{padding:5px 11px;font-size:14px}
   .btn.on{background:var(--accent2);border-color:var(--accent2);color:#07231b}
+  .live{display:inline-flex;align-items:center;gap:6px;color:var(--accent2);font-size:13.5px}
+  .live i{width:9px;height:9px;border-radius:50%;background:var(--accent2);animation:redpulse 1.6s infinite}
+  .cardprev{width:100%;border-radius:12px;background:#000;display:block}
+  .tin{flex:1 1 200px;min-width:160px;background:#161a25;color:var(--fg);border:1px solid var(--line);
+       border-radius:999px;padding:9px 15px}
+  .num{width:74px;background:#161a25;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
+  #tickBar{color:var(--muted);font-size:14px;display:inline-flex;align-items:center;gap:8px}
+  #tickBar b{color:var(--fg)}
+  .clip.tick{border-color:var(--accent2)}
+  .clip.drag{opacity:.35}
+  .clip.over{box-shadow:-4px 0 0 var(--accent2)}
+  .clip .ops button.t{background:#3a4460}
+  .clip.tick .ops button.t{background:var(--accent2);color:#07231b}
+  /* frames along the trim bar, instead of flat grey */
+  .track{background-size:cover;background-position:center}
+  .track .keep{background:linear-gradient(180deg,rgba(108,140,255,.30),rgba(51,214,166,.30))}
+  .track.film{height:44px}
+  .track.film .keep{border-left:3px solid var(--accent);border-right:3px solid var(--accent2);
+    box-shadow:0 0 0 2000px rgba(8,11,18,.62)}
   .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
   .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:999px;padding:9px 16px;font-weight:600}
   .btn:hover{border-color:var(--accent)}
@@ -63,7 +82,10 @@
   /* trim */
   .track{position:relative;height:26px;border-radius:8px;background:var(--panel2);overflow:hidden;margin:12px 0 4px}
   .track .keep{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#6c8cff55,#33d6a655);border-left:3px solid var(--accent);border-right:3px solid var(--accent2)}
-  .track .head{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+  .track .head{position:absolute;top:0;bottom:0;width:2px;background:#fff;z-index:3}
+  .track .keep{z-index:2}
+  #wave{position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;pointer-events:none}
+  .sm2{color:var(--muted);font-size:13px}
   .track .mk{position:absolute;top:2px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#ffd84a}
   .sliders label{display:block;font-size:13px;color:var(--muted);margin-top:6px}
   .sliders input[type=range]{width:100%}
@@ -81,6 +103,9 @@
       border-radius:999px;padding:6px 8px 6px 14px;font-size:14px}
   .fx i{font-style:normal;color:var(--accent2);font-weight:700}
   .fx button{background:none;border:none;color:var(--muted);font-size:15px;padding:0 4px}
+  .fx .lab{color:var(--fg)}
+  .fx .sm{color:var(--muted);font-size:12.5px}
+  .fx .num2{width:56px;background:#0f1320;color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:3px 6px;font-size:13px}
   .fx button:hover{color:var(--rec)}
   /* timeline */
   .clips{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
@@ -129,6 +154,9 @@
       <label class="chk"><input type="checkbox" id="optCount" checked> 3&ndash;2&ndash;1 countdown</label>
       <label class="chk"><input type="checkbox" id="optBeep" checked> Beep</label>
       <button class="btn small" id="btnGuide">Face guide</button>
+      <button class="btn small" id="btnTorch" disabled title="Only some phone cameras have a light">&#128294; Torch</button>
+      <button class="btn small" id="btnBright" title="Records the same, but brightens the picture in the finished video">&#9728; Brighten</button>
+      <span class="live" id="camState" hidden><i></i> camera live</span>
       <button class="btn small" id="btnClap" disabled title="Clap, or shout GO, and it starts filming">&#128066; Clap to start</button>
       <label class="chk">Size
         <select id="camSize" class="btn small">
@@ -151,12 +179,24 @@
   <!-- 2. EDIT -->
   <section class="panel" id="editPanel" hidden>
     <h2>2. Cut it and add effects <span id="editName"></span></h2>
+    <div id="cardEdit" hidden>
+      <canvas id="cardPrev" width="1280" height="720" class="cardprev"></canvas>
+      <div class="row">
+        <input type="text" id="cardT" class="tin" placeholder="Part 1">
+        <input type="text" id="cardS" class="tin" placeholder="smaller words underneath (optional)">
+        <label class="chk">Seconds <input type="number" id="cardSec" class="num" min="0.5" max="30" step="0.5" value="3"></label>
+        <label class="chk">Colour <input type="color" id="cardBg" value="#0b0e17"></label>
+        <button class="btn" id="cardDel">Delete card</button>
+      </div>
+      <p class="hint">A title card is a clip like any other &mdash; drag it in front of the bit it belongs to.</p>
+    </div>
+    <div id="vidEdit">
     <div class="stagewrap">
       <video id="editVid" controls playsinline></video>
       <canvas id="fxPrev" width="1280" height="720" hidden></canvas>
       <div id="pick" hidden><b id="pickMsg">Tap the spot</b><div id="ring" hidden></div></div>
     </div>
-    <div class="track" id="track"><div class="keep" id="keep"></div><div class="head" id="head"></div></div>
+    <div class="track" id="track"><canvas id="wave"></canvas><div class="keep" id="keep"></div><div class="head" id="head"></div></div>
     <div class="sliders">
       <label>Start of the part you keep</label>
       <input type="range" id="rStart" min="0" max="100" step="0.01" value="0">
@@ -177,6 +217,18 @@
       <button class="btn" id="btnRename">Rename</button>
       <button class="btn" id="btnDel">Delete clip</button>
     </div>
+    <div class="row">
+      <span class="sm2">Nudge</span>
+      <button class="btn small" id="nS0">start &minus;0.1</button>
+      <button class="btn small" id="nS1">start +0.1</button>
+      <button class="btn small" id="nE0">end &minus;0.1</button>
+      <button class="btn small" id="nE1">end +0.1</button>
+      <span class="sm2">Copy onto another clip</span>
+      <button class="btn small" id="btnCopyTrim">Copy trim</button>
+      <button class="btn small" id="btnPasteTrim" disabled>Paste trim</button>
+      <button class="btn small" id="btnCopyFx">Copy effects</button>
+      <button class="btn small" id="btnPasteFx" disabled>Paste effects</button>
+    </div>
 
     <div class="cmdbox">
       <h3 style="margin-top:0">Tell it what to do</h3>
@@ -190,12 +242,21 @@
       <details id="help"><summary>Everything you can say</summary><div id="helpBody"></div></details>
       <p class="hint" id="cmdHint">Say what, and when. You can <b>take something out</b>, <b>paint it a colour</b>, <b>add a thing</b>, or throw smoke, fire, sparkles and the rest at it. If it needs a place, it asks you to tap the spot.</p>
     </div>
-    <p class="hint">To take a chunk out of the middle: park the playhead where the bad bit starts and press <b>Split here</b>, do it again where it ends, then delete the middle piece.</p>
+    </div>
+    <p class="hint" id="splitHint">To take a chunk out of the middle: park the playhead where the bad bit starts and press <b>Split here</b>, do it again where it ends, then delete the middle piece.</p>
   </section>
 
   <!-- 3. CLIPS -->
   <section class="panel">
     <h2>3. Your clips <span id="tlCount"></span></h2>
+    <div class="row" style="margin-top:0">
+      <button class="btn" id="btnCard">&#43; Title card</button>
+      <button class="btn" id="btnUndo" disabled title="Undo (Cmd/Ctrl+Z)">&#8630; Undo</button>
+      <button class="btn" id="btnRedo" disabled title="Redo (Shift+Cmd/Ctrl+Z)">&#8631; Redo</button>
+      <span id="tickBar" hidden><b id="tickN">0</b> ticked
+        <button class="btn small" id="btnDelTicked">Delete them</button>
+        <button class="btn small" id="btnUntick">Clear ticks</button></span>
+    </div>
     <div id="clips" class="clips"></div>
     <div id="clipsEmpty" class="empty">No clips yet. Record one above, or add video files.</div>
   </section>
@@ -314,7 +375,7 @@ function allRecs(){
   });
 }
 function rec(c){ return { id:c.id, name:c.name, blob:c.blob, duration:c.duration, start:c.start, end:c.end,
-                          order:c.order, thumb:c.thumb, w:c.w, h:c.h, lum:c.lum, fx:c.fx }; }
+                          order:c.order, thumb:c.thumb, w:c.w, h:c.h, lum:c.lum, fx:c.fx, card:c.card }; }
 
 /* ---------- state ---------- */
 var clips = [], selId = null;
@@ -335,7 +396,60 @@ function addClip(blob, name){
   });
 }
 
+/* ---------- title cards ("Part 1") ---------- */
+function drawCardTo(ctx, W, H, c, alpha){
+  var S = H / 720, k = c.card || {};
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.fillStyle = k.bg || "#0b0e17"; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = "center"; ctx.fillStyle = "#fff";
+  ctx.font = "800 " + Math.round(104 * S) + "px Helvetica, Arial, sans-serif";
+  ctx.fillText(k.text || "", W/2, H/2 + (k.sub ? -6 * S : 36 * S));
+  if (k.sub) {
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.font = "500 " + Math.round(42 * S) + "px Helvetica, Arial, sans-serif";
+    ctx.fillText(k.sub, W/2, H/2 + 72 * S);
+  }
+  ctx.restore();
+}
+function cardThumb(c){
+  var cv = document.createElement("canvas"); cv.width = 320; cv.height = 180;
+  drawCardTo(cv.getContext("2d"), 320, 180, c, 1);
+  return cv.toDataURL("image/jpeg", 0.8);
+}
+function addCard(text, sub, secs){
+  var c = { id: uid(), name: text || "Title", card: { text: text || "Part 1", sub: sub || "", bg: "#0b0e17" },
+            duration: secs || 3, start: 0, end: secs || 3, order: clips.length, thumb: "",
+            w: 1280, h: 720, lum: 128, fx: [] };
+  c.thumb = cardThumb(c);
+  clips.push(c); put(rec(c)); draw(); pushHist();
+  return c;
+}
+function paintCard(){
+  var c = sel(); if (!c || !c.card) return;
+  var cv = $("cardPrev"); drawCardTo(cv.getContext("2d"), cv.width, cv.height, c, 1);
+}
+$("btnCard").onclick = function(){
+  var t = prompt("Big words for the card:", "Part " + (clips.filter(function(c){ return c.card; }).length + 1));
+  if (t === null) return;
+  var sub = prompt("Smaller words underneath (leave empty for none):", "");
+  select(addCard(t, sub || "").id);
+};
+$("cardT").oninput = $("cardS").oninput = $("cardBg").oninput = function(){
+  var c = sel(); if (!c || !c.card) return;
+  c.card.text = $("cardT").value; c.card.sub = $("cardS").value; c.card.bg = $("cardBg").value;
+  c.name = c.card.text || "Title"; c.thumb = cardThumb(c);
+  paintCard(); store();
+};
+$("cardSec").oninput = function(){
+  var c = sel(); if (!c || !c.card) return;
+  var n = clamp(+$("cardSec").value || 3, 0.5, 30);
+  c.duration = n; c.start = 0; c.end = n; store();
+};
+$("cardDel").onclick = function(){ removeClip(selId); };
+
 /* ---------- camera ---------- */
+var livePeaks = [], lastPeakAt = 0;
+var vTrack = null, torchOn = false, autoBright = false, darkTimer = 0;
 var micCtx = null, micNode = null, micBuf = null, micRaf = 0, micPeak = 0, clapArm = false, lastTake = null, counting = false;
 
 /* short beeps, so you know when it started and when it stopped */
@@ -369,7 +483,11 @@ function watchMic(s){
     var peak = 0;
     for (var i = 0; i < micBuf.length; i++) { var v = Math.abs(micBuf[i]); if (v > peak) peak = v; }
     $("lvl").style.width = clamp(peak * 190, 0, 100) + "%";
-    if (recorder && recorder.state === "recording" && peak > micPeak) micPeak = peak;
+    if (recorder && recorder.state === "recording") {
+      if (peak > micPeak) micPeak = peak;
+      var nowMs = performance.now();
+      if (nowMs - lastPeakAt > 45) { lastPeakAt = nowMs; livePeaks.push(peak); }
+    }
     if (clapArm && peak > 0.35 && !counting && !(recorder && recorder.state === "recording")) {
       clapArm = false; $("btnClap").classList.remove("on");
       $("camHint").innerHTML = "Heard you \u2014 filming now.";
@@ -390,7 +508,45 @@ function camOff(){
   stream = null; $("preview").srcObject = null; stopMic();
   $("btnCam").textContent = "Turn on camera";
   $("btnRec").disabled = true; $("btnFlip").disabled = true; $("btnClap").disabled = true;
+  $("btnTorch").disabled = true; $("camState").hidden = true;
+  clearInterval(darkTimer); vTrack = null;
 }
+
+/* is it too dark in here? looks at the picture about once a second */
+var darkCv = null;
+function checkDark(){
+  if (!stream) return;
+  darkCv = darkCv || document.createElement("canvas");
+  darkCv.width = 48; darkCv.height = 27;
+  var x = darkCv.getContext("2d");
+  try { x.drawImage($("preview"), 0, 0, 48, 27); } catch(e){ return; }
+  var d, lum = 0, n = 0;
+  try { d = x.getImageData(0, 0, 48, 27).data; } catch(e){ return; }
+  for (var i = 0; i < d.length; i += 4) { lum += d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114; n++; }
+  lum = n ? lum / n : 128;
+  var dark = lum < 58 && !autoBright;
+  $("btnBright").classList.toggle("warn", dark);
+  $("btnBright").textContent = dark ? "\u2600 Brighten \u2014 it is dark" : (autoBright ? "\u2600 Brightening" : "\u2600 Brighten");
+}
+$("btnTorch").onclick = function(){
+  if (!vTrack) return;
+  torchOn = !torchOn;
+  vTrack.applyConstraints({ advanced: [{ torch: torchOn }] })
+    .then(function(){ $("btnTorch").classList.toggle("on", torchOn); })
+    .catch(function(){ $("camHint").innerHTML = "<b>This camera will not turn its light on.</b> Most laptops have no light \u2014 phones usually do."; });
+};
+$("btnBright").onclick = function(){
+  autoBright = !autoBright;
+  $("btnBright").classList.toggle("on", autoBright);
+  $("preview").style.filter = autoBright ? "brightness(1.45) contrast(1.03)" : "";
+  if (vTrack && vTrack.applyConstraints) {
+    try { vTrack.applyConstraints({ advanced: [{ exposureCompensation: autoBright ? 2 : 0 }] }); } catch(e){}
+  }
+  $("camHint").innerHTML = autoBright
+    ? "Brightening: the preview looks lighter, and every take from now on is brightened in the finished video too."
+    : "Back to normal brightness.";
+  checkDark();
+};
 function camOn(){
   var wh = $("camSize").value.split("x"), fps = +$("camFps").value;
   return navigator.mediaDevices.getUserMedia({
@@ -402,6 +558,12 @@ function camOn(){
       $("btnCam").textContent = "Turn off camera";
       $("btnRec").disabled = false; $("btnFlip").disabled = false; $("btnClap").disabled = false;
       var tr = s.getVideoTracks()[0], set = tr && tr.getSettings ? tr.getSettings() : {};
+      vTrack = tr; torchOn = false;
+      var caps = tr && tr.getCapabilities ? tr.getCapabilities() : {};
+      $("btnTorch").disabled = !caps.torch;
+      $("btnTorch").classList.remove("on");
+      $("camState").hidden = false;
+      clearInterval(darkTimer); darkTimer = setInterval(checkDark, 900);
       $("camHint").innerHTML = "Press <b>Record</b> or the <b>R</b> key to start, press it again to stop." +
         (set.width ? " Filming at " + set.width + "\u00d7" + set.height +
           (set.frameRate ? ", " + Math.round(set.frameRate) + " a second" : "") + "." : "");
@@ -446,7 +608,7 @@ function startRec(){
   if (!stream || counting || (recorder && recorder.state === "recording")) return;
   countIn().then(function(){
     if (!stream) return;
-    chunks = []; micPeak = 0;
+    chunks = []; micPeak = 0; livePeaks = [];
     var mime = pickMime();
     try { recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined); }
     catch(e){ $("camHint").textContent = "This browser cannot record video."; return; }
@@ -459,6 +621,20 @@ function startRec(){
       var blob = new Blob(chunks, { type: chunks[0] ? chunks[0].type : "video/webm" });
       if (!blob.size) return;
       addClip(blob, "Take " + (clips.length + 1)).then(function(c){
+        if (autoBright) {
+          c.fx.push({ id: uid(), type: "bright", at: 0, dur: null, x: .5, y: .5, r: 0, area: "", notT: "",
+                      nx: 0, ny: 0, nr: 0, pos: "bottom", label: "brighter at 0:00" });
+          put(rec(c));
+        }
+        if (livePeaks.length > 8) {
+          var n = 240, out = [], step = livePeaks.length / n;
+          for (var i = 0; i < n; i++) {
+            var a = Math.floor(i * step), b = Math.max(a + 1, Math.floor((i + 1) * step)), m = 0;
+            for (var j = a; j < b && j < livePeaks.length; j++) if (livePeaks[j] > m) m = livePeaks[j];
+            out.push(m);
+          }
+          c.peaks = out;
+        }
         lastTake = c.id; $("btnRetake").disabled = false; select(c.id);
         $("camHint").innerHTML = quiet
           ? "<b>That take came out silent.</b> The microphone may be muted or switched off \u2014 the level bar " +
@@ -510,7 +686,10 @@ $("fileIn").onchange = function(e){
        .then(function(c){ if (c) select(c.id); });
   e.target.value = "";
 };
-document.addEventListener("dragover", function(e){ e.preventDefault(); document.body.classList.add("drop"); });
+document.addEventListener("dragover", function(e){
+  if (dragId) return;
+  e.preventDefault(); document.body.classList.add("drop");
+});
 document.addEventListener("dragleave", function(e){ if (e.relatedTarget === null) document.body.classList.remove("drop"); });
 document.addEventListener("drop", function(e){
   e.preventDefault(); document.body.classList.remove("drop");
@@ -521,8 +700,11 @@ document.addEventListener("drop", function(e){
 
 /* ---------- the clip strip ---------- */
 function ordered(){ return clips.slice().sort(function(a,b){ return a.order - b.order; }); }
+var ticked = {}, dragId = null;
 function draw(){
   var box = $("clips"); box.innerHTML = "";
+  var nt = Object.keys(ticked).filter(function(k){ return clips.some(function(c){ return c.id === k; }); }).length;
+  $("tickBar").hidden = nt === 0; $("tickN").textContent = nt;
   var list = ordered();
   $("clipsEmpty").hidden = list.length > 0;
   $("tlCount").textContent = list.length ? list.length + " clip" + (list.length>1?"s":"") + " · " +
@@ -531,45 +713,138 @@ function draw(){
     var el = document.createElement("div");
     el.className = "clip" + (c.id === selId ? " sel" : "") + (c.id === newId ? " new" : "");
     var nfx = (c.fx||[]).length;
+    if (ticked[c.id]) el.className += " tick";
+    el.draggable = true;
     el.innerHTML =
       (c.thumb ? '<img src="' + c.thumb + '" alt="">' : '<div class="noimg"></div>') +
       '<div class="nm">' + (i+1) + '. ' + esc(c.name) + '</div>' +
-      '<div class="du">' + fmt(c.end - c.start) +
-        ((c.end - c.start) < c.duration - 0.05 ? " (cut)" : "") +
+      '<div class="du">' + (c.card ? "title card · " : "") + fmt(c.end - c.start) +
+        (!c.card && (c.end - c.start) < c.duration - 0.05 ? " (cut)" : "") +
         (nfx ? " · " + nfx + " fx" : "") + '</div>' +
       '<div class="ops"><button data-a="l" title="Move earlier">&larr;</button>' +
+      '<button data-a="r" title="Move later">&rarr;</button>' +
+      '<button data-a="t" class="t" title="Tick this one">&#10003;</button>' +
       '<button data-a="c" title="Copy">&#10697;</button>' +
       '<button data-a="x" title="Delete">&#10005;</button></div>';
     el.onclick = function(ev){
       var a = ev.target.dataset ? ev.target.dataset.a : null;
       if (a === "l") { move(c.id, -1); ev.stopPropagation(); return; }
+      if (a === "r") { move(c.id, 1); ev.stopPropagation(); return; }
+      if (a === "t") { ticked[c.id] = !ticked[c.id]; if (!ticked[c.id]) delete ticked[c.id]; draw(); ev.stopPropagation(); return; }
       if (a === "c") { copyClip(c); ev.stopPropagation(); return; }
       if (a === "x") { removeClip(c.id); ev.stopPropagation(); return; }
       select(c.id);
     };
+    /* drag a clip onto another one to drop it in front of it */
+    el.ondragstart = function(ev){ dragId = c.id; el.classList.add("drag"); try { ev.dataTransfer.setData("text/plain", c.id); ev.dataTransfer.effectAllowed = "move"; } catch(e){} };
+    el.ondragend = function(){ dragId = null; el.classList.remove("drag"); Array.prototype.forEach.call(box.children, function(k){ k.classList.remove("over"); }); };
+    el.ondragover = function(ev){ if (!dragId || dragId === c.id) return; ev.preventDefault(); ev.stopPropagation(); el.classList.add("over"); };
+    el.ondragleave = function(){ el.classList.remove("over"); };
+    el.ondrop = function(ev){
+      if (!dragId || dragId === c.id) return;
+      ev.preventDefault(); ev.stopPropagation(); el.classList.remove("over");
+      dropBefore(dragId, c.id); dragId = null;
+    };
     box.appendChild(el);
   });
 }
+/* put the dragged clip in front of the one it was dropped on */
+function dropBefore(id, targetId){
+  var list = ordered().filter(function(c){ return c.id !== id; });
+  var c = clips.find(function(x){ return x.id === id; });
+  var at = list.findIndex(function(x){ return x.id === targetId; });
+  if (!c || at < 0) return;
+  list.splice(at, 0, c);
+  list.forEach(function(x, i){ x.order = i; put(rec(x)); });
+  draw(); pushHist();
+}
+$("btnDelTicked").onclick = function(){
+  var ids = Object.keys(ticked).filter(function(k){ return clips.some(function(c){ return c.id === k; }); });
+  if (!ids.length) return;
+  if (!confirm("Delete " + ids.length + " clip" + (ids.length > 1 ? "s" : "") + "?")) return;
+  ids.forEach(function(id){
+    var c = clips.find(function(x){ return x.id === id; });
+    if (c) { grave[id] = c; clips = clips.filter(function(x){ return x.id !== id; }); del(id); }
+  });
+  ticked = {};
+  ordered().forEach(function(x, i){ x.order = i; put(rec(x)); });
+  if (!clips.some(function(c){ return c.id === selId; })) { selId = null; $("editPanel").hidden = true; }
+  draw(); pushHist();
+};
+$("btnUntick").onclick = function(){ ticked = {}; draw(); };
+
 function move(id, dir){
   var list = ordered(), i = list.findIndex(function(c){ return c.id === id; }), j = i + dir;
   if (j < 0 || j >= list.length) return;
   var o = list[i].order; list[i].order = list[j].order; list[j].order = o;
-  put(rec(list[i])); put(rec(list[j])); draw();
+  put(rec(list[i])); put(rec(list[j])); draw(); pushHist();
 }
 function copyClip(c){
   var n = { id: uid(), name: c.name + " copy", blob: c.blob, url: URL.createObjectURL(c.blob), duration: c.duration,
             start: c.start, end: c.end, order: clips.length, thumb: c.thumb, w:c.w, h:c.h, lum:c.lum,
             fx: (c.fx||[]).map(function(f){ return Object.assign({}, f, { id: uid() }); }) };
-  clips.push(n); put(rec(n)); draw();
+  clips.push(n); put(rec(n)); draw(); pushHist();
 }
 function removeClip(id){
   var c = clips.find(function(x){ return x.id === id; }); if (!c) return;
   if (!confirm("Delete “" + c.name + "”?")) return;
+  grave[id] = c;
   clips = clips.filter(function(x){ return x.id !== id; }); del(id);
   ordered().forEach(function(x,i){ x.order = i; put(rec(x)); });
   if (selId === id) { selId = null; $("editPanel").hidden = true; }
-  draw();
+  draw(); pushHist();
 }
+
+/* ---------- undo and redo ----------
+   Only the small stuff is remembered (names, trims, order, effects); the video
+   itself never changes, and a deleted clip waits in "grave" in case it comes back. */
+var hist = [], hpos = -1, grave = {}, histT = 0;
+function snap(){
+  return JSON.stringify(ordered().map(function(c){
+    return { id:c.id, name:c.name, start:c.start, end:c.end, order:c.order, duration:c.duration,
+             fx:c.fx || [], card:c.card || null };
+  }));
+}
+function pushHist(){
+  var sn = snap();
+  if (hist[hpos] === sn) return;
+  hist = hist.slice(0, hpos + 1); hist.push(sn);
+  if (hist.length > 80) hist.shift();
+  hpos = hist.length - 1; histBtns();
+}
+function histSoon(){ clearTimeout(histT); histT = setTimeout(pushHist, 500); }
+function histBtns(){ $("btnUndo").disabled = hpos <= 0; $("btnRedo").disabled = hpos >= hist.length - 1; }
+function restore(sn){
+  var list = JSON.parse(sn), byId = {};
+  clips.forEach(function(c){ byId[c.id] = c; });
+  Object.keys(grave).forEach(function(k){ byId[k] = grave[k]; });
+  var next = [];
+  list.forEach(function(m){
+    var c = byId[m.id]; if (!c) return;
+    c.name = m.name; c.start = m.start; c.end = m.end; c.order = m.order;
+    c.duration = m.duration; c.fx = m.fx; if (m.card) c.card = m.card;
+    delete grave[m.id]; put(rec(c)); next.push(c);
+  });
+  Object.keys(byId).forEach(function(k){
+    if (!next.some(function(c){ return c.id === k; })) { grave[k] = byId[k]; del(k); }
+  });
+  clips = next;
+  if (!clips.some(function(c){ return c.id === selId; })) { selId = null; $("editPanel").hidden = true; }
+  draw();
+  if (selId) { var c = sel(); if (c && !c.card) { $("rStart").value = c.start; $("rEnd").value = c.end; } paint(); drawFxList(); }
+  histBtns();
+}
+function undo(){ if (hpos > 0) { hpos--; restore(hist[hpos]); } }
+function redo(){ if (hpos < hist.length - 1) { hpos++; restore(hist[hpos]); } }
+$("btnUndo").onclick = undo;
+$("btnRedo").onclick = redo;
+document.addEventListener("keydown", function(e){
+  if (!(e.metaKey || e.ctrlKey) || (e.key !== "z" && e.key !== "Z")) return;
+  var t = e.target && e.target.tagName;
+  if (t === "INPUT" || t === "TEXTAREA") return;
+  e.preventDefault();
+  if (e.shiftKey) redo(); else undo();
+});
 
 /* ---------- cutting ---------- */
 function sel(){ return clips.find(function(c){ return c.id === selId; }); }
@@ -578,13 +853,83 @@ function select(id){
   stopPreview();
   $("editPanel").hidden = false;
   $("editName").textContent = c.name;
+  if (c.card) {
+    $("cardEdit").hidden = false; $("vidEdit").hidden = true; $("splitHint").hidden = true;
+    $("cardT").value = c.card.text || ""; $("cardS").value = c.card.sub || "";
+    $("cardSec").value = (c.end - c.start).toFixed(1); $("cardBg").value = c.card.bg || "#0b0e17";
+    paintCard(); draw(); return;
+  }
+  $("cardEdit").hidden = true; $("vidEdit").hidden = false; $("splitHint").hidden = false;
   var v = $("editVid");
   v.src = c.url;
   $("rStart").max = $("rEnd").max = c.duration || 1;
   $("rStart").value = c.start; $("rEnd").value = c.end;
   v.onloadedmetadata = function(){ try { v.currentTime = c.start; } catch(e){} };
   try { v.currentTime = c.start; } catch(e){}
-  paint(); drawFxList(); draw();
+  paint(); drawFxList(); draw(); filmstrip(c); waveform(c);
+}
+
+/* the sound drawn along the same bar, so the talking is easy to find */
+function waveform(c){
+  var cv = $("wave"), tr = $("track");
+  cv.width = Math.max(300, tr.clientWidth) * 2; cv.height = 88;
+  var x = cv.getContext("2d");
+  x.clearRect(0, 0, cv.width, cv.height);
+  if (!c.peaks) { peaksOf(c); return; }
+  if (!c.peaks.length) return;
+  var n = c.peaks.length, w = cv.width / n, mid = cv.height * 0.72, top = cv.height * 0.30;
+  x.fillStyle = "rgba(255,255,255,.55)";
+  for (var i = 0; i < n; i++) {
+    var h = Math.max(1.5, c.peaks[i] * (cv.height - top) * 1.15);
+    x.fillRect(i * w, mid - h / 2, Math.max(1, w - 1.5), h);
+  }
+}
+/* takes from the camera keep their own levels; files are decoded once */
+function peaksOf(c){
+  if (c.peaksBusy || c.card || !c.blob) { c.peaks = c.peaks || []; return; }
+  c.peaksBusy = 1;
+  var done = function(arr){ c.peaks = arr; c.peaksBusy = 0; if (sel() === c) waveform(c); };
+  var go = c.blob.arrayBuffer ? c.blob.arrayBuffer() : null;
+  if (!go) return done([]);
+  go.then(function(buf){
+    var A = new (window.AudioContext || window.webkitAudioContext)();
+    return A.decodeAudioData(buf).then(function(ab){
+      var ch = ab.getChannelData(0), n = 240, step = Math.floor(ch.length / n) || 1, out = [];
+      for (var i = 0; i < n; i++) {
+        var m = 0;
+        for (var j = 0; j < step; j += 11) { var v = Math.abs(ch[i * step + j] || 0); if (v > m) m = v; }
+        out.push(m);
+      }
+      try { A.close(); } catch(e){}
+      done(out);
+    });
+  }).catch(function(){ done([]); });
+}
+
+/* little frames along the trim bar, so you can see what you are cutting */
+function filmstrip(c){
+  var tr = $("track");
+  if (c.strip) { tr.style.backgroundImage = "url(" + c.strip + ")"; tr.classList.add("film"); return; }
+  tr.style.backgroundImage = "none"; tr.classList.add("film");
+  if (!c.url || !c.duration) return;
+  var n = 12, w = 106, h = 60, i = 0;
+  var cv = document.createElement("canvas"); cv.width = n * w; cv.height = h;
+  var x = cv.getContext("2d");
+  var v = document.createElement("video");
+  v.src = c.url; v.muted = true; v.preload = "auto";
+  var seek = function(){ try { v.currentTime = Math.min(c.duration - 0.05, (i + 0.5) * c.duration / n); } catch(e){} };
+  v.onloadeddata = seek;
+  v.onseeked = function(){
+    try { x.drawImage(v, i * w, 0, w, h); } catch(e){}
+    i++;
+    if (i >= n) {
+      try { c.strip = cv.toDataURL("image/jpeg", 0.55); } catch(e){ return; }
+      if (sel() === c) tr.style.backgroundImage = "url(" + c.strip + ")";
+      return;
+    }
+    seek();
+  };
+  v.onerror = function(){};
 }
 function paint(){
   var c = sel(); if (!c) return;
@@ -602,7 +947,7 @@ function paint(){
     m.style.left = (f.at / d * 100) + "%"; m.title = f.label; $("track").appendChild(m);
   });
 }
-function store(){ var c = sel(); if (c) put(rec(c)); draw(); paint(); }
+function store(){ var c = sel(); if (c) put(rec(c)); draw(); paint(); histSoon(); }
 $("rStart").oninput = function(){ var c = sel(); if(!c) return; c.start = Math.min(+$("rStart").value, c.end - 0.1); $("rStart").value = c.start; $("editVid").currentTime = c.start; store(); };
 $("rEnd").oninput = function(){ var c = sel(); if(!c) return; c.end = Math.max(+$("rEnd").value, c.start + 0.1); $("rEnd").value = c.end; $("editVid").currentTime = c.end; store(); };
 $("btnSetStart").onclick = function(){ var c = sel(); if(!c) return; c.start = Math.min($("editVid").currentTime, c.end - 0.1); $("rStart").value = c.start; store(); };
@@ -610,6 +955,55 @@ $("btnSetEnd").onclick = function(){ var c = sel(); if(!c) return; c.end = Math.
 $("btnReset").onclick = function(){ var c = sel(); if(!c) return; c.start = 0; c.end = c.duration; $("rStart").value = 0; $("rEnd").value = c.duration; store(); };
 $("btnDel").onclick = function(){ removeClip(selId); };
 $("btnRename").onclick = function(){ var c = sel(); if(!c) return; var n = prompt("Name for this clip:", c.name); if (n) { c.name = n; store(); } };
+function nudge(which, by){
+  var c = sel(); if (!c) return;
+  if (which === "s") c.start = clamp(c.start + by, 0, c.end - 0.1);
+  else c.end = clamp(c.end + by, c.start + 0.1, c.duration);
+  $("rStart").value = c.start; $("rEnd").value = c.end;
+  $("editVid").currentTime = which === "s" ? c.start : c.end;
+  store();
+}
+$("nS0").onclick = function(){ nudge("s", -0.1); };
+$("nS1").onclick = function(){ nudge("s",  0.1); };
+$("nE0").onclick = function(){ nudge("e", -0.1); };
+$("nE1").onclick = function(){ nudge("e",  0.1); };
+
+/* copy a trim, or a whole set of effects, from one clip onto another */
+var copiedTrim = null, copiedFx = null;
+$("btnCopyTrim").onclick = function(){
+  var c = sel(); if (!c) return;
+  copiedTrim = { start: c.start, end: c.end, from: c.name };
+  $("btnPasteTrim").disabled = false;
+  $("cmdHint").innerHTML = "Copied the trim from <b>" + esc(c.name) + "</b>. Pick another clip and press Paste trim.";
+};
+$("btnPasteTrim").onclick = function(){
+  var c = sel(); if (!c || !copiedTrim || c.card) return;
+  c.start = clamp(copiedTrim.start, 0, Math.max(0.1, c.duration - 0.1));
+  c.end = clamp(copiedTrim.end, c.start + 0.1, c.duration);
+  $("rStart").value = c.start; $("rEnd").value = c.end;
+  store(); pushHist();
+  $("cmdHint").innerHTML = "Trim from <b>" + esc(copiedTrim.from) + "</b> put onto this clip.";
+};
+$("btnCopyFx").onclick = function(){
+  var c = sel(); if (!c) return;
+  copiedFx = { fx: JSON.parse(JSON.stringify(c.fx || [])), from: c.name };
+  $("btnPasteFx").disabled = copiedFx.fx.length === 0;
+  $("cmdHint").innerHTML = copiedFx.fx.length
+    ? "Copied " + copiedFx.fx.length + " effect" + (copiedFx.fx.length > 1 ? "s" : "") + " from <b>" + esc(c.name) +
+      "</b>. Pick another clip and press Paste effects."
+    : "That clip has no effects to copy.";
+};
+$("btnPasteFx").onclick = function(){
+  var c = sel(); if (!c || !copiedFx) return;
+  var fresh = copiedFx.fx.map(function(f){ return Object.assign({}, f, { id: uid() }); });
+  if ((c.fx || []).length && confirm("Replace the " + c.fx.length + " effect(s) already on this clip?\n\nCancel adds them on top instead."))
+    c.fx = fresh;
+  else c.fx = (c.fx || []).concat(fresh);
+  c.fx.sort(function(a, b){ return a.at - b.at; });
+  store(); drawFxList(); pushHist();
+  $("cmdHint").innerHTML = fresh.length + " effect" + (fresh.length > 1 ? "s" : "") + " from <b>" + esc(copiedFx.from) + "</b> put onto this clip.";
+};
+
 $("btnPlayKeep").onclick = function(){
   var c = sel(); if(!c) return; var v = $("editVid");
   v.currentTime = c.start; v.play();
@@ -674,7 +1068,9 @@ var KINDS = [
   { t:"slow",     w:["slow motion","slow-mo","slomo","slow down","slower","slow"], spot:0, dur:null, nm:"slow motion" },
   { t:"fast",     w:["speed up","fast forward","faster","speed"], spot:0, dur:null, nm:"speeded up" },
   { t:"mute",     w:["mute","silence","no sound","quiet"], spot:0, dur:null, nm:"no sound" },
-  { t:"text",     w:["say","caption","write","title","words"], spot:0, dur:3, nm:"words" }
+  { t:"title",    w:["title","big words","heading"], spot:0, dur:3, nm:"title" },
+  { t:"subtitle", w:["subtitle","subtitles","caption","captions"], spot:0, dur:3, nm:"subtitle" },
+  { t:"text",     w:["say","write","words"], spot:0, dur:3, nm:"words" }
 ];
 
 var COL = { red:"#e02b20", orange:"#ff8a1f", yellow:"#ffd400", green:"#2fbf3f", blue:"#2b6cff",
@@ -696,11 +1092,13 @@ function parseWhen(s, c){
   /* "at seconds 11 to 15", "11-15", "second 4 through 9" -- a range without the word "from" */
   m = s.match(/(\d+(?::\d\d)?(?:\.\d+)?)\s*(?:s\b|secs?\b|seconds?\b)?\s*(?:to|until|till|through|-)\s*(\d+(?::\d\d)?(?:\.\d+)?)/);
   if (m && secs(m[2]) > secs(m[1])) return { at: secs(m[1]), dur: Math.max(0.2, secs(m[2]) - secs(m[1])) };
+  /* "for 5 seconds" says how long, never when, so it is taken out first */
+  var sAt = s.replace(/\bfor\s+\d+(?:\.\d+)?\s*(?:s\b|secs?\b|seconds?\b)?/g, " ");
   var at = null;
-  m = s.match(/\b(?:second|sec|minute)\s+(\d+(?::\d\d)?(?:\.\d+)?)/);        /* "second 11" */
+  m = sAt.match(/\b(?:second|sec|minute)\s+(\d+(?::\d\d)?(?:\.\d+)?)/);        /* "second 11" */
   if (m) at = secs(m[1]);
-  if (at === null) { m = s.match(/(\d+:\d\d)/); if (m) at = secs(m[1]); }     /* "1:05" */
-  if (at === null) { m = s.match(/(\d+(?:\.\d+)?)\s*(?:s\b|secs?\b|seconds?\b)/); if (m) at = +m[1]; }
+  if (at === null) { m = sAt.match(/(\d+:\d\d)/); if (m) at = secs(m[1]); }     /* "1:05" */
+  if (at === null) { m = sAt.match(/(\d+(?:\.\d+)?)\s*(?:s\b|secs?\b|seconds?\b)/); if (m) at = +m[1]; }
   if (at === null && /\bend\b/.test(s)) at = Math.max(0, L - 2);
   if (at === null && /\b(start|beginning)\b/.test(s)) at = 0;
   var dur;
@@ -745,10 +1143,16 @@ function parseCmd(s, c){
     if (m) tgt = m[1].trim();
   }
   if (/\b(video|picture|clip|frame|screen|it)\b/i.test(tgt)) tgt = "";
+  /* where the words sit: the middle unless you say otherwise */
+  var pos = /\b(in the middle|middle|centre|center)\b/.test(low) ? "middle"
+          : /\b(at the top|top)\b/.test(low) ? "top"
+          : /\b(at the bottom|bottom|underneath)\b/.test(low) ? "bottom"
+          : (best.t === "title" || best.t === "subtitle") ? "middle" : "bottom";
   var txt = "";
-  if (best.t === "text") {
+  if (best.t === "text" || best.t === "title" || best.t === "subtitle") {
     var q = s.match(/["“]([^"”]+)["”]/);
-    txt = q ? q[1] : (s.replace(/^.*?\b(say|caption|write|title|words)\b\s*/i, "").replace(/\bat\b.*$/i,"").trim() || "Hello");
+    txt = q ? q[1] : (s.replace(/^.*?\b(say|caption|captions|subtitles?|write|title|heading|words)\b\s*/i, "")
+                       .replace(/\b(at|in|on)\b.*$/i, "").trim() || "Hello");
   }
   var big = /\b(huge|giant|massive|enormous)\b/.test(low) ? 2.2 : /\bbig(ger)?\b/.test(low) ? 1.6
           : /\b(tiny|little)\b/.test(low) ? 0.5 : /\bsmall(er)?\b/.test(low) ? 0.7 : 1;
@@ -759,14 +1163,16 @@ function parseCmd(s, c){
   if (notT && /^(the )?(video|picture|clip|frame|screen|it)$/.test(notT)) notT = "";
   if (area) tgt = "";
   var nm = best.t === "paint" ? bestWord : best.nm;
-  var word = best.t === "add"   ? (OBJ[bestWord] || "") + " " + bestWord + " added"
+  var word = best.t === "title" || best.t === "subtitle" || best.t === "text"
+               ? "\u201c" + txt + "\u201d " + (pos === "middle" ? "in the middle" : pos === "top" ? "at the top" : "")
+           : best.t === "add"   ? (OBJ[bestWord] || "") + " " + bestWord + " added"
            : best.t === "paint" ? (tgt ? tgt + " painted " + bestWord : bestWord)
            : best.t === "hide"  ? (tgt ? tgt + " gone" : "gone")
            : nm + (tgt ? " on " + tgt : "");
   return { id: uid(), type: best.t, at: at, dur: dur === null ? null : dur, x: 0.5, y: 0.5, r: 0,
            need: best.spot && !area, area: area, notT: notT, nx: 0, ny: 0, nr: 0,
            target: tgt, text: txt, col: COL[bestWord] || "#ff8a1f",
-           emoji: OBJ[bestWord] || "\u2b50", size: big,
+           emoji: OBJ[bestWord] || "\u2b50", size: big, pos: pos,
            label: word + (area ? " everywhere" : "") + (notT ? " but not " + notT : "") + " at " + fmt(at) };
 }
 
@@ -865,12 +1271,31 @@ function cutOut(c, a, b){
   store(); drawFxList();
   $("cmdHint").innerHTML = "Cut <b>" + fmt(a) + " to " + fmt(b) + "</b> out \u2014 it is two clips now, and they play one after the other.";
 }
+/* every effect shows when it starts and how long it lasts, and both can be
+   changed here -- which is how you set the length of a title or a subtitle */
 function drawFxList(){
   var c = sel(), box = $("fxList"); box.innerHTML = "";
   if (!c || !(c.fx||[]).length) return;
   c.fx.forEach(function(f){
     var el = document.createElement("div"); el.className = "fx";
-    el.innerHTML = '<i>' + fmt(f.at) + '</i> ' + esc(f.label.replace(/ at \d+:\d\d$/,"")) + ' <button title="Remove">&#10005;</button>';
+    el.innerHTML =
+      '<span class="lab">' + esc(f.label.replace(/ at \d+:\d\d$/, "")) + '</span>' +
+      ' <span class="sm">from</span> <input type="number" class="num2 at" min="0" step="0.5" value="' + (+f.at).toFixed(1) + '">' +
+      ' <span class="sm">for</span> <input type="number" class="num2 du" min="0.2" step="0.5" placeholder="all" value="' +
+        (f.dur === null ? "" : (+f.dur).toFixed(1)) + '">' +
+      ' <span class="sm">s</span> <button title="Remove">&#10005;</button>';
+    var at = el.querySelector(".at"), du = el.querySelector(".du");
+    at.onchange = function(){
+      f.at = clamp(+at.value || 0, 0, Math.max(0, c.duration - 0.1));
+      at.value = f.at.toFixed(1);
+      f.label = f.label.replace(/ at \d+:\d\d$/, "") + " at " + fmt(f.at);
+      c.fx.sort(function(a,b){ return a.at - b.at; });
+      store(); drawFxList();
+    };
+    du.onchange = function(){
+      f.dur = du.value === "" ? null : clamp(+du.value || 1, 0.2, 600);
+      store();
+    };
     el.querySelector("button").onclick = function(){
       c.fx = c.fx.filter(function(x){ return x.id !== f.id; }); store(); drawFxList();
     };
@@ -1070,9 +1495,16 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
         var g2 = ctx.createRadialGradient(px,py,10*S,px,py,170*S);
         g2.addColorStop(0,"rgba(0,0,0,1)"); g2.addColorStop(1,"rgba(0,0,0,0)");
         ctx.fillStyle = g2; ctx.fillRect(px-200*S,py-200*S,400*S,400*S); ctx.restore(); }
-    if (f.type === "text")     { ctx.save(); ctx.font = "700 " + Math.round(52*S) + "px Helvetica, Arial, sans-serif";
-        ctx.textAlign = "center"; ctx.lineWidth = 8*S; ctx.strokeStyle = "rgba(0,0,0,.75)"; ctx.fillStyle = "#fff";
-        ctx.strokeText(f.text, W/2, H - 60*S); ctx.fillText(f.text, W/2, H - 60*S); ctx.restore(); }
+    if (f.type === "text" || f.type === "title" || f.type === "subtitle") {
+        var size = f.type === "title" ? 92 : f.type === "subtitle" ? 46 : 54;
+        var yy = f.pos === "top" ? H * 0.17 : f.pos === "middle" ? H / 2 + size * S * 0.33 : H - 60 * S;
+        ctx.save();
+        ctx.font = (f.type === "title" ? "800 " : "700 ") + Math.round(size * S) + "px Helvetica, Arial, sans-serif";
+        ctx.textAlign = "center"; ctx.lineWidth = (f.type === "title" ? 11 : 8) * S;
+        ctx.strokeStyle = "rgba(0,0,0,.78)"; ctx.fillStyle = "#fff";
+        ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 16 * S;
+        ctx.strokeText(f.text, W/2, yy); ctx.shadowBlur = 0; ctx.fillText(f.text, W/2, yy);
+        ctx.restore(); }
   });
   step(ctx, st, dt, H, S);
 
@@ -1244,6 +1676,16 @@ $("btnExport").onclick = function(){
         if (p.v && rel > p.len && !p.done) { p.done = 1; try { p.v.pause(); } catch(e){} if (p.gain) p.gain.gain.value = 0; }
         return;
       }
+      if (p.c.card) {
+        if (rel < 0) return;
+        var ac = 1, ovc = Math.min(OV, p.len * 0.4);
+        if (OV > 0) {
+          if (p.i > 0 && rel < ovc) ac = rel / ovc;
+          if (p.i < plan.length - 1 && rel > p.len - ovc) ac = Math.min(ac, (p.len - rel) / ovc);
+        }
+        drawCardTo(ctx, W, H, p.c, clamp(ac, 0, 1));
+        return;
+      }
       if (!p.v) prep(p);
       if (p.dead) return;
       if (rel >= 0 && p.ready && p.v.paused && !p.done) { p.v.play().catch(function(){}); }
@@ -1300,7 +1742,7 @@ openDB().then(function(d){
     clips.push(c);
   });
   clips.forEach(function(c,i){ c.order = i; });
-  draw();
+  draw(); pushHist();
   if (!window.MediaRecorder) $("camHint").innerHTML = "<b>This browser cannot record or join video.</b> Try Chrome.";
 });
 </script>

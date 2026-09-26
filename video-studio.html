@@ -105,6 +105,7 @@
   .fx button{background:none;border:none;color:var(--muted);font-size:15px;padding:0 4px}
   .fx .lab{color:var(--fg)}
   .fx .sm{color:var(--muted);font-size:12.5px}
+  .fx .more,.fx .clr,.fx .pic{color:var(--accent2);font-size:12.5px}
   .fx .num2{width:56px;background:#0f1320;color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:3px 6px;font-size:13px}
   .fx button:hover{color:var(--rec)}
   /* timeline */
@@ -1162,6 +1163,10 @@ function parseCmd(s, c){
   if (nm2) notT = nm2[1].trim();
   if (notT && /^(the )?(video|picture|clip|frame|screen|it)$/.test(notT)) notT = "";
   if (area) tgt = "";
+  var snd = /\b(no sound|silent|silently|quietly)\b/.test(low) ? "off" : "on";
+  var wind = /\b(wind|windy|breeze|blowing|blown|draught|draft)\b/.test(low)
+             ? (/\bleft\b/.test(low) ? -1 : 1) * (/\b(strong|hard|howling|big)\b/.test(low) ? 2.2 : 1) : 0;
+  var lamp = /\b(light|lamp|torch|candle|bulb|lantern)\b/.test(low);
   var nm = best.t === "paint" ? bestWord : best.nm;
   var word = best.t === "title" || best.t === "subtitle" || best.t === "text"
                ? "\u201c" + txt + "\u201d " + (pos === "middle" ? "in the middle" : pos === "top" ? "at the top" : "")
@@ -1172,7 +1177,9 @@ function parseCmd(s, c){
   return { id: uid(), type: best.t, at: at, dur: dur === null ? null : dur, x: 0.5, y: 0.5, r: 0,
            need: best.spot && !area, area: area, notT: notT, nx: 0, ny: 0, nr: 0,
            target: tgt, text: txt, col: COL[bestWord] || "#ff8a1f",
-           emoji: OBJ[bestWord] || "\u2b50", size: big, pos: pos,
+           emoji: OBJ[bestWord] || "\u2b50", size: big, pos: pos, sound: snd,
+           vol: /\b(loud|bang|boom)\b/.test(low) ? 1.6 : 1, wind: wind, lamp: lamp,
+           extra: [], holes: [],
            label: word + (area ? " everywhere" : "") + (notT ? " but not " + notT : "") + " at " + fmt(at) };
 }
 
@@ -1283,8 +1290,39 @@ function drawFxList(){
       ' <span class="sm">from</span> <input type="number" class="num2 at" min="0" step="0.5" value="' + (+f.at).toFixed(1) + '">' +
       ' <span class="sm">for</span> <input type="number" class="num2 du" min="0.2" step="0.5" placeholder="all" value="' +
         (f.dur === null ? "" : (+f.dur).toFixed(1)) + '">' +
-      ' <span class="sm">s</span> <button title="Remove">&#10005;</button>';
+      (/^(hide|censor)$/.test(f.type) ? ' <button class="more" title="Hide another spot too">+spot</button>' : '') +
+      (/^(smoke|fire|sparkle|hearts|bubbles|snow|rain|confetti)$/.test(f.type)
+         ? ' <button class="clr" title="Keep somebody else clear of it">+clear</button>' : '') +
+      (f.type === "add" ? ' <button class="pic" title="Use a picture instead of the emoji">&#128444;</button>' : '') +
+      ' <span class="sm">s</span> <button class="snd" title="Sound on or off">' +
+        (f.sound === "off" ? "&#128263;" : "&#128266;") + '</button>' +
+      ' <button title="Remove">&#10005;</button>';
     var at = el.querySelector(".at"), du = el.querySelector(".du");
+    var more = el.querySelector(".more"), clr = el.querySelector(".clr"), pic = el.querySelector(".pic");
+    if (more) more.onclick = function(){
+      askSpot("the next spot to hide", true).then(function(q){
+        f.extra = (f.extra || []).concat([{ x:q.x, y:q.y, r:q.r }]); store(); drawFxList();
+      });
+    };
+    if (clr) clr.onclick = function(){
+      askSpot("who else to keep clear", true).then(function(q){
+        f.holes = (f.holes || []).concat([{ x:q.x, y:q.y, r:q.r || 0.16 }]); store(); drawFxList();
+      });
+    };
+    if (pic) pic.onclick = function(){
+      var inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
+      inp.onchange = function(){
+        var file = inp.files[0]; if (!file) return;
+        var rd = new FileReader();
+        rd.onload = function(){ f.img = rd.result; store(); drawFxList();
+          $("cmdHint").innerHTML = "Picture used instead of the emoji. A PNG with a see-through background works best."; };
+        rd.readAsDataURL(file);
+      };
+      inp.click();
+    };
+    el.querySelector(".snd").onclick = function(){
+      f.sound = f.sound === "off" ? "on" : "off"; store(); drawFxList();
+    };
     at.onchange = function(){
       f.at = clamp(+at.value || 0, 0, Math.max(0, c.duration - 0.1));
       at.value = f.at.toFixed(1);
@@ -1296,7 +1334,8 @@ function drawFxList(){
       f.dur = du.value === "" ? null : clamp(+du.value || 1, 0.2, 600);
       store();
     };
-    el.querySelector("button").onclick = function(){
+    var btns = el.querySelectorAll("button");
+    btns[btns.length - 1].onclick = function(){
       c.fx = c.fx.filter(function(x){ return x.id !== f.id; }); store(); drawFxList();
     };
     box.appendChild(el);
@@ -1334,7 +1373,8 @@ Array.prototype.slice.call($("ex").children).forEach(function(b){
 });
 
 /* ---------- drawing a frame, effects and all ---------- */
-function newFx(){ return { p: [], seen: {}, fz: {}, fzUntil: 0 }; }
+function newFx(){ return { p: [], seen: {}, fz: {}, fzUntil: 0, rng: {}, spill: [], sampT: 9,
+                           grain: 0.02, avg: [128,128,128], light: 0.8, snd: {}, imgs: {} }; }
 function rectOf(v, W, H, fill){
   var vw = v.videoWidth || 16, vh = v.videoHeight || 9;
   var s = fill ? Math.max(W/vw, H/vh) : Math.min(W/vw, H/vh);
@@ -1355,10 +1395,8 @@ function volAt(c, t){
   return g;
 }
 /* while the picture is frozen the video is paused, so the clip lasts that much longer */
-function freezeTime(c){
-  return (c.fx||[]).filter(function(f){ return f.type === "freeze" && f.at >= 0 && f.at <= c.end - c.start; })
-                   .reduce(function(a,f){ return a + (f.dur || 2); }, 0);
-}
+/* a freeze holds the picture but lets the sound run on, so the clip is no longer than it was */
+function freezeTime(c){ return 0; }
 /* pauses the picture when a freeze is due, and starts it again when the time is up */
 function doFreeze(v, c, st, wall){
   if (st.fzUntil) {
@@ -1381,17 +1419,221 @@ function realLen(c){
   return total + freezeTime(c);
 }
 
+/* ---------- the bits every effect leans on ----------
+   Seeded randomness (so a preview and the finished render come out the same),
+   a ramp so nothing snaps on, a gust so nothing is mechanical, and one look at
+   the scene a couple of times a second for its colour, its grain and its light. */
+function hash(x){
+  x = String(x); var h = 2166136261;
+  for (var i = 0; i < x.length; i++) { h ^= x.charCodeAt(i); h = (h * 16777619) >>> 0; }
+  return h >>> 0;
+}
+function rnd2(st, f){
+  var k = f.id;
+  var s = (st.rng[k] === undefined ? hash(k) : st.rng[k]);
+  s = (s * 1664525 + 1013904223) >>> 0; st.rng[k] = s;
+  return s / 4294967296;
+}
+function jit(st, f, n){ return (rnd2(st, f) - 0.5) * 2 * n; }
+/* every effect is a little different from every other one of its kind */
+function vary(f){
+  if (f._v) return f._v;
+  var h = hash(f.id);
+  f._v = { rate: 0.82 + (h % 100) / 250, size: 0.88 + ((h >> 7) % 100) / 400, hue: ((h >> 13) % 32) - 16 };
+  return f._v;
+}
+/* 0 while it fades up, 1 in the middle, 0 again as it goes */
+function env(f, t){
+  var d = f.dur, up = Math.min(0.4, d === null ? 0.4 : d * 0.3);
+  var a = clamp((t - f.at) / Math.max(0.05, up), 0, 1);
+  if (d === null) return a;
+  var down = Math.min(0.5, d * 0.35);
+  return Math.min(a, clamp((f.at + d - t) / Math.max(0.05, down), 0, 1));
+}
+/* smoke surges and stalls instead of pouring evenly */
+function gust(f, t){
+  var h = hash(f.id) % 1000 / 100;
+  return clamp(0.3 + 0.9 * (0.5 + 0.5 * Math.sin(t * 1.7 + h)) + 0.5 * Math.sin(t * 3.9 + h * 2), 0.2, 2.0);
+}
+/* the colour of the room, how grainy the picture is, and which way the light falls */
+function sampleScene(st, v, dt){
+  st.sampT += dt;
+  if (st.sampT < 0.4) return;
+  st.sampT = 0;
+  var cv = st.sc || (st.sc = document.createElement("canvas"));
+  cv.width = 48; cv.height = 27;
+  var x = cv.getContext("2d", { willReadFrequently: true });
+  try { x.drawImage(v, 0, 0, 48, 27); } catch(e){ return; }
+  var d; try { d = x.getImageData(0, 0, 48, 27).data; } catch(e){ return; }
+  var R = 0, G = 0, B = 0, n = 0, diff = 0, best = -1, bx = 0.5, by = 0.5;
+  for (var yy = 0; yy < 27; yy++) for (var xx = 0; xx < 48; xx++) {
+    var i = (yy * 48 + xx) * 4;
+    R += d[i]; G += d[i+1]; B += d[i+2]; n++;
+    if (xx < 47) diff += Math.abs(d[i] - d[i+4]);
+    var l = d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114;
+    if (l > best) { best = l; bx = xx / 48; by = yy / 27; }
+  }
+  st.avg = [R/n, G/n, B/n];
+  st.grain = clamp(diff / n / 255 * 0.55, 0.012, 0.055);
+  st.light = Math.atan2(by - 0.55, bx - 0.5);   /* where the brightest part of the room is */
+}
+/* nudge a colour towards the colour of the room */
+function roomy(st, r, g, b, amt){
+  var a = st.avg || [128,128,128];
+  return "rgb(" + Math.round(r + (a[0]-r)*amt) + "," + Math.round(g + (a[1]-g)*amt) + "," + Math.round(b + (a[2]-b)*amt) + ")";
+}
+/* paste something with a soft edge instead of a cut-out circle */
+function soft(ctx, W, H, st, px, py, rad, drawFn){
+  var o = st.off || (st.off = document.createElement("canvas"));
+  if (o.width !== W || o.height !== H) { o.width = W; o.height = H; }
+  var g = o.getContext("2d");
+  g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation = "source-over";
+  g.clearRect(0, 0, W, H);
+  g.save(); drawFn(g); g.restore();
+  g.globalCompositeOperation = "destination-in";
+  var grd = g.createRadialGradient(px, py, rad * 0.62, px, py, rad);
+  grd.addColorStop(0, "rgba(0,0,0,1)"); grd.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = grd; g.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+  g.globalCompositeOperation = "source-over";
+  ctx.drawImage(o, 0, 0);
+}
+/* film grain over the effects, so they stop looking cleaner than the footage */
+function grainOver(ctx, W, H, st){
+  if (!st.grainTile) {
+    var c2 = document.createElement("canvas"); c2.width = c2.height = 96;
+    var g2 = c2.getContext("2d"), im = g2.createImageData(96, 96);
+    for (var i = 0; i < im.data.length; i += 4) {
+      var n = 100 + Math.random() * 56;
+      im.data[i] = im.data[i+1] = im.data[i+2] = n; im.data[i+3] = 255;
+    }
+    g2.putImageData(im, 0, 0); st.grainTile = c2;
+  }
+  ctx.save();
+  ctx.globalCompositeOperation = "overlay";
+  ctx.globalAlpha = st.grain || 0.02;
+  var pat = ctx.createPattern(st.grainTile, "repeat");
+  ctx.translate(-Math.floor(Math.random()*96), -Math.floor(Math.random()*96));
+  ctx.fillStyle = pat; ctx.fillRect(0, 0, W + 96, H + 96);
+  ctx.restore();
+}
+/* where an effect is at this moment: one spot, or a path you tapped out */
+function posAt(f, t, r){
+  var pt = { x: f.x, y: f.y };
+  var path = f.path;
+  if (path && path.length) {
+    var all = [{ t: f.at, x: f.x, y: f.y }].concat(path).sort(function(a,b){ return a.t - b.t; });
+    if (t <= all[0].t) pt = all[0];
+    else if (t >= all[all.length-1].t) pt = all[all.length-1];
+    else for (var i = 0; i < all.length - 1; i++) {
+      if (t >= all[i].t && t <= all[i+1].t) {
+        var k = (t - all[i].t) / Math.max(0.001, all[i+1].t - all[i].t);
+        k = k * k * (3 - 2 * k);                       /* ease, so it does not jerk between taps */
+        pt = { x: all[i].x + (all[i+1].x - all[i].x) * k, y: all[i].y + (all[i+1].y - all[i].y) * k };
+        break;
+      }
+    }
+  }
+  return { x: r.x + pt.x * r.w, y: r.y + pt.y * r.h };
+}
+
+/* ---------- the noise an effect makes ----------
+   All of it is built out of an oscillator and a lump of white noise, so there
+   are no files to load and it lands in the render as well as the speakers. */
+function noiseBuf(A){
+  if (A._nb) return A._nb;
+  var n = Math.floor(A.sampleRate * 2), b = A.createBuffer(1, n, A.sampleRate), d = b.getChannelData(0);
+  for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  A._nb = b; return b;
+}
+function playFx(f, A, out, hear){
+  if (!A || !out || f.sound === "off") return;
+  var t0 = A.currentTime + 0.01, vol = (f.vol === undefined ? 1 : f.vol);
+  var bus = A.createGain(); bus.gain.value = vol;
+  bus.connect(out); if (hear && hear !== out) bus.connect(hear);
+  var life = f.dur === null ? 3 : Math.min(f.dur, 6);
+
+  function noise(dur, type, freq, q, peak, atk, endFreq){
+    var src = A.createBufferSource(); src.buffer = noiseBuf(A); src.loop = true;
+    var bp = A.createBiquadFilter(); bp.type = type; bp.frequency.value = freq; bp.Q.value = q || 1;
+    if (endFreq) bp.frequency.exponentialRampToValueAtTime(endFreq, t0 + dur);
+    var g = A.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t0 + (atk || 0.01));
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(bp); bp.connect(g); g.connect(bus);
+    src.start(t0); src.stop(t0 + dur + 0.05);
+    return g;
+  }
+  function tone(dur, f1, f2, peak, type, when){
+    var o = A.createOscillator(), g = A.createGain(), st2 = t0 + (when || 0);
+    o.type = type || "sine"; o.frequency.setValueAtTime(f1, st2);
+    if (f2) o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), st2 + dur);
+    g.gain.setValueAtTime(0.0001, st2);
+    g.gain.exponentialRampToValueAtTime(peak, st2 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, st2 + dur);
+    o.connect(g); g.connect(bus); o.start(st2); o.stop(st2 + dur + 0.05);
+  }
+
+  switch (f.type) {
+    case "explode":
+      noise(0.9, "lowpass", 1400, 1, 0.9, 0.006, 160); tone(0.7, 110, 32, 0.8); break;
+    case "fire": {
+      var g = noise(life, "bandpass", 1100, 0.8, 0.12, 0.35);
+      for (var i = 0; i < life * 9; i++) {                      /* crackles on top */
+        var w = t0 + Math.random() * life;
+        g.gain.setValueAtTime(0.12, w); g.gain.linearRampToValueAtTime(0.3, w + 0.012);
+        g.gain.linearRampToValueAtTime(0.1, w + 0.05);
+      }
+      break; }
+    case "smoke":  noise(Math.min(life, 2.4), "lowpass", 220, 0.7, 0.10, 0.5, 900); break;
+    case "sparkle":
+      for (var j = 0; j < 6; j++) tone(0.10, 1600 + Math.random()*2200, 3400, 0.16, "sine", j * 0.09); break;
+    case "lightning":
+      noise(0.16, "highpass", 2400, 0.7, 0.75, 0.003); noise(1.4, "lowpass", 140, 1, 0.35, 0.05); break;
+    case "flash":  noise(0.06, "highpass", 3000, 0.7, 0.35, 0.002); break;
+    case "hide":   noise(0.45, "lowpass", 900, 0.8, 0.28, 0.01, 200); tone(0.3, 520, 180, 0.12); break;
+    case "add":    tone(0.14, 420, 170, 0.32); break;
+    case "hearts": for (var h = 0; h < 3; h++) tone(0.12, 500 + h*160, 900 + h*160, 0.18, "sine", h*0.13); break;
+    case "bubbles":for (var b2 = 0; b2 < 4; b2++) tone(0.09, 300 + b2*120, 700, 0.16, "sine", b2*0.16); break;
+    case "confetti":noise(0.5, "highpass", 1800, 0.7, 0.22, 0.02); break;
+    case "shake":  noise(Math.min(life, 1.2), "lowpass", 90, 1, 0.4, 0.02); break;
+    case "freeze": noise(0.35, "bandpass", 1200, 6, 0.3, 0.005, 180); break;
+    case "snow":
+    case "rain":   noise(Math.min(life, 6), "lowpass", 1600, 0.7, 0.16, 0.6); break;
+    case "zoomin":
+    case "zoomout":noise(0.5, "bandpass", 700, 1.2, 0.14, 0.15, 1800); break;
+    default: break;
+  }
+}
+
 function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   opt = opt || {};
   var S = H / 720, live = liveFx(c, t), filt = [], shx = 0, shy = 0, scale = 1, sx = 1, sy = 1;
+  st.spill = [];
+  sampleScene(st, v, dt);
+
+  /* a freeze holds the picture still while the sound carries on underneath */
+  var fz = null;
+  for (var q = 0; q < live.length; q++) if (live[q].type === "freeze") fz = live[q];
+  var src = v;
+  if (fz) {
+    if (st.frzId !== fz.id) {
+      var fc = st.frzCv || (st.frzCv = document.createElement("canvas"));
+      fc.width = v.videoWidth || 1280; fc.height = v.videoHeight || 720;
+      try { fc.getContext("2d").drawImage(v, 0, 0); st.frzId = fz.id; } catch(e){}
+    }
+    if (st.frzCv && st.frzId === fz.id) src = st.frzCv;
+  } else st.frzId = null;
+
   live.forEach(function(f){
-    var p = f.dur === null ? 1 : clamp((t - f.at) / Math.max(0.001, f.dur), 0, 1);
-    if (f.type === "bw") filt.push("grayscale(1)");
-    if (f.type === "old") filt.push("sepia(.65) contrast(1.08) saturate(.8)");
-    if (f.type === "bright") filt.push("brightness(1.35)");
-    if (f.type === "dark") filt.push("brightness(.5)");
-    if (f.type === "blur") filt.push("blur(" + (7*S).toFixed(1) + "px)");
-    if (f.type === "shake") { var k = 14 * S * (1 - p); shx = (Math.random()-.5)*k*2; shy = (Math.random()-.5)*k*2; }
+    var e = env(f, t), p = f.dur === null ? 1 : clamp((t - f.at) / Math.max(0.001, f.dur), 0, 1);
+    if (f.type === "bw") filt.push("grayscale(" + e.toFixed(2) + ")");
+    if (f.type === "old") filt.push("sepia(" + (0.65*e).toFixed(2) + ") contrast(" + (1 + 0.08*e).toFixed(2) + ") saturate(" + (1 - 0.2*e).toFixed(2) + ")");
+    if (f.type === "bright") filt.push("brightness(" + (1 + 0.35*e).toFixed(2) + ")");
+    if (f.type === "dark") filt.push("brightness(" + (1 - 0.5*e).toFixed(2) + ")");
+    if (f.type === "blur") filt.push("blur(" + (7*S*e).toFixed(1) + "px)");
+    if (f.type === "hide" && f.lamp) filt.push("brightness(" + (1 - 0.34 * clamp((t - f.at)/0.25, 0, 1)).toFixed(2) + ")");
+    if (f.type === "shake") { var k = 14 * S * (1 - p); shx = jit(st,f,k); shy = jit(st,f,k); }
     if (f.type === "zoomin") scale *= 1 + 0.4 * p;
     if (f.type === "zoomout") scale *= 1.4 - 0.4 * p;
     if (f.type === "mirror") sx = -1;
@@ -1400,97 +1642,147 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   if (opt.k && Math.abs(opt.k - 1) > 0.02) filt.push("brightness(" + opt.k.toFixed(2) + ")");
 
   var r = rectOf(v, W, H, opt.fill);
+  var FILT = filt.length ? filt.join(" ") : "none";
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.filter = filt.length ? filt.join(" ") : "none";
+  ctx.filter = FILT;
   ctx.translate(W/2 + shx, H/2 + shy); ctx.scale(scale * sx, scale * sy); ctx.translate(-W/2, -H/2);
-  try { ctx.drawImage(v, r.x, r.y, r.w, r.h); } catch(e){}
+  try { ctx.drawImage(src, r.x, r.y, r.w, r.h); } catch(e){}
+
+  /* slow motion: a little of the frame before, laid over this one, takes the judder off */
+  if (opt.smooth && st.prevCv) { ctx.globalAlpha = alpha * 0.34; try { ctx.drawImage(st.prevCv, r.x, r.y, r.w, r.h); } catch(e){} ctx.globalAlpha = alpha; }
   ctx.filter = "none";
 
-  /* --- make something disappear: cover it with a patch of what is beside it --- */
+  /* --- make something disappear: a patch of what is beside it, soft at the rim --- */
   live.forEach(function(f){
     if (f.type !== "hide") return;
-    var px = r.x + f.x * r.w, py = r.y + f.y * r.h, rad = f.r ? f.r * r.w : Math.max(r.w, r.h) * 0.10;
+    var areas = [{ x: f.x, y: f.y, r: f.r }].concat(f.extra || []);
     var age = t - f.at, fade = clamp(age / 0.35, 0, 1);
-    var dx = (f.x > 0.5 ? -1 : 1) * rad * 2.1;
-    ctx.save();
-    ctx.globalAlpha = alpha * fade;
-    ctx.beginPath(); ctx.arc(px, py, rad, 0, 7); ctx.clip();
-    ctx.filter = "blur(" + (3*S).toFixed(1) + "px)";
-    try { ctx.drawImage(v, r.x + dx, r.y, r.w, r.h); } catch(e){}
-    ctx.restore();
-    if (age < 0.9) puff(st, px, py, rad, S, dt, 1 - age/0.9);
+    areas.forEach(function(ar, idx){
+      var px = r.x + ar.x * r.w, py = r.y + ar.y * r.h;
+      var rad = ar.r ? ar.r * r.w : Math.max(r.w, r.h) * 0.10;
+      var dx = (ar.x > 0.5 ? -1 : 1) * rad * 2.1;
+      ctx.save(); ctx.globalAlpha = alpha * fade;
+      soft(ctx, W, H, st, px, py, rad, function(g){
+        g.filter = FILT;                                  /* the patch wears the same look as the frame */
+        try { g.drawImage(src, r.x + dx, r.y, r.w, r.h); } catch(e){}
+      });
+      ctx.restore();
+      if (age < 0.9 && idx === 0) puff(st, f, px, py, rad, S, dt, 1 - age/0.9);
+    });
   });
 
-  /* --- blur one thing out (a face, a name on a shirt) --- */
+  /* --- blur one thing out --- */
   live.forEach(function(f){
     if (f.type !== "censor") return;
-    var px = r.x + f.x * r.w, py = r.y + f.y * r.h, rad = f.r ? f.r * r.w : Math.max(r.w, r.h) * 0.09;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.beginPath(); ctx.arc(px, py, rad, 0, 7); ctx.clip();
-    ctx.filter = "blur(" + (26 * S).toFixed(1) + "px)";
-    try { ctx.drawImage(v, r.x, r.y, r.w, r.h); } catch(e){}
-    ctx.restore();
-  });
-
-  /* --- paint one thing a different colour, keeping its light and shadow --- */
-  live.forEach(function(f){
-    if (f.type !== "paint") return;
-    var px = r.x + f.x * r.w, py = r.y + f.y * r.h, rad = Math.max(r.w, r.h) * 0.085;
-    ctx.save();
-    ctx.globalAlpha = alpha * clamp((t - f.at) / 0.2, 0, 1);
-    ctx.beginPath(); ctx.arc(px, py, rad, 0, 7); ctx.clip();
-    ctx.globalCompositeOperation = "color";
-    ctx.fillStyle = f.col || "#ff8a1f";
-    ctx.fillRect(px - rad, py - rad, rad*2, rad*2);
-    ctx.restore();
+    var areas = [{ x: f.x, y: f.y, r: f.r }].concat(f.extra || []);
+    areas.forEach(function(ar){
+      var px = r.x + ar.x * r.w, py = r.y + ar.y * r.h;
+      var rad = ar.r ? ar.r * r.w : Math.max(r.w, r.h) * 0.09;
+      ctx.save(); ctx.globalAlpha = alpha;
+      soft(ctx, W, H, st, px, py, rad, function(g){
+        g.filter = "blur(" + (26 * S).toFixed(1) + "px)";
+        try { g.drawImage(src, r.x, r.y, r.w, r.h); } catch(e){}
+      });
+      ctx.restore();
+    });
   });
   ctx.restore();
 
-  /* --- particles and the rest, drawn over the picture --- */
+  /* --- paint one thing: only the pixels that match what you tapped --- */
+  live.forEach(function(f){
+    if (f.type !== "paint") return;
+    var pp = posAt(f, t, r), rad = (f.r ? f.r * r.w : Math.max(r.w, r.h) * 0.085);
+    paintThing(ctx, W, H, f, pp.x, pp.y, rad, alpha * clamp((t - f.at) / 0.2, 0, 1));
+  });
+
+  /* --- particles and the rest, over the picture --- */
   ctx.save();
   ctx.globalAlpha = alpha;
   live.forEach(function(f){
-    var px = r.x + f.x * r.w, py = r.y + f.y * r.h;
+    var pp = posAt(f, t, r), px = pp.x, py = pp.y;
     var p = f.dur === null ? 0 : clamp((t - f.at) / Math.max(0.001, f.dur), 0, 1);
+    var e = env(f, t), vv = vary(f), G = gust(f, t) * e * vv.rate;
     var once = function(fn){ if (!st.seen[f.id]) { st.seen[f.id] = 1; fn(); } };
-    /* "everywhere" spreads the same effect over the whole picture */
+    if (opt.actx && !st.snd[f.id]) { st.snd[f.id] = 1; try { playFx(f, opt.actx, opt.snd, opt.hear); } catch(e){} }
     var ALL = f.area === "all";
-    var from = function(sp){ return ALL ? { x: Math.random()*W, y: H * (0.15 + Math.random()*0.95) }
-                                        : { x: px + rnd(sp), y: py + rnd(sp*0.6) }; };
-    if (f.type === "smoke")    spawn(st, dt * (ALL ? 120 : 34), function(){ var q = from(14*S);
-        return { k:"smoke", x:q.x, y:q.y, vx:rnd(22*S), vy:-(45+Math.random()*45)*S, r:(ALL?24:11)*S, a:0, m:ALL?3.4:2.0 }; });
-    if (f.type === "fire")     spawn(st, dt * (ALL ? 190 : 70), function(){ var q = ALL ? { x:Math.random()*W, y:H*(0.75+Math.random()*0.3) } : from(12*S);
-        return { k:"fire", x:q.x, y:q.y, vx:rnd(28*S), vy:-(110+Math.random()*90)*S, r:(7+Math.random()*7)*S, a:0, m:.75 }; });
-    if (f.type === "sparkle")  spawn(st, dt * (ALL ? 110 : 30), function(){ var q = from(55*S);
-        return { k:"spark", x:q.x, y:q.y, vx:rnd(18*S), vy:rnd(18*S) - 12*S, r:(2+Math.random()*3)*S, a:0, m:.9 }; });
-    if (f.type === "hearts")   spawn(st, dt * (ALL ? 26 : 7), function(){ var q = ALL ? { x:Math.random()*W, y:H } : from(40*S);
-        return { k:"heart", x:q.x, y:q.y, vx:rnd(16*S), vy:-(45+Math.random()*30)*S, r:(14+Math.random()*12)*S, a:0, m:2.4 }; });
-    if (f.type === "bubbles")  spawn(st, dt * (ALL ? 45 : 12), function(){ var q = ALL ? { x:Math.random()*W, y:H } : from(45*S);
-        return { k:"bub", x:q.x, y:q.y, vx:rnd(14*S), vy:-(55+Math.random()*40)*S, r:(5+Math.random()*12)*S, a:0, m:3 }; });
-    if (f.type === "confetti") spawn(st, dt * 55, function(){ return { k:"conf", x:Math.random()*W, y:-20*S, vx:rnd(45*S), vy:(90+Math.random()*130)*S, r:(5+Math.random()*6)*S, a:0, m:5,
-                                                                        c:"hsl(" + Math.floor(Math.random()*360) + ",90%,60%)", rot:Math.random()*6, vr:rnd(7) }; });
-    if (f.type === "snow")     spawn(st, dt * 40, function(){ return { k:"snow", x:Math.random()*W, y:-10*S, vx:rnd(20*S), vy:(40+Math.random()*60)*S, r:(2+Math.random()*4)*S, a:0, m:9 }; });
-    if (f.type === "rain")     spawn(st, dt * 160,function(){ return { k:"rain", x:Math.random()*W, y:-20*S, vx:-60*S, vy:(900+Math.random()*350)*S, r:(11+Math.random()*13)*S, a:0, m:2 }; });
+    var spread = f.r ? f.r * r.w : 14 * S;               /* the circle you dragged is the area it comes from */
+    var from = function(sp){
+      if (ALL) return { x: rnd2(st,f)*W, y: H * (0.15 + rnd2(st,f)*0.95) };
+      var a = rnd2(st,f) * 6.283, d = Math.sqrt(rnd2(st,f)) * (sp || spread);
+      return { x: px + Math.cos(a)*d, y: py + Math.sin(a)*d*0.7 };
+    };
+    var wind = (f.wind || 0) * 60 * S;
+    var mk = function(o){ o.z = 0.55 + rnd2(st,f) * 0.95; o.vx += wind; o.r *= o.z * vv.size; o.vx *= o.z; o.vy *= o.z; o.px = o.x; o.py = o.y; return o; };
+
+    if (f.type === "smoke")    spawn(st, f, dt * (ALL ? 120 : 34) * G, function(){ var q = from();
+        return mk({ k:"smoke", x:q.x, y:q.y, vx:jit(st,f,22*S), vy:-(45+rnd2(st,f)*45)*S, r:(ALL?24:11)*S, a:0, m:ALL?3.4:2.0, s:rnd2(st,f)*6 }); });
+    if (f.type === "fire")     spawn(st, f, dt * (ALL ? 190 : 70) * G, function(){ var q = ALL ? { x:rnd2(st,f)*W, y:H*(0.75+rnd2(st,f)*0.3) } : from();
+        return mk({ k:"fire", x:q.x, y:q.y, vx:jit(st,f,28*S), vy:-(110+rnd2(st,f)*90)*S, r:(7+rnd2(st,f)*7)*S, a:0, m:.75 }); });
+    if (f.type === "sparkle")  spawn(st, f, dt * (ALL ? 110 : 30) * e, function(){ var q = from(spread*1.6);
+        return mk({ k:"spark", x:q.x, y:q.y, vx:jit(st,f,18*S), vy:jit(st,f,18*S) - 12*S, r:(2+rnd2(st,f)*3)*S, a:0, m:.9 }); });
+    if (f.type === "hearts")   spawn(st, f, dt * (ALL ? 26 : 7) * e, function(){ var q = ALL ? { x:rnd2(st,f)*W, y:H } : from(spread*1.2);
+        return mk({ k:"heart", x:q.x, y:q.y, vx:jit(st,f,16*S), vy:-(45+rnd2(st,f)*30)*S, r:(14+rnd2(st,f)*12)*S, a:0, m:2.4 }); });
+    if (f.type === "bubbles")  spawn(st, f, dt * (ALL ? 45 : 12) * e, function(){ var q = ALL ? { x:rnd2(st,f)*W, y:H } : from(spread*1.2);
+        return mk({ k:"bub", x:q.x, y:q.y, vx:jit(st,f,14*S), vy:-(55+rnd2(st,f)*40)*S, r:(5+rnd2(st,f)*12)*S, a:0, m:3 }); });
+    if (f.type === "confetti") spawn(st, f, dt * 55 * e, function(){
+        return mk({ k:"conf", x:rnd2(st,f)*W, y:-20*S, vx:jit(st,f,45*S), vy:(90+rnd2(st,f)*130)*S, r:(5+rnd2(st,f)*6)*S, a:0, m:5,
+                    c:"hsl(" + Math.floor(rnd2(st,f)*360) + ",90%,60%)", rot:rnd2(st,f)*6, vr:jit(st,f,7) }); });
+    if (f.type === "snow")     spawn(st, f, dt * 40 * e, function(){
+        return mk({ k:"snow", x:rnd2(st,f)*W, y:-10*S, vx:jit(st,f,20*S), vy:(40+rnd2(st,f)*60)*S, r:(2+rnd2(st,f)*4)*S, a:0, m:9 }); });
+    if (f.type === "rain")     spawn(st, f, dt * 160 * e, function(){
+        return mk({ k:"rain", x:rnd2(st,f)*W, y:-20*S, vx:-60*S, vy:(900+rnd2(st,f)*350)*S, r:(11+rnd2(st,f)*13)*S, a:0, m:2 }); });
     if (f.type === "explode")  once(function(){
-        spawn(st, 90, function(){ var an = Math.random()*6.3, sp = (180 + Math.random()*420)*S;
-          return { k:"fire", x:px, y:py, vx:Math.cos(an)*sp, vy:Math.sin(an)*sp, r:(6+Math.random()*10)*S, a:0, m:.9 }; });
-        spawn(st, 45, function(){ var an = Math.random()*6.3, sp = (60 + Math.random()*190)*S;
-          return { k:"smoke", x:px, y:py, vx:Math.cos(an)*sp, vy:Math.sin(an)*sp - 25*S, r:16*S, a:0, m:2.4 }; });
+        spawn(st, f, 90, function(){ var an = rnd2(st,f)*6.3, sp = (180 + rnd2(st,f)*420)*S;
+          return mk({ k:"fire", x:px, y:py, vx:Math.cos(an)*sp, vy:Math.sin(an)*sp, r:(6+rnd2(st,f)*10)*S, a:0, m:.9 }); });
+        spawn(st, f, 45, function(){ var an = rnd2(st,f)*6.3, sp = (60 + rnd2(st,f)*190)*S;
+          return mk({ k:"smoke", x:px, y:py, vx:Math.cos(an)*sp, vy:Math.sin(an)*sp - 25*S, r:16*S, a:0, m:2.4, s:rnd2(st,f)*6 }); });
       });
-    if (f.type === "add")      { var sz = Math.max(r.w, r.h) * 0.14 * (f.size || 1);
-        ctx.save(); ctx.globalAlpha = alpha * clamp((t - f.at) / 0.25, 0, 1);
+
+    /* light thrown into the room, which is what makes a bright thing belong in it */
+    var flick = 0.75 + 0.45 * Math.sin(t * 27 + hash(f.id) % 10) * (0.4 + 0.6 * Math.sin(t * 13.3));
+    if (f.type === "fire")      st.spill.push({ x:px, y:py, r: 260*S*(ALL?2.4:1), c:[255,150,40], a: 0.34 * e * flick * G * 0.6 });
+    if (f.type === "explode" && p < 0.5) st.spill.push({ x:px, y:py, r: 900*S, c:[255,170,70], a: 0.6 * (1 - p*2) });
+    if (f.type === "glow")      st.spill.push({ x:px, y:py, r: 220*S, c:[255,240,170], a: 0.30 * e });
+    if (f.type === "sparkle")   st.spill.push({ x:px, y:py, r: 150*S, c:[255,246,200], a: 0.12 * e });
+
+    if (f.type === "add") {
+      var sz = (f.r ? f.r * r.w * 2 : Math.max(r.w, r.h) * 0.14 * (f.size || 1)) * vv.size;
+      var bob = Math.sin(t * 2.2 + hash(f.id) % 6) * sz * 0.035;
+      var aa = alpha * clamp((t - f.at) / 0.25, 0, 1);
+      var ang = st.light === undefined ? 0.8 : st.light;
+      ctx.save(); ctx.globalAlpha = aa * 0.33;            /* a shadow thrown away from the light */
+      ctx.translate(px - Math.cos(ang) * sz * 0.34, py + bob + sz * 0.42 - Math.sin(ang) * sz * 0.12);
+      ctx.scale(1, 0.32); ctx.filter = "blur(" + (7*S).toFixed(1) + "px)";
+      ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(0, 0, sz * 0.42, 0, 7); ctx.fill();
+      ctx.restore();
+      ctx.save(); ctx.globalAlpha = aa;
+      if (f.img && st.imgs && !st.imgs[f.id]) { var im0 = new Image(); im0.src = f.img; st.imgs[f.id] = im0; }
+      if (f.img && st.imgs && st.imgs[f.id] && st.imgs[f.id].complete) {
+        var im = st.imgs[f.id], ih = sz * (im.naturalHeight / Math.max(1, im.naturalWidth));
+        ctx.drawImage(im, px - sz/2, py + bob - ih/2, sz, ih);
+      } else {
         ctx.font = Math.round(sz) + "px \"Apple Color Emoji\", \"Segoe UI Emoji\", serif";
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.shadowColor = "rgba(0,0,0,.45)"; ctx.shadowBlur = 18 * S; ctx.shadowOffsetY = 6 * S;
-        ctx.fillText(f.emoji, px, py + Math.sin(t * 2.2) * sz * 0.035); ctx.restore(); }
-    if (f.type === "flash")    { ctx.save(); ctx.globalAlpha = alpha * (1 - p) * 0.9; ctx.fillStyle = "#fff"; ctx.fillRect(0,0,W,H); ctx.restore(); }
-    if (f.type === "lightning" && Math.random() < 0.55) bolt(ctx, px, py, W, S);
-    if (f.type === "glow")     { var g = ctx.createRadialGradient(px,py,0,px,py,120*S);
-        g.addColorStop(0,"rgba(255,245,180,.85)"); g.addColorStop(1,"rgba(255,245,180,0)");
-        ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.fillRect(px-140*S,py-140*S,280*S,280*S); ctx.restore(); }
-    if (f.type === "spot")     { ctx.save(); ctx.fillStyle = "rgba(0,0,0,.62)"; ctx.fillRect(0,0,W,H);
+        ctx.fillText(f.emoji, px, py + bob);
+      }
+      ctx.restore();
+    }
+    if (f.type === "flash") {                              /* a flash comes from somewhere */
+      var fx0 = (f.x || 0.5) * W, dir = ctx.createLinearGradient(fx0 - W*0.6, 0, fx0 + W*0.6, H*0.4);
+      var k2 = (1 - p) * 0.95;
+      dir.addColorStop(0, "rgba(255,255,255," + (k2 * 0.35).toFixed(3) + ")");
+      dir.addColorStop(0.45, "rgba(255,255,255," + k2.toFixed(3) + ")");
+      dir.addColorStop(1, "rgba(255,255,255," + (k2 * 0.25).toFixed(3) + ")");
+      ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = dir; ctx.fillRect(0,0,W,H);
+      ctx.globalCompositeOperation = "multiply"; ctx.globalAlpha = alpha * (1-p) * 0.2;
+      ctx.fillStyle = "#000"; ctx.fillRect(fx0 + W*0.35, 0, W, H); ctx.restore();
+    }
+    if (f.type === "lightning" && rnd2(st,f) < 0.55) {
+      bolt(ctx, st, f, px, py, W, S);
+      st.spill.push({ x: px, y: py * 0.4, r: 1200*S, c:[190,220,255], a: 0.55 });
+    }
+    if (f.type === "spot") { ctx.save(); ctx.fillStyle = "rgba(0,0,0," + (0.62*e).toFixed(2) + ")"; ctx.fillRect(0,0,W,H);
         ctx.globalCompositeOperation = "destination-out";
         var g2 = ctx.createRadialGradient(px,py,10*S,px,py,170*S);
         g2.addColorStop(0,"rgba(0,0,0,1)"); g2.addColorStop(1,"rgba(0,0,0,0)");
@@ -1498,7 +1790,7 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
     if (f.type === "text" || f.type === "title" || f.type === "subtitle") {
         var size = f.type === "title" ? 92 : f.type === "subtitle" ? 46 : 54;
         var yy = f.pos === "top" ? H * 0.17 : f.pos === "middle" ? H / 2 + size * S * 0.33 : H - 60 * S;
-        ctx.save();
+        ctx.save(); ctx.globalAlpha = alpha * e;
         ctx.font = (f.type === "title" ? "800 " : "700 ") + Math.round(size * S) + "px Helvetica, Arial, sans-serif";
         ctx.textAlign = "center"; ctx.lineWidth = (f.type === "title" ? 11 : 8) * S;
         ctx.strokeStyle = "rgba(0,0,0,.78)"; ctx.fillStyle = "#fff";
@@ -1508,68 +1800,173 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   });
   step(ctx, st, dt, H, S);
 
-  /* --- "but not the human": the picture of them is painted back over the effect --- */
-  var holes = live.filter(function(f){ return f.nr > 0; });
+  /* light from the effects, laid over the room */
+  if (st.spill.length) {
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    st.spill.forEach(function(sp){
+      if (sp.a <= 0.002) return;
+      var g = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, sp.r);
+      g.addColorStop(0, "rgba(" + sp.c[0] + "," + sp.c[1] + "," + sp.c[2] + "," + Math.min(0.8, sp.a).toFixed(3) + ")");
+      g.addColorStop(1, "rgba(" + sp.c[0] + "," + sp.c[1] + "," + sp.c[2] + ",0)");
+      ctx.globalAlpha = alpha; ctx.fillStyle = g;
+      ctx.fillRect(sp.x - sp.r, sp.y - sp.r, sp.r * 2, sp.r * 2);
+    });
+    ctx.restore();
+  }
+  if (live.length) grainOver(ctx, W, H, st);
+
+  /* --- "but not the human": their picture painted back over the effect --- */
+  var holes = [];
+  live.forEach(function(f){
+    if (f.nr > 0) holes.push({ x:f.nx, y:f.ny, r:f.nr });
+    (f.holes || []).forEach(function(h){ holes.push(h); });
+  });
   if (holes.length) {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(W/2 + shx, H/2 + shy); ctx.scale(scale * sx, scale * sy); ctx.translate(-W/2, -H/2);
-    ctx.beginPath();
-    holes.forEach(function(f){
-      ctx.ellipse(r.x + f.nx * r.w, r.y + f.ny * r.h, f.nr * r.w, f.nr * r.w * 1.55, 0, 0, 7);
+    var o = st.off2 || (st.off2 = document.createElement("canvas"));
+    if (o.width !== W || o.height !== H) { o.width = W; o.height = H; }
+    var g = o.getContext("2d");
+    g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation = "source-over"; g.clearRect(0,0,W,H);
+    g.filter = FILT; try { g.drawImage(src, r.x, r.y, r.w, r.h); } catch(e){} g.filter = "none";
+    g.globalCompositeOperation = "destination-in";
+    holes.forEach(function(h){
+      var hx = r.x + h.x * r.w, hy = r.y + h.y * r.h, hr = h.r * r.w;
+      var grd = g.createRadialGradient(hx, hy, hr * 0.78, hx, hy, hr * 1.06);
+      grd.addColorStop(0, "rgba(0,0,0,1)"); grd.addColorStop(1, "rgba(0,0,0,0)");
+      g.save(); g.translate(hx, hy); g.scale(1, 1.55); g.translate(-hx, -hy);
+      g.fillStyle = grd; g.beginPath(); g.arc(hx, hy, hr * 1.06, 0, 7); g.fill(); g.restore();
     });
-    ctx.clip();
-    ctx.filter = filt.length ? filt.join(" ") : "none";
-    try { ctx.drawImage(v, r.x, r.y, r.w, r.h); } catch(e){}
+    g.globalCompositeOperation = "source-over";
+    ctx.drawImage(o, 0, 0);
     ctx.restore();
   }
   ctx.restore();
+
+  /* keep this frame, in case the next one is a slow-motion one that wants it */
+  if (opt.smooth) {
+    var pc = st.prevCv || (st.prevCv = document.createElement("canvas"));
+    pc.width = v.videoWidth || 640; pc.height = v.videoHeight || 360;
+    try { pc.getContext("2d").drawImage(src, 0, 0, pc.width, pc.height); } catch(e){}
+  }
 }
+
+/* recolour only the pixels that match the one you tapped, keeping their light and their shine */
+function paintThing(ctx, W, H, f, px, py, rad, alpha){
+  var x0 = Math.max(0, Math.floor(px - rad)), y0 = Math.max(0, Math.floor(py - rad));
+  var w = Math.min(W - x0, Math.ceil(rad * 2)), h = Math.min(H - y0, Math.ceil(rad * 2));
+  if (w < 2 || h < 2 || alpha <= 0.01) return;
+  var img; try { img = ctx.getImageData(x0, y0, w, h); } catch(e){ return; }
+  var d = img.data, col = hex2rgb(f.col || "#ff8a1f");
+  var cx = px - x0, cy = py - y0, tol = (f.tol || 78);
+  if (!f._key) {
+    var ki = ((Math.round(cy) * w) + Math.round(cx)) * 4;
+    f._key = [d[ki], d[ki+1], d[ki+2]];
+  }
+  var k = f._key;
+  for (var yy = 0; yy < h; yy++) for (var xx = 0; xx < w; xx++) {
+    var i = (yy * w + xx) * 4;
+    var dx = xx - cx, dy = yy - cy, dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist > rad) continue;
+    var near = Math.abs(d[i]-k[0]) + Math.abs(d[i+1]-k[1]) + Math.abs(d[i+2]-k[2]);
+    if (near > tol * 3) continue;
+    var lum = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114) / 255;
+    if (lum > 0.88) continue;                              /* leave the highlight white */
+    var edge = clamp((rad - dist) / Math.max(1, rad * 0.35), 0, 1);
+    var soft2 = clamp(1 - (near / (tol * 3)), 0, 1);
+    var a = alpha * edge * (0.35 + 0.65 * soft2);
+    var sh = Math.min(1.25, lum * 1.35 + 0.08);
+    d[i]   = d[i]   + (clamp(col[0] * sh, 0, 255) - d[i])   * a;
+    d[i+1] = d[i+1] + (clamp(col[1] * sh, 0, 255) - d[i+1]) * a;
+    d[i+2] = d[i+2] + (clamp(col[2] * sh, 0, 255) - d[i+2]) * a;
+  }
+  ctx.putImageData(img, x0, y0);
+}
+function hex2rgb(x){
+  x = String(x).replace("#", "");
+  if (x.length === 3) x = x[0]+x[0]+x[1]+x[1]+x[2]+x[2];
+  return [parseInt(x.slice(0,2),16) || 0, parseInt(x.slice(2,4),16) || 0, parseInt(x.slice(4,6),16) || 0];
+}
+
 function rnd(n){ return (Math.random() - 0.5) * 2 * n; }
-function spawn(st, n, make){ var k = Math.floor(n) + (Math.random() < (n % 1) ? 1 : 0); for (var i=0;i<k;i++) st.p.push(make()); }
-function puff(st, x, y, rad, S, dt, f){ spawn(st, dt * 90 * f, function(){ var a = Math.random()*6.3, s = Math.random()*rad*2.6;
-  return { k:"smoke", x:x + Math.cos(a)*s*0.5, y:y + Math.sin(a)*s*0.5, vx:Math.cos(a)*60*S, vy:Math.sin(a)*60*S - 30*S, r:rad*0.5, a:0, m:1.6 }; }); }
-function bolt(ctx, x, y, W, S){
+function spawn(st, f, n, make){
+  if (st.p.length > 1600) return;
+  var k = Math.floor(n) + (rnd2(st, f) < (n % 1) ? 1 : 0);
+  for (var i = 0; i < k; i++) st.p.push(make());
+}
+function puff(st, f, x, y, rad, S, dt, k){
+  spawn(st, f, dt * 90 * k, function(){
+    var a = rnd2(st,f)*6.3, s = rnd2(st,f)*rad*2.6;
+    return { k:"smoke", x:x + Math.cos(a)*s*0.5, y:y + Math.sin(a)*s*0.5, px:x, py:y,
+             vx:Math.cos(a)*60*S, vy:Math.sin(a)*60*S - 30*S, r:rad*0.5, a:0, m:1.6, z:1, s:rnd2(st,f)*6 };
+  });
+}
+function bolt(ctx, st, f, x, y, W, S){
   ctx.save(); ctx.globalCompositeOperation = "lighter";
   ctx.strokeStyle = "rgba(190,225,255,.95)"; ctx.lineWidth = 3.5*S; ctx.shadowColor = "#9fd0ff"; ctx.shadowBlur = 24*S;
   ctx.beginPath(); var cx = x, cy = 0; ctx.moveTo(cx, cy);
-  while (cy < y) { cy += 26*S + Math.random()*34*S; cx += rnd(40*S); ctx.lineTo(cx, Math.min(cy, y)); }
+  while (cy < y) { cy += 26*S + rnd2(st,f)*34*S; cx += jit(st,f,40*S); ctx.lineTo(cx, Math.min(cy, y)); }
   ctx.lineTo(x, y); ctx.stroke(); ctx.restore();
 }
+/* move and draw every particle: streaks rather than dots, and smoke made of lobes */
 function step(ctx, st, dt, H, S){
   var keep = [];
-  for (var i=0;i<st.p.length;i++){
+  for (var i = 0; i < st.p.length; i++) {
     var p = st.p[i];
     p.a += dt; if (p.a > p.m) continue;
+    p.px = p.x; p.py = p.y;
     p.x += p.vx * dt; p.y += p.vy * dt;
     var life = 1 - p.a / p.m;
     ctx.save();
-    if (p.k === "smoke") { p.r += 26*S*dt; p.vy -= 12*S*dt;
-      ctx.globalAlpha *= life * 0.5; ctx.fillStyle = "#c9cbd2";
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
-    else if (p.k === "fire") { p.r *= (1 - 0.9*dt); p.vy += 60*S*dt;
+    if (p.k === "smoke") {
+      p.r += 26*S*dt*(p.z||1); p.vy -= 12*S*dt;
+      ctx.globalAlpha *= life * 0.42;
+      ctx.fillStyle = roomy(st, 201, 203, 210, 0.35);
+      var sp = (p.s || 0) + p.a * 0.7;                    /* three lobes, turning, so it is not a ball */
+      for (var j = 0; j < 3; j++) {
+        var an = sp + j * 2.1, rr = p.r * (0.62 + 0.18 * j);
+        ctx.beginPath(); ctx.arc(p.x + Math.cos(an)*p.r*0.34, p.y + Math.sin(an)*p.r*0.26, rr, 0, 7); ctx.fill();
+      }
+    } else if (p.k === "fire") {
+      p.r *= (1 - 0.9*dt); p.vy += 60*S*dt;
       ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha *= life;
-      ctx.fillStyle = "hsl(" + Math.floor(12 + life*45) + ",100%," + Math.floor(45 + life*25) + "%)";
-      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.5,p.r), 0, 7); ctx.fill(); }
-    else if (p.k === "spark") { ctx.globalCompositeOperation = "lighter";
-      ctx.globalAlpha *= Math.abs(Math.sin(p.a*14)) * life; ctx.fillStyle = "#fff6b0";
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
-    else if (p.k === "heart") { ctx.globalAlpha *= life; ctx.font = p.r*2 + "px serif"; ctx.fillText("❤️", p.x, p.y); }
-    else if (p.k === "bub") { ctx.globalAlpha *= life * .8; ctx.strokeStyle = "#dff6ff"; ctx.lineWidth = 2*S;
-      ctx.beginPath(); ctx.arc(p.x + Math.sin(p.a*3)*8*S, p.y, p.r, 0, 7); ctx.stroke(); }
-    else if (p.k === "conf") { p.rot += p.vr*dt; ctx.globalAlpha *= life; ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-      ctx.fillStyle = p.c; ctx.fillRect(-p.r/2, -p.r/4, p.r, p.r/2); }
-    else if (p.k === "snow") { ctx.globalAlpha *= life; ctx.fillStyle = "#fff";
-      ctx.beginPath(); ctx.arc(p.x + Math.sin(p.a*2)*14*S, p.y, p.r, 0, 7); ctx.fill(); }
-    else if (p.k === "rain") { ctx.globalAlpha *= .5; ctx.strokeStyle = "#bcd8ff"; ctx.lineWidth = 1.6*S;
-      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - 3*S, p.y + p.r); ctx.stroke(); }
+      ctx.strokeStyle = "hsl(" + Math.floor(12 + life*45) + ",100%," + Math.floor(45 + life*25) + "%)";
+      ctx.lineWidth = Math.max(1, p.r * 1.6); ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke();
+    } else if (p.k === "spark") {
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha *= Math.abs(Math.sin(p.a*14)) * life;
+      ctx.strokeStyle = "#fff6b0"; ctx.lineWidth = Math.max(1, p.r * 1.2); ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke();
+    } else if (p.k === "heart") {
+      ctx.globalAlpha *= life; ctx.font = p.r*2 + "px serif"; ctx.fillText("❤️", p.x, p.y);
+    } else if (p.k === "bub") {
+      ctx.globalAlpha *= life * .8; ctx.strokeStyle = "#dff6ff"; ctx.lineWidth = 2*S;
+      ctx.beginPath(); ctx.arc(p.x + Math.sin(p.a*3)*8*S, p.y, p.r, 0, 7); ctx.stroke();
+    } else if (p.k === "conf") {
+      p.rot += p.vr*dt; ctx.globalAlpha *= life; ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.r/2, -p.r/4, p.r, p.r/2);
+    } else if (p.k === "snow") {
+      ctx.globalAlpha *= life; ctx.fillStyle = roomy(st, 255, 255, 255, 0.18);
+      ctx.beginPath(); ctx.arc(p.x + Math.sin(p.a*2)*14*S, p.y, p.r, 0, 7); ctx.fill();
+    } else if (p.k === "rain") {
+      ctx.globalAlpha *= .5; ctx.strokeStyle = "#bcd8ff"; ctx.lineWidth = 1.6*S;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - 3*S, p.y + p.r); ctx.stroke();
+    }
     ctx.restore();
-    if (p.y < H + 60 && st.p.length < 1400) keep.push(p);
+    if (p.y < H + 60) keep.push(p);
   }
   st.p = keep;
 }
 
 /* ---------- preview one clip with its effects ---------- */
+var _prevA = null;
+function prevA(){
+  try { _prevA = _prevA || new (window.AudioContext || window.webkitAudioContext)();
+        if (_prevA.state === "suspended") _prevA.resume(); } catch(e){ _prevA = null; }
+  return _prevA;
+}
 var prevRun = null;
 function stopPreview(){
   if (prevRun) { cancelAnimationFrame(prevRun.raf); prevRun = null; }
@@ -1590,10 +1987,12 @@ $("btnPrev").onclick = function(){
     if (!prevRun) return;
     var now = performance.now(), dt = Math.min(0.1, (now - last)/1000); last = now;
     var t = v.currentTime - c.start;
-    var frozen = doFreeze(v, c, st, now / 1000);
-    if (!frozen) v.playbackRate = rateAt(c, t);
+    var rt = rateAt(c, t);
+    v.playbackRate = rt;
+    v.preservesPitch = true; v.webkitPreservesPitch = true;   /* voices keep their pitch when slowed */
     ctx.fillStyle = "#000"; ctx.fillRect(0,0,cv.width,cv.height);
-    drawFrame(ctx, cv.width, cv.height, v, c, t, 1, dt, st, { fill:false, k:1 });
+    drawFrame(ctx, cv.width, cv.height, v, c, t, 1, dt, st,
+              { fill:false, k:1, smooth: rt < 1, actx: prevA(), snd: prevA() ? prevA().destination : null });
     if (v.currentTime >= c.end || v.ended) { v.pause(); v.playbackRate = 1; stopPreview(); return; }
     prevRun.raf = requestAnimationFrame(loop);
   };
@@ -1698,10 +2097,12 @@ $("btnExport").onclick = function(){
       }
       a = clamp(a, 0, 1);
       var t = p.v.currentTime - p.c.start;
-      var frozen = doFreeze(p.v, p.c, p.st, performance.now() / 1000);
-      if (!frozen) p.v.playbackRate = rateAt(p.c, t);
-      if (p.gain) p.gain.gain.value = (mutedAt(p.c, t) || frozen) ? 0 : a * volAt(p.c, t);
-      drawFrame(ctx, W, H, p.v, p.c, t, a, dt, p.st, { fill: fill, k: p.k });
+      var rt = rateAt(p.c, t);
+      p.v.playbackRate = rt;
+      p.v.preservesPitch = true; p.v.webkitPreservesPitch = true;
+      if (p.gain) p.gain.gain.value = mutedAt(p.c, t) ? 0 : a * volAt(p.c, t);
+      drawFrame(ctx, W, H, p.v, p.c, t, a, dt, p.st,
+                { fill: fill, k: p.k, smooth: rt < 1, actx: A, snd: dest, hear: hear ? A.destination : null });
     });
 
     $("bar").style.width = clamp(now / total * 100, 0, 100) + "%";

@@ -37,7 +37,25 @@
   td.ing .amt { color: var(--accent-dark); font-weight: 700; }
   .opt { display:inline-block; margin-top: 3px; font-size: 11px; font-weight:700; text-transform: uppercase; letter-spacing:.4px; color:#fff; background: var(--accent); padding: 1px 6px; }
   .t-lemon .opt { color:#3a2d00; }
+  h2.steps-h { font-size: 20px; margin: 26px 0 10px; padding-bottom: 4px; border-bottom: 3px solid var(--line); color: var(--accent-dark); }
+  td.ing .dur { display:inline-block; margin-top: 3px; font-size: 12px; font-weight:700; color:#fff; background: var(--accent); padding: 1px 6px; }
+  .t-lemon td.ing .dur { color:#3a2d00; }
   .step { display:inline-block; font-size: 12px; font-weight:700; color: var(--accent-dark); border: 1px solid var(--line); background:#fff; padding: 0 6px; margin-right: 4px; }
+  /* Tick boxes: tap a box to cross that ingredient or step off. They stay ticked when you come back. */
+  th.tick, td.tick { width: 44px; text-align:center; padding-left: 6px; padding-right: 6px; }
+  td.tick { background: var(--soft); }
+  .tickbox { width: 26px; height: 26px; border: 3px solid var(--accent-dark); background:#fff; padding:0; line-height:1;
+             font-size: 17px; font-weight: 800; display:inline-flex; align-items:center; justify-content:center; }
+  .tickbox:hover { background: var(--soft); }
+  tr.on .tickbox { background: var(--accent); color: var(--hdr-fg); }
+  .t-lemon tr.on .tickbox { color:#3a2d00; }
+  tr.on td { opacity: .55; }
+  tr.on td.tick { opacity: 1; }
+  tr.on td.ing b { text-decoration: line-through; }
+  .tickbar { display:flex; align-items:center; gap:10px; margin: 0 0 12px; font-size: 14px; }
+  .tickbar b { color: var(--accent-dark); }
+  .tickbar .clr { margin-left:auto; border: 3px solid var(--line); background:#fff; color: var(--accent-dark); font-weight:700; padding: 4px 10px; }
+  .tickbar .clr:hover { background: var(--soft); }
   @media (max-width: 640px) {
     .square { border-width: 3px; box-shadow:none; }
     .wrap { padding: 12px 10px 24px; }
@@ -47,6 +65,8 @@
     .names a { font-size: 15px; padding: 6px; }
     td { padding: 8px 6px; font-size: 14px; }
     td.ing b { font-size: 15px; }
+    th.tick, td.tick { width: 34px; padding-left: 3px; padding-right: 3px; }
+    .tickbox { width: 24px; height: 24px; border-width: 2px; }
   }
   /* Ads: one pops up every 3 minutes */
   .ad { position:absolute; inset:0; z-index:30; background: rgba(40,25,12,.55); display:flex; align-items:center; justify-content:center; padding: 6%; }
@@ -215,18 +235,32 @@ var DATA = [
     ['White sugar', '¼ cup', '<span class="step">Step 2</span> Beat in with the butter and peanut butter.'],
     ['Brown sugar, packed', '¼ cup', '<span class="step">Step 2</span> Beat in with the butter and peanut butter.'],
     ['Vanilla', '1 tsp', '<span class="step">Step 3</span> Add after the egg, then scrape down the bowl.'],
-    ['Milk', '1 tbsp', '<span class="step">Step 3</span> Add with the vanilla. (Skip it if you use honey or banana.)'],
+    ['Milk', '1 tbsp', '<span class="step">Step 3</span> Add with the vanilla. (Skip it if you use honey.)'],
     ['Honey', '1 tbsp', '<span class="step">Step 3</span> Add with the vanilla, instead of the milk.', true],
-    ['Smushed banana', '2 tbsp', '<span class="step">Step 3</span> Add with the vanilla, instead of the milk. Add 1 tbsp extra flour.', true],
     ['Flour', '1 cup', '<span class="step">Step 4</span> Spoon it into the cup and scrape off the top with a knife. Stir it with the baking soda and salt in a small bowl. <span class="step">Step 5</span> Stir it into the wet mix with a spoon.'],
     ['Baking soda', '½ tsp', '<span class="step">Step 4</span> Stir into the flour.'],
     ['Salt', '¼ tsp', '<span class="step">Step 4</span> Stir into the flour.'],
     ['Cinnamon', '½ tsp', '<span class="step">Step 4</span> Stir into the flour.', true],
     ['Chocolate chips, plain', '½ cup', '<span class="step">Step 5</span> Stir into the dough after the flour.'],
     ['White sugar, for rolling', '2 tbsp', '<span class="step">Step 8</span> Put it on a plate and roll each dough ball in it.'],
-    ['Chocolate chips, for dipping', '1 cup', '<span class="step">Step 12</span> Melt in a deep bowl in the microwave: 30 sec, then 15 sec at a time, stirring. <span class="step">Step 13</span> Dip half of each cooled cookie. <span class="step">Step 14</span> Re-melt the leftover 10–15 sec and drizzle on top.'],
-    ['Salt, for topping', 'tiny pinch', '<span class="step">Step 13</span> Sprinkle on the chocolate while it\'s still wet.']
-  ]},
+    ['Chocolate chips, for the coating', '1½ cups', '<span class="step">Step 12</span> Melt in a wide bowl in the microwave: 30 sec, then 15 sec at a time, stirring. <span class="step">Step 13</span> Put each whole cookie in and lift it out with tongs onto the parchment.'],
+    ['Salt, for topping', 'tiny pinch', '<span class="step">Step 13</span> Sprinkle on the coating while it\'s still wet.']
+  ], steps: [
+      ['Soften', 'Take the butter and egg out of the fridge. Leave the butter on the counter 30–60 min, or microwave it 5 sec at a time until soft. Don\'t melt it.', '30–60 min'],
+      ['Mix', 'Beat the butter, peanut butter, white sugar and brown sugar in the mixer on medium 1–2 min, until smooth and creamy.', '3 min'],
+      ['Add', 'On low, beat in the egg, then the vanilla and milk (or the honey). Scrape down the bowl.', '2 min'],
+      ['Stir', 'In a small bowl, stir the flour, baking soda and salt together, plus the cinnamon if you want it.', '2 min'],
+      ['Combine', 'Turn the mixer off. Stir the dry mix into the wet with a spoon, just until no flour shows. Then stir in the plain chocolate chips.', '2 min'],
+      ['Chill', 'Cover the bowl and put the dough in the fridge so it rolls easier.', '30 min'],
+      ['Heat oven', 'With 15 min of chilling left, move the oven rack to the middle and heat the oven to 350°F. Line a baking sheet with parchment.', 'during step 6'],
+      ['Roll', 'Scoop 12 same-size balls with a 1½ tbsp scoop. Roll each one in the rolling sugar on a plate and space them apart.', '4 min'],
+      ['Press', 'Press each ball flat with a fork to make the crisscross. Just a little. Dip the fork in sugar if it sticks.', '1 min'],
+      ['Bake', 'Bake on the middle rack 10–12 min, one sheet at a time, until the edges are a little golden. The middles still look soft.', '10–12 min'],
+      ['Cool', 'Let them cool all the way: 5 min on the sheet, then 15 on a plate. Warm cookies fall apart in the coating.', '20 min'],
+      ['Melt', 'Melt the 1½ cups of coating chips in a wide bowl: 30 sec, then 15 sec at a time, stirring.', 'during step 11'],
+      ['Coat', 'Don\'t dip them. Put a whole cooled cookie right into the bowl and spoon the chocolate over it until it is covered all round. Lift it out with tongs, let the extra drip off, and set it on the parchment. Sprinkle a tiny pinch of salt while it is wet.', '4 min'],
+      ['Set', 'Leave them on the parchment 20 min (or 10 min in the fridge) until the chocolate is dry to touch. Then eat them straight away!', '20 min'],
+    ]},
   { id: 'lemonade', theme: 'lemon', title: 'Lemonade', makes: 'Makes 7 cups', items: [
     ['White sugar', '1 cup', '<span class="step">Step 1</span> Heat with 1 cup water in a small saucepan on medium, stirring until clear, to make syrup. <span class="step">Step 2</span> Let it cool 15 min.'],
     ['Water', '1 cup', '<span class="step">Step 1</span> Heat with the sugar to make the syrup.'],
@@ -237,7 +271,18 @@ var DATA = [
     ['Strawberry slices', '3 berries', '<span class="step">Step 10</span> Add to the glasses.', true],
     ['Lemon slices', '1 lemon', '<span class="step">Step 10</span> Add to the glasses.', true],
     ['Mint leaves', '7 leaves', '<span class="step">Step 10</span> Add to the glasses.', true]
-  ]},
+  ], steps: [
+      ['Syrup', 'Put the sugar and 1 cup of water in a small saucepan over medium heat. Stir until the sugar disappears and the liquid looks clear. It doesn\'t need to boil. Careful, it\'s hot!', '5 min'],
+      ['Cool', 'Take the pan off the heat and let the syrup cool. Hot syrup would melt the ice.', '15 min'],
+      ['Squeeze', 'Roll each lemon on the counter, cut it in half (careful with the knife!) and squeeze through a strainer until you have 1¼ cups of juice.', 'during step 2'],
+      ['Prep berries', 'Rinse the strawberries and cut off the green tops.', 'during step 2', true],
+      ['Blend', 'Blend the strawberries with ½ cup of the cold water until smooth.', '1 min', true],
+      ['Strain', 'Pour it through the strainer into the pitcher. Throw away the seeds.', '3 min', true],
+      ['Mix', 'Add the syrup, lemon juice and 4½ cups of cold water to the pitcher (4 cups if you blended strawberries). Stir.', '1 min'],
+      ['Taste', 'Too sour or too sweet? Add a little more syrup or a little more water until you like it.', '1 min'],
+      ['Chill', 'Put the pitcher in the fridge.', '30 min'],
+      ['Serve', 'Stir it first. Fill the glasses with ice, pour, and add a strawberry slice, lemon slice or mint if you like.', '1 min'],
+    ]},
   { id: 'strawberry-lemonade', theme: 'straw', title: 'Strawberry Lemonade', makes: 'Makes 7 cups', items: [
     ['White sugar', '¾ cup', '<span class="step">Step 1</span> Heat with 1 cup water in a small saucepan on medium, stirring until clear, to make syrup. <span class="step">Step 2</span> Let it cool 15 min.'],
     ['Water', '1 cup', '<span class="step">Step 1</span> Heat with the sugar to make the syrup.'],
@@ -248,7 +293,18 @@ var DATA = [
     ['Strawberry slices', '3 berries', '<span class="step">Step 10</span> Add to the glasses.', true],
     ['Lemon slices', '1 lemon', '<span class="step">Step 10</span> Add to the glasses.', true],
     ['Mint leaves', '7 leaves', '<span class="step">Step 10</span> Add to the glasses.', true]
-  ]}
+  ], steps: [
+      ['Syrup', 'Put the sugar and 1 cup of water in a small saucepan over medium heat. Stir until the sugar disappears and it looks clear. Careful, it\'s hot!', '5 min'],
+      ['Cool', 'Take the pan off the heat and let the syrup sit until it is cool.', '15 min'],
+      ['Prep berries', 'Rinse the strawberries and cut off the green tops (careful with the knife!).', 'during step 2'],
+      ['Squeeze', 'Roll each lemon on the counter, cut it in half and squeeze through a strainer until you have 1 cup of juice.', 'during step 2'],
+      ['Blend', 'Blend the strawberries with ½ cup of the cold water until smooth.', '1 min'],
+      ['Strain', 'Pour it through the strainer into the pitcher, pressing with a spoon. Throw away the seeds.', '3 min'],
+      ['Mix', 'Add the syrup, lemon juice and the other 2½ cups of cold water. Stir well.', '1 min'],
+      ['Taste', 'Too sour or too sweet? Add a little more syrup or a little more water until you like it.', '1 min'],
+      ['Chill', 'Put the pitcher in the fridge.', '30 min'],
+      ['Serve', 'Stir it first. Fill the glasses with ice, pour, and add a strawberry slice, lemon slice or mint if you like.', '1 min'],
+    ]}
 ];
 // 💎 Premium recipes: new ones each month, only for Premium. They never go away: anyone with Premium sees ALL of them.
 // Add them here with month: 'YYYY-MM' (same format as DATA). That month they get a "New this month" badge.
@@ -316,7 +372,8 @@ function toData(r, theme, badge){
     items: (r.items || []).map(function(it){
       var uses = (it.uses || []).map(function(u){ return (u.step ? '<span class="step">' + esc(u.step) + '</span> ' : '') + esc(u.text); }).join(' ');
       return [esc(it.name), esc(it.amount), uses, !!it.optional];
-    }) };
+    }),
+    steps: (r.steps || []).map(function(st){ return [esc(st[0]), esc(st[1]), esc(st[2] || ''), !!st[3]]; }) };
 }
 function sharedList(){ return (window.SHARED_RECIPES || []).map(function(r){ return toData(r, 'shared', '👥 by ' + esc(r.by || 'someone')); }); }
 function myList(){ var m = []; try { m = JSON.parse(localStorage.getItem('squarebox:myRecipes') || '[]'); } catch(e){} return m.map(function(r){ return toData(r, 'mine', '⭐ Mine'); }); }
@@ -353,6 +410,19 @@ function mentions(text, ing, alt){
   var forms = [head, head + 's', head + 'es', head.replace(/(es|s)$/, '')];
   return forms.some(function(f){ return f.length > 2 && new RegExp('\\b' + f + '\\b').test(t); });
 }
+// Turn one pasted step into a square step: a short name, the words, how long, optional?
+// The name is the step's own first sentence when that is short ("Make the syrup."),
+// otherwise just its first word ("Blend the strawberries…" -> "Blend").
+var OPT_RE = /^\(?optional\)?\s*[:.\-\u2013]?\s*/i;
+function stepBits(raw){
+  var t = String(raw).replace(/^\s*(?:step\s*\d+\s*[:.)\-\u2013]?\s*)?/i, '').trim();
+  var opt = OPT_RE.test(t);
+  if (opt) { t = t.replace(OPT_RE, ''); t = t.charAt(0).toUpperCase() + t.slice(1); }
+  var lead = t.split(/(?<=[.!:])\s+/)[0].replace(/[.!:]+\s*$/, '');
+  var name = (lead && lead.length <= 22) ? lead : (t.match(/^[A-Za-z'\u2019]+/) || ['Step'])[0];
+  var d = t.match(/\b\d+(?:\s*[\u2013-]\s*\d+)?\s*(?:min(?:ute)?s?|hours?|hrs?|sec(?:ond)?s?)\b/i);
+  return [name.charAt(0).toUpperCase() + name.slice(1), t, d ? d[0] : '', opt];
+}
 function squareFromText(txt){
   var lines = txt.replace(/\r/g, '').split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
   var title = '', makes = '', ings = [], steps = [], mode = '';
@@ -381,7 +451,7 @@ function squareFromText(txt){
     return { name: ing.name.slice(0, 80), amount: ing.amount.slice(0, 40), optional: ing.optional, uses: uses.slice(0, 10), _order: first * 1000 + k };
   }).sort(function(a, b){ return a._order - b._order; });
   out.forEach(function(x){ delete x._order; });
-  return { title: (title || 'My recipe').slice(0, 80), makes: makes.slice(0, 60), items: out.slice(0, 60), stepCount: steps.length };
+  return { title: (title || 'My recipe').slice(0, 80), makes: makes.slice(0, 60), items: out.slice(0, 60), steps: steps.slice(0, 60).map(stepBits), stepCount: steps.length };
 }
 var app = document.getElementById('app'), scroller = document.getElementById('scroller');
 // Home screen sections, in this order
@@ -399,6 +469,52 @@ function guessCat(title, names){
   return 'other';
 }
 function catOf(x){ return x.category || CAT_OF[x.id] || 'other'; }
+// --- tick boxes: one per ingredient and one per step, saved on this device ---
+var TICKS = true;                                   // off while showing the new-recipe preview
+function tickHead(){ return TICKS ? '<th class="tick">✓</th>' : ''; }
+function tickCell(kind, i){ return TICKS ? '<td class="tick"><button type="button" class="tickbox" data-t="' + kind + '" data-i="' + i + '" aria-label="Tick this off"></button></td>' : ''; }
+function tickKey(id){ return 'squarebox:ticks:' + id; }
+function loadTicks(id){ var t = {}; try { t = JSON.parse(localStorage.getItem(tickKey(id)) || '{}') || {}; } catch(e){}
+  return { i: Array.isArray(t.i) ? t.i : [], s: Array.isArray(t.s) ? t.s : [] }; }
+function saveTicks(id, t){ try { localStorage.setItem(tickKey(id), JSON.stringify(t)); } catch(e){} }
+// the little "3 of 19 boxes ticked" line, with a Start over button
+function tickBar(){ return TICKS ? '<div class="tickbar"><b id="tickCount"></b><button type="button" class="clr" id="tickClear">↺ Start over</button></div>' : ''; }
+function wireTicks(id){
+  if (!TICKS) return;
+  var t = loadTicks(id), boxes = [].slice.call(app.querySelectorAll('.tickbox'));
+  var count = document.getElementById('tickCount');
+  function paint(){
+    boxes.forEach(function(b){
+      var on = t[b.dataset.t].indexOf(+b.dataset.i) >= 0;
+      b.textContent = on ? '✓' : '';
+      b.closest('tr').classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    var n = t.i.length + t.s.length;
+    if (count) count.textContent = n + ' of ' + boxes.length + ' boxes ticked' + (boxes.length && n === boxes.length ? ' — all done!' : '');
+  }
+  boxes.forEach(function(b){
+    b.addEventListener('click', function(){
+      var list = t[b.dataset.t], n = +b.dataset.i, k = list.indexOf(n);
+      if (k >= 0) list.splice(k, 1); else list.push(n);
+      saveTicks(id, t); paint();
+    });
+  });
+  var clr = document.getElementById('tickClear');
+  if (clr) clr.addEventListener('click', function(){ t.i = []; t.s = []; saveTicks(id, t); paint(); });
+  paint();
+}
+// Same square table, but every step in order: what the step is called, then what you do.
+function stepsTable(r){
+  if (!r.steps || !r.steps.length) return '';
+  return '<h2 class="steps-h">All the steps</h2>' +
+    '<table class="steps"><tr>' + tickHead() + '<th>Step</th><th>What you do</th></tr>' +
+    r.steps.map(function(st, i){
+      return '<tr>' + tickCell('s', i) + '<td class="ing"><b>' + st[0] + '</b><span class="amt">Step ' + (i + 1) + '</span>' +
+        (st[2] ? '<br><span class="dur">' + st[2] + '</span>' : '') +
+        (st[3] ? '<br><span class="opt">Optional</span>' : '') + '</td><td>' + st[1] + '</td></tr>';
+    }).join('') + '</table>';
+}
 function route(){
   var id = location.hash.replace('#', '');
   var prem = typeof premium === 'function' && premium(), monthly = monthlyNow();
@@ -424,11 +540,12 @@ function route(){
     document.title = r.title + ' · Square Recipe Box';
     app.className = 'wrap recipe t-' + r.theme;
     app.innerHTML = '<button class="back" onclick="location.hash=\'\'">← All recipes</button>' +
-      '<h1>' + r.title + '<span class="makes">' + r.makes + '</span></h1>' +
-      '<table><tr><th>Ingredient</th><th>What you do with it</th></tr>' +
-      r.items.map(function(it){
-        return '<tr><td class="ing"><b>' + it[0] + '</b><span class="amt">' + it[1] + '</span>' + (it[3] ? '<br><span class="opt">Optional</span>' : '') + '</td><td>' + it[2] + '</td></tr>';
-      }).join('') + '</table>';
+      '<h1>' + r.title + '<span class="makes">' + r.makes + '</span></h1>' + tickBar() +
+      '<table><tr>' + tickHead() + '<th>Ingredient</th><th>What you do with it</th></tr>' +
+      r.items.map(function(it, i){
+        return '<tr>' + tickCell('i', i) + '<td class="ing"><b>' + it[0] + '</b><span class="amt">' + it[1] + '</span>' + (it[3] ? '<br><span class="opt">Optional</span>' : '') + '</td><td>' + it[2] + '</td></tr>';
+      }).join('') + '</table>' + stepsTable(r);
+    wireTicks(r.id);
   }
   scroller.scrollTop = 0;
 }
@@ -438,7 +555,7 @@ function newRecipeScreen(){
   document.title = 'New recipe · Square Recipe Box';
   app.className = 'wrap recipe t-new';
   app.innerHTML = '<button class="back" onclick="location.hash=\'\'">← All recipes</button>' +
-    '<h1>➕ New recipe<span class="makes">Paste a normal recipe. It becomes a square recipe: every ingredient in the order you use it, and what you do with it.</span></h1>' +
+    '<h1>➕ New recipe<span class="makes">Paste a normal recipe. It becomes a square recipe: every ingredient in the order you use it and what you do with it, then all the steps.</span></h1>' +
     '<textarea id="nrText" class="nrtext" placeholder="Paste a recipe here, like:\n\nPancakes\nMakes 8\n\nIngredients\n1 cup flour\n2 tbsp sugar\n1 egg\n1 cup milk\n\nSteps\n1. Mix the flour and sugar in a bowl.\n2. Whisk in the egg and milk.\n3. Cook on a hot pan until golden."></textarea>' +
     '<div class="nrbtns"><button type="button" class="nrgo" id="nrMake">▢ Make square recipe</button></div>' +
     '<div id="nrOut"></div>';
@@ -451,19 +568,21 @@ function newRecipeScreen(){
     var r = squareFromText(ta.value);
     if (!r.items.length) { out.innerHTML = '<p class="nrmsg">I couldn\'t find any ingredients. Put each ingredient on its own line, like <b>1 cup flour</b>.</p>'; return; }
     var d = toData(r, 'new', '');
+    TICKS = false;                                  // the preview is just a look: no tick boxes yet
     out.innerHTML = '<h2 class="nrh">Preview</h2><h1 class="nrprev">' + d.title + '<span class="makes">' + d.makes + '</span></h1>' +
       '<table><tr><th>Ingredient</th><th>What you do with it</th></tr>' + d.items.map(function(it){
-        return '<tr><td class="ing"><b>' + it[0] + '</b><span class="amt">' + it[1] + '</span>' + (it[3] ? '<br><span class="opt">Optional</span>' : '') + '</td><td>' + it[2] + '</td></tr>'; }).join('') + '</table>' +
+        return '<tr><td class="ing"><b>' + it[0] + '</b><span class="amt">' + it[1] + '</span>' + (it[3] ? '<br><span class="opt">Optional</span>' : '') + '</td><td>' + it[2] + '</td></tr>'; }).join('') + '</table>' + stepsTable(d) +
       '<p class="nrcat">Section: <select id="nrCat">' + CATS.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === guessCat(r.title, r.items.map(function(it){ return it.name; })) ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></p>' +
       '<div class="nrbtns"><button type="button" class="nrgo" id="nrShare">👥 Share with everyone</button><button type="button" id="nrMine">⭐ Save just for me</button></div>' +
       '<p class="nrmsg">Sharing opens GitHub with your recipe filled in (you need a free GitHub account). Press <b>Submit</b> there, and a robot adds it to the Square Recipe Box for everyone in about a minute.</p>';
+    TICKS = true;
     document.getElementById('nrMine').addEventListener('click', function(){
       r.id = 'm-' + Date.now().toString(36); r.category = document.getElementById('nrCat').value; delete r.stepCount; saveMine(r);
       try { sessionStorage.removeItem('squarebox:draft'); } catch(e){}
       location.hash = r.id;
     });
     document.getElementById('nrShare').addEventListener('click', function(){
-      var body = 'Please add my square recipe to the Square Recipe Box.\n\n```json\n' + JSON.stringify({ title: r.title, makes: r.makes, category: document.getElementById('nrCat').value, items: r.items }, null, 1) + '\n```\n';
+      var body = 'Please add my square recipe to the Square Recipe Box.\n\n```json\n' + JSON.stringify({ title: r.title, makes: r.makes, category: document.getElementById('nrCat').value, items: r.items, steps: r.steps }, null, 1) + '\n```\n';
       var url = 'https://github.com/' + REPO + '/issues/new?title=' + encodeURIComponent('Recipe: ' + r.title) + '&body=' + encodeURIComponent(body);
       window.open(url, '_blank', 'noopener');
       out.querySelector('.nrmsg').innerHTML = '✅ GitHub opened in a new tab. Press <b>Submit new issue</b> there. Your recipe shows up here for everyone in about a minute (reload the page).';

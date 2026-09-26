@@ -1323,7 +1323,8 @@ function runCmd(text){
     if (i >= list.length) {
       $("cmd").value = "";
       $("cmdHint").innerHTML = "Added: <b>" + esc(list.map(function(f){ return f.label; }).join(", ")) +
-        "</b>. Press Preview with effects to watch it." +
+        "</b>. " + (list.map(function(f){ return f._note || ""; }).filter(Boolean).join(" ") || "") +
+        " Press Preview with effects to watch it." +
         (list.some(function(f){ return f.snapped; })
           ? " <i>Moved onto the nearest sharp moment in the sound \u2014 change the number on the chip if you want it exactly where you said.</i>" : "");
       store(); drawFxList();
@@ -1364,7 +1365,15 @@ function runCmd(text){
     if (f.need) askSpot(f.type === "clear" ? "the spot to keep clear" : (f.target || "the spot"),
                         f.type === "hide" || f.type === "censor" || f.type === "clear").then(function(p){
       f.x = p.x; f.y = p.y; f.r = p.r;
-      if (f.type === "clear") { f.holes = [{ x: p.x, y: p.y, r: p.r || 0.14 }]; f.trk = false; }
+      if (f.type === "clear") {
+        f.holes = [{ x: p.x, y: p.y, r: p.r || 0.14 }]; f.trk = false;
+        var others = (c.fx || []).filter(function(o){
+          return /^(smoke|fire|sparkle|hearts|bubbles|snow|rain|confetti|explode|glow)$/.test(o.type);
+        });
+        f._note = others.length
+          ? "That spot is kept clear of the " + others.length + " effect" + (others.length > 1 ? "s" : "") + " on this clip."
+          : "Hole kept. There is nothing on this clip to keep out of it yet \u2014 add some smoke and it will go round this spot.";
+      }
       second();
     });
     else second();
@@ -2122,9 +2131,11 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   live.forEach(function(f){
     if (f.nr > 0) {
       var hp = (st.pos && st.pos[f.id + ":h"]) || { x: f.nx, y: f.ny };
-      holes.push({ x: hp.x, y: hp.y, r: f.nr });
+      holes.push({ x: hp.x, y: hp.y, r: f.nr, tall: true });     /* a person: taller than wide */
     }
-    (f.holes || []).forEach(function(h){ holes.push(h); });
+    (f.holes || []).forEach(function(h){
+      holes.push({ x: h.x, y: h.y, r: h.r, tall: f.type !== "clear" });
+    });
   });
   if (holes.length) {
     ctx.save();
@@ -2135,14 +2146,21 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
     var g = o.getContext("2d");
     g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation = "source-over"; g.clearRect(0,0,W,H);
     g.filter = FILT; try { g.drawImage(src, r.x, r.y, r.w, r.h); } catch(e){} g.filter = "none";
-    g.globalCompositeOperation = "destination-in";
+    /* all the holes go into one mask first -- applying them one at a time with
+       destination-in left only the overlap of them, which meant two holes made none */
+    var hm = st.holeCv || (st.holeCv = document.createElement("canvas"));
+    if (hm.width !== W || hm.height !== H) { hm.width = W; hm.height = H; }
+    var gh = hm.getContext("2d");
+    gh.setTransform(1,0,0,1,0,0); gh.globalCompositeOperation = "source-over"; gh.clearRect(0,0,W,H);
     holes.forEach(function(h){
-      var hx = r.x + h.x * r.w, hy = r.y + h.y * r.h, hr = h.r * r.w;
-      var grd = g.createRadialGradient(hx, hy, hr * 0.78, hx, hy, hr * 1.06);
+      var hx = r.x + h.x * r.w, hy = r.y + h.y * r.h, hr = h.r * r.w, up = h.tall ? 1.55 : 1;
+      var grd = gh.createRadialGradient(hx, hy, hr * 0.78, hx, hy, hr * 1.06);
       grd.addColorStop(0, "rgba(0,0,0,1)"); grd.addColorStop(1, "rgba(0,0,0,0)");
-      g.save(); g.translate(hx, hy); g.scale(1, 1.55); g.translate(-hx, -hy);
-      g.fillStyle = grd; g.beginPath(); g.arc(hx, hy, hr * 1.06, 0, 7); g.fill(); g.restore();
+      gh.save(); gh.translate(hx, hy); gh.scale(1, up); gh.translate(-hx, -hy);
+      gh.fillStyle = grd; gh.beginPath(); gh.arc(hx, hy, hr * 1.06, 0, 7); gh.fill(); gh.restore();
     });
+    g.globalCompositeOperation = "destination-in";
+    g.drawImage(hm, 0, 0);
     g.globalCompositeOperation = "source-over";
     ctx.drawImage(o, 0, 0);
     ctx.restore();

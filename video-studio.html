@@ -1092,6 +1092,12 @@ var KINDS = [
                   "grey","gray","gold","silver","teal","cyan"], spot:1, dur:null, nm:"colour" },
   /* "add a dog at second 4" -- drops a thing into the picture where you tap */
   { t:"add",      w:["ball","football","basketball","baseball","hat","crown","sunglasses","glasses","dog","puppy","cat","bird","dragon","dinosaur","monkey","star","sun","moon","cloud","rainbow","tree","flower","pizza","cake","burger","apple","banana","ice cream","balloon","car","truck","rocket","plane","boat","train","sword","shield","guitar","drum","trumpet","phone","book","money","trophy","medal","ghost","alien","robot","skull","fish","butterfly","bee","snowman","pumpkin","gift","present","bell","key","clock","lightbulb","umbrella","hammer","camera","microphone","piano","pen","hand","eyes","fire hydrant"], spot:1, dur:null, nm:"added" },
+  /* "reappear at second 9" ends whichever disappear was running, with a puff */
+  { t:"reappear", w:["reappear","reapear","re-appear","come back","comes back","bring it back","put it back",
+                  "appear again","unhide","undisappear"], spot:0, dur:0.9, nm:"comes back" },
+  /* "smoke hole" keeps one spot clear of whatever is going on */
+  { t:"clear",    w:["smoke hole","smoke whole","hole in the smoke","no smoke here","no smoke","keep this clear",
+                  "keep it clear","clear spot","nothing here","nothing there"], spot:1, dur:null, nm:"kept clear" },
   { t:"censor",   w:["censor","pixelate","blur out","blur his face","blur her face","blur the face"], spot:1, dur:null, nm:"blurred out" },
   { t:"freeze",   w:["freeze","freeze frame","hold the frame","stop time","pause there"], spot:0, dur:2, nm:"freeze" },
   { t:"mirror",   w:["mirror","flip it","flipped","back to front"], spot:0, dur:null, nm:"mirrored" },
@@ -1325,6 +1331,25 @@ function runCmd(text){
       return;
     }
     var f = list[i++];
+
+    /* coming back: find the disappear that is still running and stop it here */
+    if (f.type === "reappear") {
+      var hid = null;
+      (c.fx || []).forEach(function(h){
+        if (h.type !== "hide") return;
+        if (h.at <= f.at && (h.dur === null || h.at + h.dur >= f.at)) { if (!hid || h.at > hid.at) hid = h; }
+      });
+      if (!hid) {
+        $("cmdHint").innerHTML = "<b>Nothing is hidden at " + fmt(f.at) + ".</b> Make something disappear first, " +
+          "then say when it comes back.";
+        return next();
+      }
+      hid.dur = Math.max(0.2, f.at - hid.at);
+      hid.label = hid.label.replace(/ at \d+:\d\d$/, "") + " at " + fmt(hid.at);
+      f.x = hid.x; f.y = hid.y; f.r = hid.r; f.trk = hid.trk;
+      f.label = "comes back at " + fmt(f.at);
+    }
+
     var snapped = snapTime(c, f.at);
     if (Math.abs(snapped - f.at) > 0.06) {
       f.at = snapped;
@@ -1336,8 +1361,11 @@ function runCmd(text){
       if (!f.notT) return next();
       askSpot(f.notT, true).then(function(p){ f.nx = p.x; f.ny = p.y; f.nr = p.r || 0.16; next(); });
     };
-    if (f.need) askSpot(f.target || "the spot", f.type === "hide" || f.type === "censor").then(function(p){
-      f.x = p.x; f.y = p.y; f.r = p.r; second();
+    if (f.need) askSpot(f.type === "clear" ? "the spot to keep clear" : (f.target || "the spot"),
+                        f.type === "hide" || f.type === "censor" || f.type === "clear").then(function(p){
+      f.x = p.x; f.y = p.y; f.r = p.r;
+      if (f.type === "clear") { f.holes = [{ x: p.x, y: p.y, r: p.r || 0.14 }]; f.trk = false; }
+      second();
     });
     else second();
   };
@@ -1456,6 +1484,7 @@ function drawFxList(){
 
 var EXAMPLES = ["make his hand disappear at second 13","make smoke come out of his hand at second 11",
   "make the piano not in the video","make the pen orange",
+  "make his hand disappear at second 4 and reappear at second 9","smoke hole",
   "add a dog at second 4","put a big crown on his head",
   "from 11 to 15 smoke everywhere but not the human","cut out from 5 to 9 seconds",
   "blur his face","freeze at second 6 for 2 seconds",
@@ -1816,6 +1845,7 @@ function playFx(f, A, out, hear){
     case "flash":  noise(0.06, "highpass", 3000, 0.7, 0.35, 0.002); break;
     case "hide":   noise(0.45, "lowpass", 900, 0.8, 0.28, 0.01, 200); tone(0.3, 520, 180, 0.12); break;
     case "add":    tone(0.14, 420, 170, 0.32); break;
+    case "reappear": noise(0.45, "lowpass", 300, 0.8, 0.26, 0.01, 1400); tone(0.32, 200, 620, 0.16); break;
     case "hearts": for (var h = 0; h < 3; h++) tone(0.12, 500 + h*160, 900 + h*160, 0.18, "sine", h*0.13); break;
     case "bubbles":for (var b2 = 0; b2 < 4; b2++) tone(0.09, 300 + b2*120, 700, 0.16, "sine", b2*0.16); break;
     case "confetti":noise(0.5, "highpass", 1800, 0.7, 0.22, 0.02); break;
@@ -1963,6 +1993,19 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
         return mk({ k:"snow", x:rnd2(st,f)*W, y:-10*S, vx:jit(st,f,20*S), vy:(40+rnd2(st,f)*60)*S, r:(2+rnd2(st,f)*4)*S, a:0, m:9 }); });
     if (f.type === "rain")     spawn(st, f, dt * 160 * e, function(){
         return mk({ k:"rain", x:rnd2(st,f)*W, y:-20*S, vx:-60*S, vy:(900+rnd2(st,f)*350)*S, r:(11+rnd2(st,f)*13)*S, a:0, m:2 }); });
+    if (f.type === "reappear") {                         /* a puff, and it is there again */
+      var rp = clamp((t - f.at) / Math.max(0.2, f.dur || 0.9), 0, 1);
+      spawn(st, f, dt * 120 * (1 - rp), function(){
+        var an = rnd2(st,f) * 6.3, sp = (40 + rnd2(st,f) * 170) * S;
+        return mk({ k:"smoke", x:px, y:py, vx:Math.cos(an)*sp, vy:Math.sin(an)*sp - 20*S,
+                    r:(f.r ? f.r * r.w * 0.5 : 26*S), a:0, m:1.5, s:rnd2(st,f)*6 });
+      });
+      spawn(st, f, dt * 40 * (1 - rp), function(){
+        var an2 = rnd2(st,f) * 6.3, sp2 = (60 + rnd2(st,f) * 200) * S;
+        return mk({ k:"spark", x:px, y:py, vx:Math.cos(an2)*sp2, vy:Math.sin(an2)*sp2, r:(2+rnd2(st,f)*3)*S, a:0, m:.8 });
+      });
+      st.spill.push({ x:px, y:py, r: 200*S, c:[255,240,200], a: 0.25 * (1 - rp) });
+    }
     if (f.type === "explode")  once(function(){
         spawn(st, f, 90, function(){ var an = rnd2(st,f)*6.3, sp = (180 + rnd2(st,f)*420)*S;
           return mk({ k:"fire", x:px, y:py, vx:Math.cos(an)*sp, vy:Math.sin(an)*sp, r:(6+rnd2(st,f)*10)*S, a:0, m:.9 }); });

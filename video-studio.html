@@ -106,6 +106,7 @@
   .fx .lab{color:var(--fg)}
   .fx .sm{color:var(--muted);font-size:12.5px}
   .fx .more,.fx .clr,.fx .pic{color:var(--accent2);font-size:12.5px}
+  .fx .trk,.fx .trkh{color:var(--accent);font-size:12.5px}
   .fx .num2{width:56px;background:#0f1320;color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:3px 6px;font-size:13px}
   .fx button:hover{color:var(--rec)}
   /* timeline */
@@ -237,6 +238,9 @@
         <input type="text" id="cmd" placeholder="make smoke come out of his hand at second 11">
         <button class="btn primary" id="btnCmd">Do it</button>
         <button class="btn go" id="btnPrev">&#9654; Preview with effects</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label class="chk"><input type="checkbox" id="camPin"> Hold the effects to the scene when the camera moves</label>
       </div>
       <div class="ex" id="ex"></div>
       <div class="fxlist" id="fxList"></div>
@@ -861,6 +865,7 @@ function select(id){
     paintCard(); draw(); return;
   }
   $("cardEdit").hidden = true; $("vidEdit").hidden = false; $("splitHint").hidden = false;
+  $("camPin").checked = !!c.camPin;
   var v = $("editVid");
   v.src = c.url;
   $("rStart").max = $("rEnd").max = c.duration || 1;
@@ -1167,6 +1172,7 @@ function parseCmd(s, c){
   var wind = /\b(wind|windy|breeze|blowing|blown|draught|draft)\b/.test(low)
              ? (/\bleft\b/.test(low) ? -1 : 1) * (/\b(strong|hard|howling|big)\b/.test(low) ? 2.2 : 1) : 0;
   var lamp = /\b(light|lamp|torch|candle|bulb|lantern)\b/.test(low);
+  /* "make it follow his hand" is the default now, but saying it does no harm */
   var nm = best.t === "paint" ? bestWord : best.nm;
   var word = best.t === "title" || best.t === "subtitle" || best.t === "text"
                ? "\u201c" + txt + "\u201d " + (pos === "middle" ? "in the middle" : pos === "top" ? "at the top" : "")
@@ -1180,6 +1186,8 @@ function parseCmd(s, c){
            emoji: OBJ[bestWord] || "\u2b50", size: big, pos: pos, sound: snd,
            vol: /\b(loud|bang|boom)\b/.test(low) ? 1.6 : 1, wind: wind, lamp: lamp,
            extra: [], holes: [],
+           trk: !!best.spot && !area && !/\b(stay|still|fixed|do not follow|dont follow)\b/.test(low),
+           trkHole: !!notT,
            label: word + (area ? " everywhere" : "") + (notT ? " but not " + notT : "") + " at " + fmt(at) };
 }
 
@@ -1219,6 +1227,13 @@ function askSpot(what, circle){
   });
 }
 
+$("camPin").onchange = function(){
+  var c = sel(); if (!c) return;
+  c.camPin = $("camPin").checked; store();
+  $("cmdHint").innerHTML = c.camPin
+    ? "The effects will be carried along with the picture when the camera moves. Works best when the camera only drifts a little."
+    : "The effects stay where they are on the screen.";
+};
 $("btnCmd").onclick = function(){ runCmd($("cmd").value); };
 $("cmd").onkeydown = function(e){ if (e.key === "Enter") runCmd($("cmd").value); };
 function runCmd(text){
@@ -1290,14 +1305,25 @@ function drawFxList(){
       ' <span class="sm">from</span> <input type="number" class="num2 at" min="0" step="0.5" value="' + (+f.at).toFixed(1) + '">' +
       ' <span class="sm">for</span> <input type="number" class="num2 du" min="0.2" step="0.5" placeholder="all" value="' +
         (f.dur === null ? "" : (+f.dur).toFixed(1)) + '">' +
+      (f.need || f.trk ? ' <button class="trk" title="Follow the thing about the picture">' +
+        (f.trk ? "\u25C9 follows" : "\u25CB fixed") + '</button>' : '') +
+      (f.notT ? ' <button class="trkh" title="Follow the person kept clear">' +
+        (f.trkHole ? "\u25C9 they move" : "\u25CB they stand still") + '</button>' : '') +
       (/^(hide|censor)$/.test(f.type) ? ' <button class="more" title="Hide another spot too">+spot</button>' : '') +
       (/^(smoke|fire|sparkle|hearts|bubbles|snow|rain|confetti)$/.test(f.type)
          ? ' <button class="clr" title="Keep somebody else clear of it">+clear</button>' : '') +
-      (f.type === "add" ? ' <button class="pic" title="Use a picture instead of the emoji">&#128444;</button>' : '') +
+      (f.type === "add" ? ' <button class="pic" title="Use a picture instead of the emoji">&#128444;</button>' +
+        ' <span class="sm">grows to</span> <input type="number" class="num2 gro" min="0.2" max="4" step="0.1" value="' +
+        (f.grow === undefined ? 1 : f.grow) + '">&times;' : '') +
       ' <span class="sm">s</span> <button class="snd" title="Sound on or off">' +
         (f.sound === "off" ? "&#128263;" : "&#128266;") + '</button>' +
       ' <button title="Remove">&#10005;</button>';
     var at = el.querySelector(".at"), du = el.querySelector(".du");
+    var gro = el.querySelector(".gro");
+    if (gro) gro.onchange = function(){ f.grow = clamp(+gro.value || 1, 0.2, 4); store(); };
+    var trk = el.querySelector(".trk"), trkh = el.querySelector(".trkh");
+    if (trk) trk.onclick = function(){ f.trk = !f.trk; store(); drawFxList(); };
+    if (trkh) trkh.onclick = function(){ f.trkHole = !f.trkHole; store(); drawFxList(); };
     var more = el.querySelector(".more"), clr = el.querySelector(".clr"), pic = el.querySelector(".pic");
     if (more) more.onclick = function(){
       askSpot("the next spot to hide", true).then(function(q){
@@ -1516,8 +1542,95 @@ function grainOver(ctx, W, H, st){
   ctx.fillStyle = pat; ctx.fillRect(0, 0, W + 96, H + 96);
   ctx.restore();
 }
-/* where an effect is at this moment: one spot, or a path you tapped out */
-function posAt(f, t, r){
+/* ---------- following a thing about the picture ----------
+   A small square of the picture is kept from where you tapped, and each frame
+   we look for it again nearby. No model, no training: just the closest match,
+   at 320 pixels wide so it is quick. When the match gets bad -- the thing left
+   the shot, or went behind something -- it stops and holds its last good spot. */
+function trackFrame(st, v, live, t){
+  var jobs = [];
+  live.forEach(function(f){
+    if (f.trk) jobs.push({ f: f, key: f.id + ":p", ax: "x", ay: "y" });
+    if (f.trkHole && f.nr > 0) jobs.push({ f: f, key: f.id + ":h", ax: "nx", ay: "ny" });
+  });
+  if (!jobs.length && !st.camTrack) return;
+  var TW = 320, TH = Math.max(80, Math.round(TW * (v.videoHeight || 720) / (v.videoWidth || 1280)));
+  var cv = st.tkc || (st.tkc = document.createElement("canvas"));
+  if (cv.width !== TW || cv.height !== TH) { cv.width = TW; cv.height = TH; }
+  var g = cv.getContext("2d", { willReadFrequently: true });
+  try { g.drawImage(v, 0, 0, TW, TH); } catch(e){ return; }
+  var im; try { im = g.getImageData(0, 0, TW, TH); } catch(e){ return; }
+  var d = im.data;
+  st.trk = st.trk || {};
+
+  var R = 10;                                  /* half the template, in small-picture pixels */
+  function grab(cx, cy){
+    var out = new Uint8Array((R*2+1) * (R*2+1)), k = 0;
+    for (var y = cy - R; y <= cy + R; y++) for (var x = cx - R; x <= cx + R; x++) {
+      var xx = clamp(x, 0, TW-1) | 0, yy = clamp(y, 0, TH-1) | 0, i = (yy*TW + xx) * 4;
+      out[k++] = (d[i]*77 + d[i+1]*151 + d[i+2]*28) >> 8;
+    }
+    return out;
+  }
+  function score(tmpl, cx, cy){
+    var sum = 0, k = 0;
+    for (var y = cy - R; y <= cy + R; y += 2) for (var x = cx - R; x <= cx + R; x += 2) {
+      var xx = clamp(x, 0, TW-1) | 0, yy = clamp(y, 0, TH-1) | 0, i = (yy*TW + xx) * 4;
+      var gv = (d[i]*77 + d[i+1]*151 + d[i+2]*28) >> 8;
+      var ti = ((y - (cy - R)) * (R*2+1)) + (x - (cx - R));
+      sum += Math.abs(gv - tmpl[ti]); k++;
+    }
+    return k ? sum / k : 1e9;
+  }
+  function follow(key, nx, ny){
+    var s2 = st.trk[key];
+    var cx = Math.round(nx * TW), cy = Math.round(ny * TH);
+    if (!s2) { st.trk[key] = { x: nx, y: ny, t: grab(cx, cy), bad: 0 }; return { x: nx, y: ny }; }
+    var bx = Math.round(s2.x * TW), by = Math.round(s2.y * TH), best = 1e9, mx = bx, my = by;
+    for (var dy = -12; dy <= 12; dy++) for (var dx = -12; dx <= 12; dx++) {
+      var sc = score(s2.t, bx + dx, by + dy);
+      if (sc < best) { best = sc; mx = bx + dx; my = by + dy; }
+    }
+    if (best > 34) { s2.bad++; } else {
+      s2.bad = 0; s2.x = clamp(mx / TW, 0, 1); s2.y = clamp(my / TH, 0, 1);
+      if (best < 12) s2.t = grab(mx, my);      /* a good match refreshes what we are looking for */
+    }
+    return { x: s2.x, y: s2.y };
+  }
+
+  jobs.forEach(function(j){
+    var got = follow(j.key, j.f[j.ax], j.f[j.ay]);
+    st.pos = st.pos || {};
+    st.pos[j.key] = got;
+    if (j.key.slice(-1) === "p" && st.trk[j.key]) {
+      var s3 = st.trk[j.key];
+      if (s3.lastX !== undefined) st.pos[j.key].dir = Math.atan2(got.y - s3.lastY, got.x - s3.lastX);
+      s3.lastX = got.x; s3.lastY = got.y;
+    }
+  });
+
+  /* the whole frame moving: four corners, and the middle answer of the four */
+  if (st.camTrack) {
+    var pts = [[0.15,0.2],[0.85,0.2],[0.15,0.8],[0.85,0.8]], dxs = [], dys = [];
+    pts.forEach(function(q, i){
+      var key = "cam" + i, before = st.trk[key] ? { x: st.trk[key].x, y: st.trk[key].y } : null;
+      var got = follow(key, q[0], q[1]);
+      if (before) { dxs.push(got.x - before.x); dys.push(got.y - before.y); }
+    });
+    if (dxs.length === 4) {
+      dxs.sort(function(a,b){ return a-b; }); dys.sort(function(a,b){ return a-b; });
+      st.camDx = (st.camDx || 0) + (dxs[1] + dxs[2]) / 2;
+      st.camDy = (st.camDy || 0) + (dys[1] + dys[2]) / 2;
+    }
+  }
+}
+
+/* where an effect is at this moment: one spot, a path you tapped out, or a thing it follows */
+function posAt(f, t, r, st){
+  if (st && st.pos && st.pos[f.id + ":p"]) {
+    var g = st.pos[f.id + ":p"];
+    return { x: r.x + g.x * r.w, y: r.y + g.y * r.h, dir: g.dir, scale: 1 };
+  }
   var pt = { x: f.x, y: f.y };
   var path = f.path;
   if (path && path.length) {
@@ -1533,7 +1646,14 @@ function posAt(f, t, r){
       }
     }
   }
-  return { x: r.x + pt.x * r.w, y: r.y + pt.y * r.h };
+  var cdx = (st && st.camDx && f.pin !== false) ? st.camDx : 0;
+  var cdy = (st && st.camDy && f.pin !== false) ? st.camDy : 0;
+  var sc = 1;
+  if (f.path && f.path.length) {                         /* size and turn can be set at each point */
+    var last = f.path[f.path.length - 1];
+    if (last.size) sc = 1 + (last.size - 1) * clamp((t - f.at) / Math.max(0.2, last.t - f.at), 0, 1);
+  }
+  return { x: r.x + (pt.x + cdx) * r.w, y: r.y + (pt.y + cdy) * r.h, scale: sc };
 }
 
 /* ---------- the noise an effect makes ----------
@@ -1611,6 +1731,8 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   var S = H / 720, live = liveFx(c, t), filt = [], shx = 0, shy = 0, scale = 1, sx = 1, sy = 1;
   st.spill = [];
   sampleScene(st, v, dt);
+  st.camTrack = !!c.camPin;
+  trackFrame(st, v, live, t);
 
   /* a freeze holds the picture still while the sound carries on underneath */
   var fz = null;
@@ -1656,7 +1778,8 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   /* --- make something disappear: a patch of what is beside it, soft at the rim --- */
   live.forEach(function(f){
     if (f.type !== "hide") return;
-    var areas = [{ x: f.x, y: f.y, r: f.r }].concat(f.extra || []);
+    var here = posAt(f, t, r, st);
+    var areas = [{ x: (here.x - r.x) / r.w, y: (here.y - r.y) / r.h, r: f.r }].concat(f.extra || []);
     var age = t - f.at, fade = clamp(age / 0.35, 0, 1);
     areas.forEach(function(ar, idx){
       var px = r.x + ar.x * r.w, py = r.y + ar.y * r.h;
@@ -1675,7 +1798,8 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   /* --- blur one thing out --- */
   live.forEach(function(f){
     if (f.type !== "censor") return;
-    var areas = [{ x: f.x, y: f.y, r: f.r }].concat(f.extra || []);
+    var hc = posAt(f, t, r, st);
+    var areas = [{ x: (hc.x - r.x) / r.w, y: (hc.y - r.y) / r.h, r: f.r }].concat(f.extra || []);
     areas.forEach(function(ar){
       var px = r.x + ar.x * r.w, py = r.y + ar.y * r.h;
       var rad = ar.r ? ar.r * r.w : Math.max(r.w, r.h) * 0.09;
@@ -1692,7 +1816,7 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   /* --- paint one thing: only the pixels that match what you tapped --- */
   live.forEach(function(f){
     if (f.type !== "paint") return;
-    var pp = posAt(f, t, r), rad = (f.r ? f.r * r.w : Math.max(r.w, r.h) * 0.085);
+    var pp = posAt(f, t, r, st), rad = (f.r ? f.r * r.w : Math.max(r.w, r.h) * 0.085);
     paintThing(ctx, W, H, f, pp.x, pp.y, rad, alpha * clamp((t - f.at) / 0.2, 0, 1));
   });
 
@@ -1700,7 +1824,7 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   ctx.save();
   ctx.globalAlpha = alpha;
   live.forEach(function(f){
-    var pp = posAt(f, t, r), px = pp.x, py = pp.y;
+    var pp = posAt(f, t, r, st), px = pp.x, py = pp.y;
     var p = f.dur === null ? 0 : clamp((t - f.at) / Math.max(0.001, f.dur), 0, 1);
     var e = env(f, t), vv = vary(f), G = gust(f, t) * e * vv.rate;
     var once = function(fn){ if (!st.seen[f.id]) { st.seen[f.id] = 1; fn(); } };
@@ -1748,7 +1872,13 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
 
     if (f.type === "add") {
       var sz = (f.r ? f.r * r.w * 2 : Math.max(r.w, r.h) * 0.14 * (f.size || 1)) * vv.size;
+      sz *= (pp.scale || 1);
+      if (f.grow && f.grow !== 1) {                        /* walks towards the camera, or away from it */
+        var gk = f.dur === null ? clamp((t - f.at) / 3, 0, 1) : clamp((t - f.at) / Math.max(0.2, f.dur), 0, 1);
+        sz *= 1 + (f.grow - 1) * gk;
+      }
       var bob = Math.sin(t * 2.2 + hash(f.id) % 6) * sz * 0.035;
+      var turn = f.trk && pp.dir !== undefined ? clamp(pp.dir, -0.6, 0.6) * 0.5 : 0;
       var aa = alpha * clamp((t - f.at) / 0.25, 0, 1);
       var ang = st.light === undefined ? 0.8 : st.light;
       ctx.save(); ctx.globalAlpha = aa * 0.33;            /* a shadow thrown away from the light */
@@ -1760,11 +1890,12 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
       if (f.img && st.imgs && !st.imgs[f.id]) { var im0 = new Image(); im0.src = f.img; st.imgs[f.id] = im0; }
       if (f.img && st.imgs && st.imgs[f.id] && st.imgs[f.id].complete) {
         var im = st.imgs[f.id], ih = sz * (im.naturalHeight / Math.max(1, im.naturalWidth));
-        ctx.drawImage(im, px - sz/2, py + bob - ih/2, sz, ih);
+        ctx.translate(px, py + bob); ctx.rotate(turn);
+        ctx.drawImage(im, -sz/2, -ih/2, sz, ih);
       } else {
         ctx.font = Math.round(sz) + "px \"Apple Color Emoji\", \"Segoe UI Emoji\", serif";
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(f.emoji, px, py + bob);
+        ctx.translate(px, py + bob); ctx.rotate(turn); ctx.fillText(f.emoji, 0, 0);
       }
       ctx.restore();
     }
@@ -1818,7 +1949,10 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   /* --- "but not the human": their picture painted back over the effect --- */
   var holes = [];
   live.forEach(function(f){
-    if (f.nr > 0) holes.push({ x:f.nx, y:f.ny, r:f.nr });
+    if (f.nr > 0) {
+      var hp = (st.pos && st.pos[f.id + ":h"]) || { x: f.nx, y: f.ny };
+      holes.push({ x: hp.x, y: hp.y, r: f.nr });
+    }
     (f.holes || []).forEach(function(h){ holes.push(h); });
   });
   if (holes.length) {
@@ -2132,6 +2266,36 @@ $("btnExport").onclick = function(){
   }
 };
 
+/* ---------- the video that is always first ----------
+   It ships with the app. Once it has been fetched it lives in the browser like
+   any other clip, so it is only downloaded the once, and it is put back at the
+   front every time the page opens. */
+var FIRST_ID = "first-video", FIRST_SRC = "video-studio-first.webm";
+function ensureFirst(){
+  var have = clips.find(function(c){ return c.id === FIRST_ID; });
+  if (have) { have.order = -1; renumber(); return Promise.resolve(); }
+  return fetch(FIRST_SRC).then(function(res){
+    if (!res.ok) throw new Error("not there");
+    return res.blob();
+  }).then(function(blob){
+    var url = URL.createObjectURL(blob);
+    return probe(url).then(function(m){
+      var c = { id: FIRST_ID, name: "My video", blob: blob, url: url, duration: m.d, start: 0, end: m.d,
+                order: -1, thumb: "", w: m.w, h: m.h, lum: 128, fx: [] };
+      clips.push(c); renumber(); draw();
+      return thumb(url, 0.1).then(function(tn){ c.thumb = tn.url; c.lum = tn.lum; put(rec(c)); draw(); });
+    });
+  }).catch(function(){
+    /* a page opened straight off the disk cannot fetch its own files */
+    if (location.protocol === "file:")
+      $("clipsEmpty").innerHTML = "The video that comes with the app only loads on the published page \u2014 " +
+        "open <b>cmadisons.github.io/app-arcade/video-studio.html</b> for that one.";
+  });
+}
+function renumber(){
+  ordered().forEach(function(x, i){ x.order = i; put(rec(x)); });
+}
+
 /* ---------- start up ---------- */
 openDB().then(function(d){
   db = d;
@@ -2143,7 +2307,8 @@ openDB().then(function(d){
     clips.push(c);
   });
   clips.forEach(function(c,i){ c.order = i; });
-  draw(); pushHist();
+  draw();
+  ensureFirst().then(function(){ draw(); pushHist(); });
   if (!window.MediaRecorder) $("camHint").innerHTML = "<b>This browser cannot record or join video.</b> Try Chrome.";
 });
 </script>

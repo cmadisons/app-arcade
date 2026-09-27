@@ -1312,6 +1312,8 @@ function parseCmd(s, c){
   var wind = /\b(wind|windy|breeze|blowing|blown|draught|draft)\b/.test(low)
              ? (/\bleft\b/.test(low) ? -1 : 1) * (/\b(strong|hard|howling|big)\b/.test(low) ? 2.2 : 1) : 0;
   var lamp = /\b(light|lamp|torch|candle|bulb|lantern)\b/.test(low);
+  var thick = /\b(thick|heavy|dense|loads of|lots of|tons of|a lot of|huge cloud|billowing)\b/.test(low) ? 1.9
+            : /\b(thin|light wisp|wisp|a bit of|a little|faint|hint of)\b/.test(low) ? 0.45 : 1;
   /* "make it follow his hand" is the default now, but saying it does no harm */
   var nm = best.t === "paint" ? bestWord : best.nm;
   var word = best.t === "title" || best.t === "subtitle" || best.t === "text"
@@ -1324,7 +1326,7 @@ function parseCmd(s, c){
            need: best.spot && !area, area: area, notT: notT, nx: 0, ny: 0, nr: 0,
            target: tgt, text: txt, col: COL[bestWord] || "#ff8a1f",
            emoji: OBJ[bestWord] || "\u2b50", size: big, pos: pos, sound: snd,
-           vol: /\b(loud|bang|boom)\b/.test(low) ? 1.6 : 1, wind: wind, lamp: lamp,
+           vol: /\b(loud|bang|boom)\b/.test(low) ? 1.6 : 1, wind: wind, lamp: lamp, thick: thick,
            extra: [], holes: [],
            trk: !!best.spot && !area && !/\b(stay|still|fixed|do not follow|dont follow)\b/.test(low),
            trkHole: !!notT,
@@ -1652,6 +1654,9 @@ function drawFxList(){
       (/^(hide|censor)$/.test(f.type) ? ' <button class="more" title="Hide another spot too">+spot</button>' : '') +
       (/^(smoke|fire|sparkle|hearts|bubbles|snow|rain|confetti)$/.test(f.type)
          ? ' <button class="clr" title="Keep somebody else clear of it">+clear</button>' : '') +
+      (/^(smoke|fire|sparkle|hearts|bubbles|snow|rain|confetti)$/.test(f.type)
+         ? ' <span class="sm">thickness</span> <input type="number" class="num2 thk" min="0.2" max="4" step="0.2" value="' +
+           (f.thick === undefined ? 1 : f.thick) + '">&times;' : '') +
       (f.type === "add" ? ' <button class="pic" title="Use a picture instead of the emoji">&#128444;</button>' +
         ' <span class="sm">grows to</span> <input type="number" class="num2 gro" min="0.2" max="4" step="0.1" value="' +
         (f.grow === undefined ? 1 : f.grow) + '">&times;' : '') +
@@ -1659,6 +1664,8 @@ function drawFxList(){
         (f.sound === "off" ? "&#128263;" : "&#128266;") + '</button>' +
       ' <button title="Remove">&#10005;</button>';
     var at = el.querySelector(".at"), du = el.querySelector(".du");
+    var thk = el.querySelector(".thk");
+    if (thk) thk.onchange = function(){ f.thick = clamp(+thk.value || 1, 0.2, 4); store(); };
     var gro = el.querySelector(".gro");
     if (gro) gro.onchange = function(){ f.grow = clamp(+gro.value || 1, 0.2, 4); store(); };
     var trk = el.querySelector(".trk"), trkh = el.querySelector(".trkh");
@@ -1735,7 +1742,7 @@ var EXAMPLES = ["make his hand disappear at second 13","make smoke come out of h
   "make the piano not in the video","make the pen orange","fill from 0.42 0.71",
   "make his hand disappear at second 4 and reappear at second 9","smoke hole","undisappear",
   "add a dog at second 4","put a big crown on his head","keep my head in the video",
-  "from 11 to 15 smoke everywhere but not the human","cut out from 5 to 9 seconds",
+  "from 11 to 15 thick smoke everywhere but not the human","cut out from 5 to 9 seconds",
   "blur his face","freeze at second 6 for 2 seconds",
   "fire from the ball at 4 seconds","sparkles on her head at second 2","explosion at second 6",
   "shake at second 3","slow motion from 5 to 9 seconds","black and white","confetti at second 8",
@@ -2258,8 +2265,9 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
     var wind = (f.wind || 0) * 60 * S;
     var mk = function(o){ o.z = 0.55 + rnd2(st,f) * 0.95; o.vx += wind; o.r *= o.z * vv.size; o.vx *= o.z; o.vy *= o.z; o.px = o.x; o.py = o.y; return o; };
 
-    if (f.type === "smoke")    spawn(st, f, dt * (ALL ? 46 : 26) * G, function(){ var q = from();
-        return mk({ k:"smoke", x:q.x, y:q.y, vx:jit(st,f,22*S), vy:-(45+rnd2(st,f)*45)*S, r:(ALL?24:11)*S, a:0, m:ALL?3.4:2.0, s:rnd2(st,f)*6 }); });
+    if (f.type === "smoke")    spawn(st, f, dt * (ALL ? 70 : 42) * G * (f.thick || 1), function(){ var q = from();
+        return mk({ k:"smoke", x:q.x, y:q.y, vx:jit(st,f,22*S), vy:-(45+rnd2(st,f)*45)*S,
+                    r:(ALL?30:15)*S, a:0, m:ALL?3.8:2.4, s:rnd2(st,f)*6, th: f.thick || 1 }); });
     if (f.type === "fire")     spawn(st, f, dt * (ALL ? 190 : 70) * G, function(){ var q = ALL ? { x:rnd2(st,f)*W, y:H*(0.75+rnd2(st,f)*0.3) } : from();
         return mk({ k:"fire", x:q.x, y:q.y, vx:jit(st,f,28*S), vy:-(110+rnd2(st,f)*90)*S, r:(7+rnd2(st,f)*7)*S, a:0, m:.75 }); });
     if (f.type === "sparkle")  spawn(st, f, dt * (ALL ? 110 : 30) * e, function(){ var q = from(spread*1.6);
@@ -2533,12 +2541,12 @@ function smokeSprites(st){
     g.globalCompositeOperation = "source-in"; g.fillStyle = col; g.fillRect(0, 0, 128, 128);
     return c;
   };
-  st.smk = { lite: mk("#d2d5db"), dark: mk("#3c3f47") };
+  st.smk = { lite: mk("#c8ccd3"), dark: mk("#23252b") };
   return st.smk;
 }
 function rnd(n){ return (Math.random() - 0.5) * 2 * n; }
 function spawn(st, f, n, make){
-  if (st.p.length > 900) return;
+  if (st.p.length > 1400) return;
   var k = Math.floor(n) + (rnd2(st, f) < (n % 1) ? 1 : 0);
   for (var i = 0; i < k; i++) st.p.push(make());
 }
@@ -2567,19 +2575,19 @@ function step(ctx, st, dt, H, S){
     var life = 1 - p.a / p.m;
     ctx.save();
     if (p.k === "smoke") {
-      p.r += 22*S*dt*(p.z||1); p.vy -= 12*S*dt;
+      p.r += 30*S*dt*(p.z||1); p.vy -= 12*S*dt;
       p.vx += Math.sin(p.a * 0.9 + (p.s || 0)) * 9 * S * dt;   /* it drifts, even with no wind asked for */
       var sp3 = smokeSprites(st), base = ctx.globalAlpha * life, turn = (p.s || 0) + p.a * 0.45;
       var d2 = p.r * 2.6;
       ctx.translate(p.x, p.y);
       ctx.globalCompositeOperation = "multiply";               /* takes the colour of what is behind it */
-      ctx.globalAlpha = base * 0.30;
+      ctx.globalAlpha = base * 0.56 * (p.th || 1);
       for (var j = 0; j < 2; j++) {
         ctx.save(); ctx.rotate(turn + j * 2.3); ctx.scale(1, 0.86);
         ctx.drawImage(sp3.dark, -d2/2, -d2/2, d2, d2); ctx.restore();
       }
       ctx.globalCompositeOperation = "source-over";
-      ctx.globalAlpha = base * 0.20;
+      ctx.globalAlpha = base * 0.26 * (p.th || 1);
       for (var j2 = 0; j2 < 2; j2++) {
         ctx.save(); ctx.rotate(-turn * 0.7 + j2 * 1.9); ctx.scale(1, 0.9);
         ctx.drawImage(sp3.lite, -d2/2, -d2/2, d2, d2); ctx.restore();

@@ -69,6 +69,12 @@
   .timer.on{color:var(--rec)}
   .hint{color:var(--muted);font-size:13.5px;margin:8px 0 0}
   .hint b{color:var(--fg)}
+  .ver{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);font-size:11.5px}
+  .hint.says{border-radius:10px;padding:9px 12px;margin-top:10px;font-size:14px;
+    border:1px solid var(--line);background:#161a25;color:var(--fg);animation:saypop .5s ease-out}
+  .hint.says.ask{border-color:var(--accent2);background:#11302a;color:#b8f3e2}
+  .hint.says.bad{border-color:#ff7a86;background:#361b20;color:#ffd6da}
+  @keyframes saypop{from{transform:translateY(-4px);opacity:.3}to{transform:none;opacity:1}}
   /* the video stage, with the effect preview and the tap-a-spot layer on top */
   .stagewrap{position:relative}
   .stagewrap canvas{position:absolute;left:0;top:0;width:100%;height:100%;border-radius:12px;background:#000}
@@ -133,7 +139,7 @@
 </style>
 </head><body>
 <div class="wrap">
-  <header><div class="dot"></div><h1>Video Studio</h1><div class="sub">record &middot; cut &middot; effects &middot; join</div></header>
+  <header><div class="dot"></div><h1>Video Studio</h1><div class="sub">record &middot; cut &middot; effects &middot; join <span class="ver" id="ver" title="Which build you are looking at. If this is older than what I just changed, reload the page holding Shift.">build 27 Sep 2026, 08:19</span></div></header>
 
   <!-- 1. CAMERA -->
   <section class="panel cam">
@@ -1281,6 +1287,9 @@ function askSpot(what, circle){
   return new Promise(function(res){
     $("pickMsg").textContent = (circle ? "Drag a circle round " : "Tap ") + (what || "the spot") + " on the video";
     $("pick").hidden = false; $("ring").hidden = true;
+    try { $("editVid").scrollIntoView({ behavior: "smooth", block: "center" }); } catch(e){}
+    $("cmdHint").innerHTML = "Now <b>" + (circle ? "drag a circle round " : "tap ") +
+      esc(what || "the spot") + "</b> on the video above.";
     picking = res;
   });
 }
@@ -2562,6 +2571,19 @@ function ensureFirst(){
 function renumber(){
   ordered().forEach(function(x, i){ x.order = i; put(rec(x)); });
 }
+
+/* Anything the command box says is worth seeing, so it is dressed as a notice
+   and it flashes -- it used to be small grey type below twelve examples. */
+(function(){
+  var h = $("cmdHint");
+  var dress = function(){
+    var t = h.textContent || "";
+    h.className = "hint says" + (/\btap\b|drag a circle/i.test(t) ? " ask"
+      : /did not understand|nothing|no disappear|too short|cannot|did not/i.test(t) ? " bad" : "");
+    h.style.animation = "none"; void h.offsetWidth; h.style.animation = "";
+  };
+  new MutationObserver(dress).observe(h, { childList: true, subtree: true, characterData: true });
+})();
 
 /* ---------- start up ---------- */
 openDB().then(function(d){

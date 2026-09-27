@@ -599,27 +599,36 @@ $("btnPlate2").onclick = function(){
   $("cmdHint").innerHTML = "<b>That frame is now the empty room for this clip.</b> Anything that is not in it " +
     "will be drawn in front of the effects, and a vanish will be filled with it.";
 };
+function guardOf(c){
+  var f = (c.fx || []).find(function(x){ return x.type === "keep" && x.holes && x.holes.length; });
+  return f ? f.holes[0] : (c.keep || null);
+}
 function setKeep(){
   var c = sel(); if (!c || c.card) return;
   askSpot("your head", true).then(function(q){
     c.keep = { x: q.x, y: q.y, r: q.r ? q.r * 1.3 : 0.22 };
     store();
-    $("cmdHint").innerHTML = "<b>Your head is guarded.</b> No effect will be drawn over it again \u2014 smoke, " +
-      "patches, anything \u2014 and it follows you about the picture.";
+    $("cmdHint").innerHTML = "<b>Your head is guarded for the whole clip.</b> No effect will be drawn over it \u2014 " +
+      "smoke, patches, anything \u2014 and it follows you about. For part of a clip only, say " +
+      "<b>keep my head in from 32 to 35</b>.";
   });
 }
 $("btnKeepHead").onclick = setKeep;
 function keepSize(by){
-  var c = sel(); if (!c || !c.keep) { $("cmdHint").innerHTML = "Set a head guard first."; return; }
-  c.keep.r = clamp((c.keep.r || 0.22) + by, 0.06, 0.6); store();
-  $("cmdHint").innerHTML = "Head guard is now <b>" + Math.round(c.keep.r * 200) + "%</b> of the picture across. " +
+  var c = sel(); if (!c) return;
+  var g = guardOf(c);
+  if (!g) { $("cmdHint").innerHTML = "Set a head guard first."; return; }
+  g.r = clamp((g.r || 0.22) + by, 0.06, 0.6); store();
+  $("cmdHint").innerHTML = "Head guard is now <b>" + Math.round(g.r * 200) + "%</b> of the picture across. " +
     "Press Preview with effects \u2014 the dashed ring shows exactly what is protected.";
 }
 $("btnKeepBig").onclick = function(){ keepSize(0.03); };
 $("btnKeepSmall").onclick = function(){ keepSize(-0.03); };
 $("btnKeepOff").onclick = function(){
   var c = sel(); if (!c) return;
-  c.keep = null; store();
+  c.keep = null;
+  c.fx = (c.fx || []).filter(function(x){ return x.type !== "keep"; });
+  drawFxList(); store();
   $("cmdHint").innerHTML = "The guard is off. Effects can cover that spot again.";
 };
 $("btnPlateOff").onclick = function(){
@@ -1167,7 +1176,9 @@ var KINDS = [
                   "stop hiding","never disappeared","not hidden any more"], spot:1, dur:null, nm:"disappear taken off" },
   /* "smoke hole" keeps one spot clear of whatever is going on */
   /* "keep my head in the video" -- a guard nothing may draw over */
-  { t:"keep",     w:["keep my head","keep my face","my head in the video","my face in the video","never cover my head",
+  { t:"keep",     w:["keep my head","keep my face","my head stay","head stay there","my head stays","head stays",
+                  "keep my head there","my head there","leave my head","leave my face",
+                  "my head in the video","my face in the video","never cover my head",
                   "never cover my face","do not cover my head","always show my head","always show my face",
                   "head always in","face always in"], spot:1, dur:null, nm:"head guarded" },
   { t:"clear",    w:["smoke hole","smoke whole","hole in the smoke","no smoke here","no smoke","keep this clear",
@@ -1412,18 +1423,6 @@ function runCmd(text){
     }
     var f = list[i++];
 
-    /* the head guard is a property of the clip, not an effect on it */
-    if (f.type === "keep") {
-      askSpot("your head", true).then(function(q){
-        c.keep = { x: q.x, y: q.y, r: q.r ? q.r * 1.3 : 0.22 };
-        store();
-        $("cmdHint").innerHTML = "<b>Your head is guarded.</b> Nothing will be drawn over it again, and it follows " +
-          "you about the picture.";
-        next();
-      });
-      return;
-    }
-
     /* taking a disappear off: tap the circle and it was never hidden */
     if (f.type === "undo") {
       var hides = (c.fx || []).filter(function(h){ return h.type === "hide" || h.type === "censor"; });
@@ -1499,6 +1498,13 @@ function runCmd(text){
     if (f.need) askSpot(f.type === "clear" ? "the spot to keep clear" : (f.target || "the spot"),
                         f.type === "hide" || f.type === "censor" || f.type === "clear").then(function(p){
       f.x = p.x; f.y = p.y; f.r = p.r;
+      if (f.type === "keep") {
+        f.holes = [{ x: p.x, y: p.y, r: p.r ? p.r * 1.3 : 0.22, guard: 1 }];
+        f.trk = true;
+        f._note = f.dur === null
+          ? "Your head is guarded for the whole clip \u2014 nothing will be drawn over it."
+          : "Your head is guarded from " + fmt(f.at) + " to " + fmt(f.at + f.dur) + ".";
+      }
       if (f.type === "clear") {
         f.holes = [{ x: p.x, y: p.y, r: p.r || 0.14 }]; f.trk = false;
         var others = (c.fx || []).filter(function(o){
@@ -2302,8 +2308,11 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
       var hp = (st.pos && st.pos[f.id + ":h"]) || { x: f.nx, y: f.ny };
       holes.push({ x: hp.x, y: hp.y, r: f.nr, tall: true });     /* a person: taller than wide */
     }
-    (f.holes || []).forEach(function(h){
-      holes.push({ x: h.x, y: h.y, r: h.r, tall: f.type !== "clear" });
+    var tp = (f.holes && f.holes.length === 1 && st.pos && st.pos[f.id + ":p"]) ? st.pos[f.id + ":p"] : null;
+    (f.holes || []).forEach(function(h, hi){
+      var hx = (tp && hi === 0) ? clamp(tp.x, h.x - 0.16, h.x + 0.16) : h.x;
+      var hy = (tp && hi === 0) ? clamp(tp.y, h.y - 0.16, h.y + 0.16) : h.y;
+      holes.push({ x: hx, y: hy, r: h.r, tall: f.type !== "clear", guard: !!h.guard });
     });
   });
   if (holes.length) {
@@ -2338,13 +2347,17 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   ctx.restore();
 
   /* while previewing, show where the guard is, so a half-covered head is obvious */
-  if (opt.guide && c.keep) {
-    var gx = r.x + c.keep.x * r.w, gy = r.y + c.keep.y * r.h - c.keep.r * r.w * 0.12;
-    var gr2 = c.keep.r * r.w;
-    ctx.save();
-    ctx.setLineDash([9 * S, 7 * S]); ctx.lineWidth = 2.5 * S; ctx.strokeStyle = "rgba(51,214,166,.9)";
-    ctx.translate(gx, gy); ctx.scale(1, 1.35); ctx.beginPath(); ctx.arc(0, 0, gr2 * 1.05, 0, 7); ctx.stroke();
-    ctx.restore();
+  if (opt.guide) {
+    var rings = [];
+    if (c.keep) rings.push(c.keep);
+    live.forEach(function(f){ if (f.type === "keep") (f.holes || []).forEach(function(h){ rings.push(h); }); });
+    rings.forEach(function(k){
+      var gx = r.x + k.x * r.w, gy = r.y + k.y * r.h - k.r * r.w * 0.12, gr2 = k.r * r.w;
+      ctx.save();
+      ctx.setLineDash([9 * S, 7 * S]); ctx.lineWidth = 2.5 * S; ctx.strokeStyle = "rgba(51,214,166,.9)";
+      ctx.translate(gx, gy); ctx.scale(1, 1.35); ctx.beginPath(); ctx.arc(0, 0, gr2 * 1.05, 0, 7); ctx.stroke();
+      ctx.restore();
+    });
   }
 
   /* keep this frame, in case the next one is a slow-motion one that wants it */

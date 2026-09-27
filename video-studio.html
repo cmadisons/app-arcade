@@ -165,6 +165,7 @@
       <button class="btn small" id="btnGuide">Face guide</button>
       <button class="btn small" id="btnTorch" disabled title="Only some phone cameras have a light">&#128294; Torch</button>
       <button class="btn small" id="btnPlate" title="Point at the empty room and press this">&#127968; Empty room</button>
+      <button class="btn small" id="btnUnmirror" title="If writing comes out backwards, turn this on">&#8646; Un-mirror</button>
       <button class="btn small" id="btnBright" title="Records the same, but brightens the picture in the finished video">&#9728; Brighten</button>
       <span class="live" id="camState" hidden><i></i> camera live</span>
       <button class="btn small" id="btnClap" disabled title="Clap, or shout GO, and it starts filming">&#128066; Clap to start</button>
@@ -240,6 +241,8 @@
       <button class="btn small" id="btnPasteFx" disabled>Paste effects</button>
       <button class="btn small" id="btnPlate2" title="Scrub to a moment with nobody in shot, then press this">&#127968; This frame is the empty room</button>
       <button class="btn small" id="btnPlateOff" title="Forget it">no empty room</button>
+      <button class="btn small" id="btnKeepHead" title="Nothing will ever be drawn over this spot">&#128100; Keep my head in</button>
+      <button class="btn small" id="btnKeepOff" title="Let effects cover it again">no head guard</button>
     </div>
 
     <div class="cmdbox">
@@ -391,7 +394,7 @@ function allRecs(){
 }
 function rec(c){ return { id:c.id, name:c.name, blob:c.blob, duration:c.duration, start:c.start, end:c.end,
                           order:c.order, thumb:c.thumb, w:c.w, h:c.h, lum:c.lum, fx:c.fx, card:c.card,
-                          plate:c.plate, camPin:c.camPin }; }
+                          plate:c.plate, camPin:c.camPin, keep:c.keep }; }
 
 /* ---------- state ---------- */
 var clips = [], selId = null;
@@ -413,6 +416,7 @@ function addClip(blob, name){
 }
 
 /* ---------- title cards ("Part 1") ---------- */
+var _cardGrain = null;
 function drawCardTo(ctx, W, H, c, alpha){
   var S = H / 720, k = c.card || {};
   ctx.save(); ctx.globalAlpha = alpha;
@@ -425,6 +429,21 @@ function drawCardTo(ctx, W, H, c, alpha){
     ctx.font = "500 " + Math.round(42 * S) + "px Helvetica, Arial, sans-serif";
     ctx.fillText(k.sub, W/2, H/2 + 72 * S);
   }
+  /* a little noise: a perfectly flat black is not something a camera makes */
+  if (!_cardGrain) {
+    var gc = document.createElement("canvas"); gc.width = gc.height = 96;
+    var gg = gc.getContext("2d"), im = gg.createImageData(96, 96);
+    for (var i = 0; i < im.data.length; i += 4) {
+      var n = 96 + Math.random() * 64;
+      im.data[i] = im.data[i+1] = im.data[i+2] = n; im.data[i+3] = 255;
+    }
+    gg.putImageData(im, 0, 0); _cardGrain = gc;
+  }
+  ctx.globalCompositeOperation = "overlay";
+  ctx.globalAlpha = alpha * 0.06;
+  ctx.translate(-Math.floor(Math.random()*96), -Math.floor(Math.random()*96));
+  ctx.fillStyle = ctx.createPattern(_cardGrain, "repeat");
+  ctx.fillRect(0, 0, W + 96, H + 96);
   ctx.restore();
 }
 function cardThumb(c){
@@ -546,6 +565,15 @@ function checkDark(){
   $("btnBright").textContent = dark ? "\u2600 Brighten \u2014 it is dark" : (autoBright ? "\u2600 Brightening" : "\u2600 Brighten");
 }
 var roomPlate = null;                 /* the empty room, waiting for the next take */
+var unmirror = false;
+$("btnUnmirror").onclick = function(){
+  unmirror = !unmirror;
+  $("btnUnmirror").classList.toggle("on", unmirror);
+  $("preview").style.transform = unmirror ? "scaleX(-1)" : "";
+  $("camHint").innerHTML = unmirror
+    ? "Every take from now on is flipped back, so writing reads the right way round in the finished video."
+    : "Takes are kept exactly as the camera sends them.";
+};
 $("btnPlate").onclick = function(){
   if (!stream) { $("camHint").innerHTML = "Turn the camera on first."; return; }
   var cv = document.createElement("canvas");
@@ -567,6 +595,21 @@ $("btnPlate2").onclick = function(){
   store();
   $("cmdHint").innerHTML = "<b>That frame is now the empty room for this clip.</b> Anything that is not in it " +
     "will be drawn in front of the effects, and a vanish will be filled with it.";
+};
+function setKeep(){
+  var c = sel(); if (!c || c.card) return;
+  askSpot("your head", true).then(function(q){
+    c.keep = { x: q.x, y: q.y, r: q.r || 0.15 };
+    store();
+    $("cmdHint").innerHTML = "<b>Your head is guarded.</b> No effect will be drawn over it again \u2014 smoke, " +
+      "patches, anything \u2014 and it follows you about the picture.";
+  });
+}
+$("btnKeepHead").onclick = setKeep;
+$("btnKeepOff").onclick = function(){
+  var c = sel(); if (!c) return;
+  c.keep = null; store();
+  $("cmdHint").innerHTML = "The guard is off. Effects can cover that spot again.";
 };
 $("btnPlateOff").onclick = function(){
   var c = sel(); if (!c) return;
@@ -667,6 +710,12 @@ function startRec(){
       if (!blob.size) return;
       addClip(blob, "Take " + (clips.length + 1)).then(function(c){
         if (roomPlate) c.plate = roomPlate;
+        if (unmirror) {
+          c.fx.push({ id: uid(), type: "mirror", at: 0, dur: null, x: .5, y: .5, r: 0, area: "", notT: "",
+                      nx: 0, ny: 0, nr: 0, pos: "bottom", sound: "off", extra: [], holes: [],
+                      label: "flipped back at 0:00" });
+          put(rec(c));
+        }
         if (autoBright) {
           c.fx.push({ id: uid(), type: "bright", at: 0, dur: null, x: .5, y: .5, r: 0, area: "", notT: "",
                       nx: 0, ny: 0, nr: 0, pos: "bottom", label: "brighter at 0:00" });
@@ -1106,6 +1155,10 @@ var KINDS = [
                   "remove the disappear","take the disappear off","take off the disappear","cancel the disappear",
                   "stop hiding","never disappeared","not hidden any more"], spot:1, dur:null, nm:"disappear taken off" },
   /* "smoke hole" keeps one spot clear of whatever is going on */
+  /* "keep my head in the video" -- a guard nothing may draw over */
+  { t:"keep",     w:["keep my head","keep my face","my head in the video","my face in the video","never cover my head",
+                  "never cover my face","do not cover my head","always show my head","always show my face",
+                  "head always in","face always in"], spot:1, dur:null, nm:"head guarded" },
   { t:"clear",    w:["smoke hole","smoke whole","hole in the smoke","no smoke here","no smoke","keep this clear",
                   "keep it clear","clear spot","nothing here","nothing there"], spot:1, dur:null, nm:"kept clear" },
   { t:"censor",   w:["censor","pixelate","blur out","blur his face","blur her face","blur the face"], spot:1, dur:null, nm:"blurred out" },
@@ -1348,6 +1401,18 @@ function runCmd(text){
     }
     var f = list[i++];
 
+    /* the head guard is a property of the clip, not an effect on it */
+    if (f.type === "keep") {
+      askSpot("your head", true).then(function(q){
+        c.keep = { x: q.x, y: q.y, r: q.r || 0.15 };
+        store();
+        $("cmdHint").innerHTML = "<b>Your head is guarded.</b> Nothing will be drawn over it again, and it follows " +
+          "you about the picture.";
+        next();
+      });
+      return;
+    }
+
     /* taking a disappear off: tap the circle and it was never hidden */
     if (f.type === "undo") {
       var hides = (c.fx || []).filter(function(h){ return h.type === "hide" || h.type === "censor"; });
@@ -1552,7 +1617,7 @@ function drawFxList(){
 var EXAMPLES = ["make his hand disappear at second 13","make smoke come out of his hand at second 11",
   "make the piano not in the video","make the pen orange",
   "make his hand disappear at second 4 and reappear at second 9","smoke hole","undisappear",
-  "add a dog at second 4","put a big crown on his head",
+  "add a dog at second 4","put a big crown on his head","keep my head in the video",
   "from 11 to 15 smoke everywhere but not the human","cut out from 5 to 9 seconds",
   "blur his face","freeze at second 6 for 2 seconds",
   "fire from the ball at 4 seconds","sparkles on her head at second 2","explosion at second 6",
@@ -1664,10 +1729,38 @@ function sampleScene(st, v, dt){
     var l = d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114;
     if (l > best) { best = l; bx = xx / 48; by = yy / 27; }
   }
+  st.scData = d;
   st.avg = [R/n, G/n, B/n];
   st.grain = clamp(diff / n / 255 * 0.55, 0.012, 0.055);
   st.light = Math.atan2(by - 0.55, bx - 0.5);   /* where the brightest part of the room is */
 }
+/* Which side of a spot is the plainest? The patch is filled from there, so it
+   grabs blank wall rather than somebody's head. Judged on the little 48x27
+   copy of the frame taken a couple of times a second. */
+function flatWay(st, nx, ny, nr){
+  var d = st.scData, W2 = 48, H2 = 27;
+  var base = (nx > 0.5 ? -1 : 1);
+  if (!d) return base * nr * 2.1 * 1280;
+  var look = function(ox){
+    var cx = Math.round((nx + ox) * W2), cy = Math.round(ny * H2), n = 0, sum = 0, sum2 = 0;
+    for (var y = cy - 2; y <= cy + 2; y++) for (var x = cx - 3; x <= cx + 3; x++) {
+      if (x < 0 || y < 0 || x >= W2 || y >= H2) continue;
+      var i = (y * W2 + x) * 4, l = d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114;
+      sum += l; sum2 += l * l; n++;
+    }
+    if (!n) return 1e9;
+    var m = sum / n;
+    return sum2 / n - m * m;                                   /* how busy that patch is */
+  };
+  var best = base, bv = 1e9;
+  [-2.6, -2.1, 2.1, 2.6].forEach(function(k){
+    var ox = k * nr, v = look(ox);
+    if (nx + ox < 0.06 || nx + ox > 0.94) return;
+    if (v < bv) { bv = v; best = k; }
+  });
+  return best * nr;
+}
+
 /* nudge a colour towards the colour of the room */
 function roomy(st, r, g, b, amt){
   var a = st.avg || [128,128,128];
@@ -1712,8 +1805,9 @@ function grainOver(ctx, W, H, st){
    we look for it again nearby. No model, no training: just the closest match,
    at 320 pixels wide so it is quick. When the match gets bad -- the thing left
    the shot, or went behind something -- it stops and holds its last good spot. */
-function trackFrame(st, v, live, t){
+function trackFrame(st, v, live, t, keep){
   var jobs = [];
+  if (keep) jobs.push({ f: { id: "keep", x: keep.x, y: keep.y }, key: "keep:p", ax: "x", ay: "y" });
   live.forEach(function(f){
     if (f.trk) jobs.push({ f: f, key: f.id + ":p", ax: "x", ay: "y" });
     if (f.trkHole && f.nr > 0) jobs.push({ f: f, key: f.id + ":h", ax: "nx", ay: "ny" });
@@ -1932,7 +2026,7 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
   st.spill = [];
   sampleScene(st, v, dt);
   st.camTrack = !!c.camPin;
-  trackFrame(st, v, live, t);
+  trackFrame(st, v, live, t, c.keep);
 
   /* a freeze holds the picture still while the sound carries on underneath */
   var fz = null;
@@ -1984,7 +2078,7 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
     areas.forEach(function(ar, idx){
       var px = r.x + ar.x * r.w, py = r.y + ar.y * r.h;
       var rad = ar.r ? ar.r * r.w : Math.max(r.w, r.h) * 0.10;
-      var dx = (ar.x > 0.5 ? -1 : 1) * rad * 2.1;
+      var dx = flatWay(st, ar.x, ar.y, rad / Math.max(1, r.w)) * r.w;  /* copy from the emptiest side, not a face */
       ctx.save(); ctx.globalAlpha = alpha * fade;
       var pl = plateImg(st, c);
       soft(ctx, W, H, st, px, py, rad, function(g){
@@ -2043,7 +2137,7 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
     var wind = (f.wind || 0) * 60 * S;
     var mk = function(o){ o.z = 0.55 + rnd2(st,f) * 0.95; o.vx += wind; o.r *= o.z * vv.size; o.vx *= o.z; o.vy *= o.z; o.px = o.x; o.py = o.y; return o; };
 
-    if (f.type === "smoke")    spawn(st, f, dt * (ALL ? 120 : 34) * G, function(){ var q = from();
+    if (f.type === "smoke")    spawn(st, f, dt * (ALL ? 46 : 26) * G, function(){ var q = from();
         return mk({ k:"smoke", x:q.x, y:q.y, vx:jit(st,f,22*S), vy:-(45+rnd2(st,f)*45)*S, r:(ALL?24:11)*S, a:0, m:ALL?3.4:2.0, s:rnd2(st,f)*6 }); });
     if (f.type === "fire")     spawn(st, f, dt * (ALL ? 190 : 70) * G, function(){ var q = ALL ? { x:rnd2(st,f)*W, y:H*(0.75+rnd2(st,f)*0.3) } : from();
         return mk({ k:"fire", x:q.x, y:q.y, vx:jit(st,f,28*S), vy:-(110+rnd2(st,f)*90)*S, r:(7+rnd2(st,f)*7)*S, a:0, m:.75 }); });
@@ -2186,6 +2280,10 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
 
   /* --- "but not the human": their picture painted back over the effect --- */
   var holes = [];
+  if (c.keep) {                                          /* your head: never covered by anything */
+    var kp = (st.pos && st.pos["keep:p"]) || { x: c.keep.x, y: c.keep.y };
+    holes.push({ x: kp.x, y: kp.y, r: c.keep.r || 0.16, tall: true });
+  }
   live.forEach(function(f){
     if (f.nr > 0) {
       var hp = (st.pos && st.pos[f.id + ":h"]) || { x: f.nx, y: f.ny };
@@ -2270,9 +2368,36 @@ function hex2rgb(x){
   return [parseInt(x.slice(0,2),16) || 0, parseInt(x.slice(2,4),16) || 0, parseInt(x.slice(4,6),16) || 0];
 }
 
+/* One ragged, soft-edged puff, drawn twice: a dark pass that multiplies into
+   the room (so smoke darkens what is behind it and picks up the room's own
+   colour) and a lighter pass on top. Solid circles were the giveaway. */
+function smokeSprites(st){
+  if (st.smk) return st.smk;
+  var mk = function(col){
+    var c = document.createElement("canvas"); c.width = c.height = 128;
+    var g = c.getContext("2d");
+    var gr = g.createRadialGradient(64, 64, 3, 64, 64, 62);
+    gr.addColorStop(0, "rgba(255,255,255,.92)");
+    gr.addColorStop(0.5, "rgba(255,255,255,.44)");
+    gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    g.globalCompositeOperation = "destination-out";          /* bite lumps out of it */
+    for (var i = 0; i < 22; i++) {
+      var a = Math.random()*6.3, d = 24 + Math.random()*38;
+      var x = 64 + Math.cos(a)*d, y = 64 + Math.sin(a)*d, r = 9 + Math.random()*18;
+      var g2 = g.createRadialGradient(x, y, 0, x, y, r);
+      g2.addColorStop(0, "rgba(0,0,0,.6)"); g2.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = g2; g.fillRect(x-r, y-r, r*2, r*2);
+    }
+    g.globalCompositeOperation = "source-in"; g.fillStyle = col; g.fillRect(0, 0, 128, 128);
+    return c;
+  };
+  st.smk = { lite: mk("#d2d5db"), dark: mk("#3c3f47") };
+  return st.smk;
+}
 function rnd(n){ return (Math.random() - 0.5) * 2 * n; }
 function spawn(st, f, n, make){
-  if (st.p.length > 1600) return;
+  if (st.p.length > 900) return;
   var k = Math.floor(n) + (rnd2(st, f) < (n % 1) ? 1 : 0);
   for (var i = 0; i < k; i++) st.p.push(make());
 }
@@ -2301,13 +2426,22 @@ function step(ctx, st, dt, H, S){
     var life = 1 - p.a / p.m;
     ctx.save();
     if (p.k === "smoke") {
-      p.r += 26*S*dt*(p.z||1); p.vy -= 12*S*dt;
-      ctx.globalAlpha *= life * 0.42;
-      ctx.fillStyle = roomy(st, 201, 203, 210, 0.35);
-      var sp = (p.s || 0) + p.a * 0.7;                    /* three lobes, turning, so it is not a ball */
-      for (var j = 0; j < 3; j++) {
-        var an = sp + j * 2.1, rr = p.r * (0.62 + 0.18 * j);
-        ctx.beginPath(); ctx.arc(p.x + Math.cos(an)*p.r*0.34, p.y + Math.sin(an)*p.r*0.26, rr, 0, 7); ctx.fill();
+      p.r += 22*S*dt*(p.z||1); p.vy -= 12*S*dt;
+      p.vx += Math.sin(p.a * 0.9 + (p.s || 0)) * 9 * S * dt;   /* it drifts, even with no wind asked for */
+      var sp3 = smokeSprites(st), base = ctx.globalAlpha * life, turn = (p.s || 0) + p.a * 0.45;
+      var d2 = p.r * 2.6;
+      ctx.translate(p.x, p.y);
+      ctx.globalCompositeOperation = "multiply";               /* takes the colour of what is behind it */
+      ctx.globalAlpha = base * 0.30;
+      for (var j = 0; j < 2; j++) {
+        ctx.save(); ctx.rotate(turn + j * 2.3); ctx.scale(1, 0.86);
+        ctx.drawImage(sp3.dark, -d2/2, -d2/2, d2, d2); ctx.restore();
+      }
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = base * 0.20;
+      for (var j2 = 0; j2 < 2; j2++) {
+        ctx.save(); ctx.rotate(-turn * 0.7 + j2 * 1.9); ctx.scale(1, 0.9);
+        ctx.drawImage(sp3.lite, -d2/2, -d2/2, d2, d2); ctx.restore();
       }
     } else if (p.k === "fire") {
       p.r *= (1 - 0.9*dt); p.vy += 60*S*dt;
@@ -2485,6 +2619,11 @@ $("btnExport").onclick = function(){
       drawFrame(ctx, W, H, p.v, p.c, t, a, dt, p.st,
                 { fill: fill, k: p.k, smooth: rt < 1, actx: A, snd: dest, hear: hear ? A.destination : null });
     });
+
+    var fadeK = Math.min(clamp(now / 0.6, 0, 1), clamp((total - now) / 0.6, 0, 1));
+    if (fadeK < 1) {                                    /* up from black, and out to black */
+      ctx.save(); ctx.globalAlpha = 1 - fadeK; ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H); ctx.restore();
+    }
 
     $("bar").style.width = clamp(now / total * 100, 0, 100) + "%";
     $("expInfo").textContent = fmt(now) + " / " + fmt(total);

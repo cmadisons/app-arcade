@@ -1463,6 +1463,23 @@ function runCmd(text){
   var c = sel(); if (!c) { alert("Pick a clip first."); return; }
   if (!text.trim()) return;
 
+  /* "fill from 0.42 0.71" -- the answer the Background Finder gives you */
+  var fill = text.toLowerCase().match(/\b(?:fill|patch|background|copy)\s*(?:from|at)?\s*([01]?\.?\d+)\s*[, ]\s*([01]?\.?\d+)/);
+  if (fill) {
+    var fx = clamp(parseFloat(fill[1]) > 1 ? parseFloat(fill[1]) / 100 : parseFloat(fill[1]), 0, 1);
+    var fy = clamp(parseFloat(fill[2]) > 1 ? parseFloat(fill[2]) / 100 : parseFloat(fill[2]), 0, 1);
+    var hid2 = (c.fx || []).filter(function(h){ return h.type === "hide"; }).pop();
+    if (!hid2) { $("cmdHint").innerHTML = "<b>Make something disappear first</b>, then tell it where to fill from."; }
+    else {
+      hid2.askX = fx; hid2.askY = fy; hid2.askDesc = "filled from " + Math.round(fx*100) + "," + Math.round(fy*100);
+      store(); drawFxList();
+      $("cmdHint").innerHTML = "The hole is filled from <b>" + Math.round(fx*100) + "% across, " +
+        Math.round(fy*100) + "% down</b> the picture. Preview it to see.";
+    }
+    $("cmd").value = "";
+    return;
+  }
+
   /* "cut out from 5 to 9 seconds" is a real edit, not an effect */
   var cut = text.toLowerCase().match(/\b(?:cut|delete|skip|chop|drop)\b[^0-9]*(\d+(?::\d\d)?(?:\.\d+)?)\s*(?:s\b|secs?\b|seconds?\b)?\s*(?:to|until|till|-|and)\s*(\d+(?::\d\d)?(?:\.\d+)?)/);
   if (cut) { cutOut(c, secs(cut[1]), secs(cut[2])); $("cmd").value = ""; return; }
@@ -1715,7 +1732,7 @@ function drawFxList(){
 })();
 
 var EXAMPLES = ["make his hand disappear at second 13","make smoke come out of his hand at second 11",
-  "make the piano not in the video","make the pen orange",
+  "make the piano not in the video","make the pen orange","fill from 0.42 0.71",
   "make his hand disappear at second 4 and reappear at second 9","smoke hole","undisappear",
   "add a dog at second 4","put a big crown on his head","keep my head in the video",
   "from 11 to 15 smoke everywhere but not the human","cut out from 5 to 9 seconds",

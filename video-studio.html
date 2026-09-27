@@ -1094,7 +1094,11 @@ var KINDS = [
   { t:"add",      w:["ball","football","basketball","baseball","hat","crown","sunglasses","glasses","dog","puppy","cat","bird","dragon","dinosaur","monkey","star","sun","moon","cloud","rainbow","tree","flower","pizza","cake","burger","apple","banana","ice cream","balloon","car","truck","rocket","plane","boat","train","sword","shield","guitar","drum","trumpet","phone","book","money","trophy","medal","ghost","alien","robot","skull","fish","butterfly","bee","snowman","pumpkin","gift","present","bell","key","clock","lightbulb","umbrella","hammer","camera","microphone","piano","pen","hand","eyes","fire hydrant"], spot:1, dur:null, nm:"added" },
   /* "reappear at second 9" ends whichever disappear was running, with a puff */
   { t:"reappear", w:["reappear","reapear","re-appear","come back","comes back","bring it back","put it back",
-                  "appear again","unhide","undisappear"], spot:0, dur:0.9, nm:"comes back" },
+                  "appear again","unhide"], spot:0, dur:0.9, nm:"comes back" },
+  /* "undisappear", then tap the circle: that disappear is taken off the clip for good */
+  { t:"undo",     w:["undisappear","undissapear","un-disappear","un disappear","undo the disappear",
+                  "remove the disappear","take the disappear off","take off the disappear","cancel the disappear",
+                  "stop hiding","never disappeared","not hidden any more"], spot:1, dur:null, nm:"disappear taken off" },
   /* "smoke hole" keeps one spot clear of whatever is going on */
   { t:"clear",    w:["smoke hole","smoke whole","hole in the smoke","no smoke here","no smoke","keep this clear",
                   "keep it clear","clear spot","nothing here","nothing there"], spot:1, dur:null, nm:"kept clear" },
@@ -1322,16 +1326,61 @@ function runCmd(text){
   var next = function(){
     if (i >= list.length) {
       $("cmd").value = "";
-      $("cmdHint").innerHTML = "Added: <b>" + esc(list.map(function(f){ return f.label; }).join(", ")) +
+      var added = list.filter(function(f){ return f.type !== "undo"; });
+      if (!added.length) { store(); drawFxList(); return; }   /* it took something off; its own message stands */
+      $("cmdHint").innerHTML = "Added: <b>" + esc(added.map(function(f){ return f.label; }).join(", ")) +
         "</b>. " + (list.map(function(f){ return f._note || ""; }).filter(Boolean).join(" ") || "") +
         " Press Preview with effects to watch it." +
-        (list.some(function(f){ return f.snapped; })
+        (added.some(function(f){ return f.snapped; })
           ? " <i>Moved onto the nearest sharp moment in the sound \u2014 change the number on the chip if you want it exactly where you said.</i>" : "");
       store(); drawFxList();
-      $("editVid").currentTime = clamp(c.start + list[0].at, c.start, c.end);
+      $("editVid").currentTime = clamp(c.start + added[0].at, c.start, c.end);
       return;
     }
     var f = list[i++];
+
+    /* taking a disappear off: tap the circle and it was never hidden */
+    if (f.type === "undo") {
+      var hides = (c.fx || []).filter(function(h){ return h.type === "hide" || h.type === "censor"; });
+      if (!hides.length) {
+        $("cmdHint").innerHTML = "<b>Nothing on this clip has been made to disappear.</b> Nothing to take off.";
+        return next();
+      }
+      if (/\b(all|everything|every one|the lot)\b/.test(text.toLowerCase())) {
+        c.fx = (c.fx || []).filter(function(h){ return h.type !== "hide" && h.type !== "censor" && h.type !== "reappear"; });
+        store(); drawFxList(); pushHist();
+        $("cmdHint").innerHTML = "Took <b>" + hides.length + "</b> of them off. Nothing is hidden on this clip now.";
+        return next();
+      }
+      askSpot("the circle that disappeared").then(function(q){
+        var asp = (c.h || 9) / (c.w || 16), best = null, bd = 1e9;
+        hides.forEach(function(h){
+          var dx = q.x - h.x, dy = (q.y - h.y) * asp;
+          var d0 = Math.sqrt(dx*dx + dy*dy), rad = (h.r || 0.10) * 1.5;
+          if (d0 < rad && d0 < bd) { bd = d0; best = h; }
+        });
+        var missed = false;
+        if (!best && hides.length === 1) { best = hides[0]; missed = true; }  /* only one: it must be that one */
+        if (!best) {
+          $("cmdHint").innerHTML = "<b>No disappear there.</b> There " + (hides.length === 1 ? "is one" : "are " +
+            hides.length) + " on this clip \u2014 tap right in the middle of the circle, or say " +
+            "<b>undisappear everything</b>.";
+          return next();
+        }
+        var was = best.label.replace(/ at \d+:\d\d$/, "");
+        c.fx = (c.fx || []).filter(function(h){
+          if (h.id === best.id) return false;
+          if (h.type === "reappear" && Math.abs(h.x - best.x) < 0.02 && Math.abs(h.y - best.y) < 0.02) return false;
+          return true;                                            /* its "comes back" puff goes with it */
+        });
+        store(); drawFxList(); pushHist();
+        $("cmdHint").innerHTML = (missed ? "You tapped away from it, but it was the only one on the clip. " : "") +
+          "Took <b>" + esc(was) + "</b> off \u2014 that thing is in the video the whole way through now. " +
+          "Undo brings it back if you change your mind.";
+        next();
+      });
+      return;
+    }
 
     /* coming back: find the disappear that is still running and stop it here */
     if (f.type === "reappear") {
@@ -1493,7 +1542,7 @@ function drawFxList(){
 
 var EXAMPLES = ["make his hand disappear at second 13","make smoke come out of his hand at second 11",
   "make the piano not in the video","make the pen orange",
-  "make his hand disappear at second 4 and reappear at second 9","smoke hole",
+  "make his hand disappear at second 4 and reappear at second 9","smoke hole","undisappear",
   "add a dog at second 4","put a big crown on his head",
   "from 11 to 15 smoke everywhere but not the human","cut out from 5 to 9 seconds",
   "blur his face","freeze at second 6 for 2 seconds",

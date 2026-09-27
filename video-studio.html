@@ -114,6 +114,7 @@
   .fx .sm{color:var(--muted);font-size:12.5px}
   .fx .more,.fx .clr,.fx .pic{color:var(--accent2);font-size:12.5px}
   .fx .trk,.fx .trkh{color:var(--accent);font-size:12.5px}
+  .fx .ask{color:#ffd84a;font-size:12.5px}
   .fx .num2{width:56px;background:#0f1320;color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:3px 6px;font-size:13px}
   .fx button:hover{color:var(--rec)}
   /* timeline */
@@ -1330,6 +1331,73 @@ function parseCmd(s, c){
            label: word + (area ? " everywhere" : "") + (notT ? " but not " + notT : "") + " at " + fmt(at) };
 }
 
+/* ---------- asking Claude what is behind the thing ----------
+   Only works where the page is allowed to ask: published as an artifact on
+   claude.ai. Anywhere else claude.use resolves nothing and the app quietly
+   goes back to working it out for itself. */
+var _sampler;
+function sampler(){
+  if (_sampler !== undefined) return Promise.resolve(_sampler);
+  if (!window.claude || !window.claude.use) { _sampler = null; return Promise.resolve(null); }
+  return window.claude.use("sample").then(function(s){ _sampler = s || null; return _sampler; })
+                                    .catch(function(){ _sampler = null; return null; });
+}
+var ASK = 'This is one frame from a home video. The bright green ring marks a thing I want to rub out of ' +
+  'the picture. Look at the WHOLE picture and work out what is behind that thing. Reply with only JSON in ' +
+  'this shape, nothing else:\n' +
+  '{"background":"six words or fewer","copyFrom":{"x":0.42,"y":0.71},"colour":"#rrggbb","sure":true}\n' +
+  'copyFrom must point at a place in THIS SAME picture showing that background cleanly -- as far from ' +
+  'people, hands and edges as you can get -- measured from the left and the top as fractions of the ' +
+  'width and the height. colour is the average colour there. sure is false if the background is hidden ' +
+  'and you are guessing.';
+
+function askClaude(c, f){
+  return sampler().then(function(sm){
+    if (!sm) return null;
+    return Promise.resolve(sm.limits ? sm.limits().catch(function(){ return null; }) : null).then(function(lim){
+      if (!lim || !lim.images) return { none: "images" };
+      var v = $("editVid");
+      var W = 1024, H = Math.max(200, Math.round(W * (v.videoHeight || 720) / (v.videoWidth || 1280)));
+      var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+      var g = cv.getContext("2d");
+      try { g.drawImage(v, 0, 0, W, H); } catch(e){ return null; }
+      var rad = (f.r ? f.r : 0.10) * W;
+      g.strokeStyle = "#19ff9b"; g.lineWidth = Math.max(3, W * 0.005);
+      g.beginPath(); g.arc(f.x * W, f.y * H, rad, 0, 7); g.stroke();
+      return new Promise(function(res){ cv.toBlob(res, "image/jpeg", 0.85); }).then(function(blob){
+        if (!blob) return null;
+        var ctl = new AbortController();
+        /* the user asked for thirty seconds; after that we stop paying for it */
+        var timer = setTimeout(function(){ ctl.abort(); }, 30000);
+        return sm.json(ASK, { images: [blob], modelTier: "quick", signal: ctl.signal })
+          .then(function(j){ clearTimeout(timer); return j; },
+                function(e){ clearTimeout(timer); return { err: (e && e.code) || "upstream_error" }; });
+      });
+    });
+  }).catch(function(){ return null; });
+}
+
+function useAnswer(c, f, ans){
+  if (!ans) { return "Claude is only able to look at the picture on the claude.ai copy of this app."; }
+  if (ans.none === "images") return "This viewer will not let the page send a picture, so it worked the background out for itself.";
+  if (ans.err) return ans.err === "cancelled"
+    ? "Claude took longer than thirty seconds, so it worked the background out for itself."
+    : ans.err === "not_granted"
+      ? "You said no to asking Claude, so it worked the background out for itself."
+      : "Claude could not answer (" + esc(ans.err) + "), so it worked the background out for itself.";
+  var cf = ans.copyFrom || {};
+  if (typeof cf.x === "number" && typeof cf.y === "number") {
+    f.askX = clamp(cf.x, 0, 1); f.askY = clamp(cf.y, 0, 1);
+  }
+  if (typeof ans.colour === "string" && /^#[0-9a-f]{6}$/i.test(ans.colour)) f.askCol = ans.colour;
+  f.askDesc = String(ans.background || "").slice(0, 60);
+  f.askSure = ans.sure !== false;
+  store(); drawFxList();
+  return "Claude looked at the whole picture: behind it is <b>" + esc(f.askDesc || "something") + "</b>" +
+    (f.askX !== undefined ? ", and it picked a clean patch of that to fill the hole with" : "") +
+    (f.askSure ? "." : " \u2014 though it is guessing, because the background never shows.");
+}
+
 /* tap a spot on the picture */
 var picking = null, down = null;
 function ptOf(e){
@@ -1498,6 +1566,13 @@ function runCmd(text){
     if (f.need) askSpot(f.type === "clear" ? "the spot to keep clear" : (f.target || "the spot"),
                         f.type === "hide" || f.type === "censor" || f.type === "clear").then(function(p){
       f.x = p.x; f.y = p.y; f.r = p.r;
+      if (f.type === "hide") {
+        sampler().then(function(sm){
+          if (!sm) return;
+          $("cmdHint").innerHTML = "Asking Claude what is behind it\u2026 <i>up to thirty seconds</i>";
+          askClaude(c, f).then(function(ans){ $("cmdHint").innerHTML = useAnswer(c, f, ans); });
+        });
+      }
       if (f.type === "keep") {
         f.holes = [{ x: p.x, y: p.y, r: p.r ? p.r * 1.3 : 0.22, guard: 1 }];
         f.trk = true;
@@ -1555,6 +1630,8 @@ function drawFxList(){
         (f.trk ? "\u25C9 follows" : "\u25CB fixed") + '</button>' : '') +
       (f.notT ? ' <button class="trkh" title="Follow the person kept clear">' +
         (f.trkHole ? "\u25C9 they move" : "\u25CB they stand still") + '</button>' : '') +
+      (f.type === "hide" ? ' <button class="ask" title="Ask Claude what is behind it">' +
+        (f.askDesc ? "\u2726 " + esc(f.askDesc) : "\u2726 ask Claude") + '</button>' : '') +
       (/^(hide|censor)$/.test(f.type) ? ' <button class="more" title="Hide another spot too">+spot</button>' : '') +
       (/^(smoke|fire|sparkle|hearts|bubbles|snow|rain|confetti)$/.test(f.type)
          ? ' <button class="clr" title="Keep somebody else clear of it">+clear</button>' : '') +
@@ -1570,6 +1647,12 @@ function drawFxList(){
     var trk = el.querySelector(".trk"), trkh = el.querySelector(".trkh");
     if (trk) trk.onclick = function(){ f.trk = !f.trk; store(); drawFxList(); };
     if (trkh) trkh.onclick = function(){ f.trkHole = !f.trkHole; store(); drawFxList(); };
+    var askb = el.querySelector(".ask");
+    if (askb) askb.onclick = function(){
+      askb.textContent = "\u2726 asking\u2026";
+      $("cmdHint").innerHTML = "Asking Claude what is behind it\u2026 <i>up to thirty seconds</i>";
+      askClaude(c, f).then(function(ans){ $("cmdHint").innerHTML = useAnswer(c, f, ans); drawFxList(); });
+    };
     var more = el.querySelector(".more"), clr = el.querySelector(".clr"), pic = el.querySelector(".pic");
     if (more) more.onclick = function(){
       askSpot("the next spot to hide", true).then(function(q){
@@ -2096,13 +2179,17 @@ function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
       var px = r.x + ar.x * r.w, py = r.y + ar.y * r.h;
       var rad = ar.r ? ar.r * r.w : Math.max(r.w, r.h) * 0.10;
       var dx = flatWay(st, ar.x, ar.y, rad / Math.max(1, r.w)) * r.w;  /* copy from the emptiest side, not a face */
+      var dy = 0;
+      if (idx === 0 && f.askX !== undefined) {            /* Claude looked at the picture and pointed here */
+        dx = (ar.x - f.askX) * r.w; dy = (ar.y - f.askY) * r.h;
+      }
       ctx.save(); ctx.globalAlpha = alpha * fade;
       var pl = plateImg(st, c);
       soft(ctx, W, H, st, px, py, rad, function(g){
         g.filter = FILT;                                  /* the patch wears the same look as the frame */
         try {
           if (pl) g.drawImage(pl, r.x, r.y, r.w, r.h);    /* the real empty background, not a copy of next door */
-          else g.drawImage(src, r.x + dx, r.y, r.w, r.h);
+          else g.drawImage(src, r.x + dx, r.y + dy, r.w, r.h);
         } catch(e){}
       });
       ctx.restore();

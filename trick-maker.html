@@ -1,0 +1,1965 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trick Maker</title>
+<style>
+  :root{
+    --bg:#0e1013; --panel:#171a20; --panel2:#1f242c; --line:#2f3640;
+    --fg:#f2f4f7; --muted:#9299a6; --gold:#f0b429; --go:#33d6a6; --rec:#ff4d5e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:16px/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  button,input,select,textarea{font:inherit}
+  button{cursor:pointer}
+  .wrap{max-width:1000px;margin:0 auto;padding:18px 16px 70px}
+  header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:4px 0 6px}
+  h1{font-size:30px;margin:0;letter-spacing:-.5px}
+  h1 span{color:var(--gold)}
+  .sub{color:var(--muted);font-size:14px}
+  .ver{margin-left:auto;color:var(--muted);font-size:11.5px;background:var(--panel2);
+       border:1px solid var(--line);border-radius:999px;padding:2px 9px}
+  .lede{color:var(--muted);max-width:66ch;margin:0 0 18px}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px;margin-bottom:15px}
+  .step h2{margin:0 0 3px;font-size:17px}
+  .step h2 b{color:var(--gold);font-variant-numeric:tabular-nums;margin-right:7px}
+  .step .why{color:var(--muted);font-size:14px;margin:0 0 12px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+  .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:999px;
+       padding:9px 16px;font-weight:600}
+  .btn:hover{border-color:var(--gold)}
+  .btn:disabled{opacity:.42;cursor:not-allowed}
+  .btn.gold{background:var(--gold);border-color:var(--gold);color:#241a00}
+  .btn.go{background:var(--go);border-color:var(--go);color:#06241c}
+  .btn.rec{background:var(--rec);border-color:var(--rec);color:#fff}
+  .btn.small{padding:6px 12px;font-size:14px}
+  .btn.on{background:var(--go);border-color:var(--go);color:#06241c}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:720px){ .two{grid-template-columns:1fr} }
+  video,canvas.pic{width:100%;background:#000;border-radius:12px;display:block}
+  .shot{position:relative}
+  .shot canvas.over{position:absolute;left:0;top:0;width:100%;height:100%;border-radius:12px}
+  #pick{position:absolute;inset:0;border-radius:12px;background:rgba(10,14,20,.5);cursor:crosshair;
+        display:flex;align-items:flex-start;justify-content:center;padding-top:14px}
+  #pick b{background:var(--go);color:#06241c;border-radius:999px;padding:7px 15px;font-size:14.5px;pointer-events:none}
+  #ring{position:absolute;border:3px dashed var(--go);border-radius:50%;pointer-events:none;background:rgba(51,214,166,.12)}
+  .hint{color:var(--muted);font-size:13.5px;margin:9px 0 0}
+  .hint b{color:var(--fg)}
+  .note{border-radius:10px;padding:9px 12px;margin-top:10px;font-size:14px;border:1px solid var(--line);
+        background:var(--panel2);animation:pop .45s ease-out}
+  .note.ask{border-color:var(--go);background:#0f2b25;color:#b5f2e1}
+  .note.bad{border-color:#ff7a86;background:#331a1e;color:#ffd6da}
+  @keyframes pop{from{transform:translateY(-4px);opacity:.3}to{transform:none;opacity:1}}
+  .meter{display:inline-block;width:92px;height:9px;background:var(--panel2);border-radius:999px;
+         overflow:hidden;border:1px solid var(--line);vertical-align:-1px}
+  .meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--go),var(--gold),var(--rec))}
+  .timer{font-variant-numeric:tabular-nums;font-weight:700;color:var(--muted)}
+  .timer.on{color:var(--rec)}
+  body.filming::after{content:"";position:fixed;inset:0;border:8px solid var(--rec);pointer-events:none;z-index:90}
+  /* the screen test */
+  .report{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:12px}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+  .card .k{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  .card .v{font-size:21px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+  .card .s{color:var(--muted);font-size:13px;margin-top:2px}
+  .card.warn{border-color:var(--gold)}
+  .card.warn .v{color:var(--gold)}
+  .bar{height:34px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);
+       position:relative;overflow:hidden;margin-top:12px}
+  .bar canvas{position:absolute;inset:0;width:100%;height:100%}
+  .bar .best{position:absolute;top:0;bottom:0;background:rgba(51,214,166,.26);border-left:2px solid var(--go);
+             border-right:2px solid var(--go)}
+  /* the tricks */
+  textarea{width:100%;min-height:104px;background:#12151a;color:var(--fg);border:1px solid var(--line);
+           border-radius:12px;padding:11px 13px;resize:vertical;line-height:1.6}
+  .ex{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .ex button{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:999px;
+             padding:5px 11px;font-size:13px}
+  .ex button:hover{color:var(--fg);border-color:var(--gold)}
+  .tricks{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .trick{display:flex;flex-wrap:wrap;gap:9px;align-items:center;background:var(--panel2);
+         border:1px solid var(--line);border-radius:12px;padding:9px 11px}
+  .trick .when{color:var(--gold);font-weight:700;font-variant-numeric:tabular-nums}
+  .trick .said{flex:1 1 220px;min-width:140px}
+  .trick .said i{color:var(--muted);font-style:normal;font-size:13px;display:block}
+  .trick .num{width:62px;background:#12151a;color:var(--fg);border:1px solid var(--line);
+              border-radius:8px;padding:4px 7px;font-size:13.5px}
+  .trick button{background:none;border:none;color:var(--muted);font-size:15px}
+  .trick button:hover{color:var(--rec)}
+  .trick .spot{color:var(--go);font-size:13px}
+  .chk{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:14px}
+  .prog{height:11px;background:var(--panel2);border-radius:999px;overflow:hidden;margin-top:11px}
+  .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--go));transition:width .2s}
+  a.dl{display:inline-block;background:var(--go);color:#06241c;font-weight:700;text-decoration:none;
+       border-radius:999px;padding:9px 18px}
+</style>
+</head><body>
+<div class="wrap">
+  <header>
+    <h1>Trick <span>Maker</span></h1>
+    <div class="sub">film it &middot; say what happens &middot; make it look real</div>
+    <div class="ver" id="ver">build</div>
+  </header>
+  <p class="lede">Film yourself doing the thing &mdash; a card trick, a trick shot, anything. Write what
+    happens in your own words. It watches the take back to find where you were stillest, puts the magic
+    there, and hands you a finished video with your own voice on it.</p>
+
+  <!-- 1 -->
+  <section class="step">
+    <h2><b>1</b>Film yourself</h2>
+    <p class="why">This is the real you: your face, your voice, your blinks, the way you move. Everything
+      else is drawn on top of it.</p>
+    <div class="two">
+      <div>
+        <div class="shot">
+          <video id="cam" autoplay muted playsinline style="aspect-ratio:16/9;object-fit:cover"></video>
+          <canvas class="over" id="camOver" hidden></canvas>
+        </div>
+        <div class="row">
+          <button class="btn gold" id="btnCam">Turn on camera</button>
+          <button class="btn rec" id="btnRec" disabled>&#9679; Film</button>
+          <span class="timer" id="timer">0:00</span>
+          <span class="meter" title="sound going in"><i id="lvl"></i></span>
+        </div>
+        <div class="row">
+          <label class="btn small" for="vidFile">Use a video I already have</label>
+          <input type="file" id="vidFile" accept="video/*" hidden>
+          <button class="btn small" id="btnPlate" title="Point at the room with nobody in it">&#127968; Empty room</button>
+          <button class="btn small" id="btnUnmirror" title="If writing comes out backwards">&#8646; Un-mirror</button>
+        </div>
+        <p class="hint" id="camHint">Put the camera on something solid. Twenty seconds is plenty.</p>
+      </div>
+      <div>
+        <div class="shot">
+          <video id="take" controls playsinline hidden></video>
+          <canvas class="pic" id="stage" width="1280" height="720" hidden></canvas>
+          <div id="pick" hidden><b id="pickMsg">Tap the spot</b><div id="ring" hidden></div></div>
+          <div id="noTake" class="card" style="text-align:center;padding:38px 16px">
+            <div class="k">no take yet</div>
+            <div class="s">Film one, or choose a video</div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn small" id="btnHead" disabled>&#128100; Ring my head</button>
+          <button class="btn small" id="btnPreview" disabled>&#9654; Preview with the tricks</button>
+          <span class="hint" id="takeInfo"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="step">
+    <h2><b>2</b>A picture of you</h2>
+    <p class="why">Used for the card at the front, so the film opens on you. Skip it if you would rather
+      it just started.</p>
+    <div class="row">
+      <button class="btn" id="btnSnap" disabled>Take it with the camera</button>
+      <label class="btn" for="photoFile">Choose a picture</label>
+      <input type="file" id="photoFile" accept="image/*" hidden>
+      <input type="text" id="cardText" class="num" style="width:180px" placeholder="words on the card" value="">
+      <button class="btn small" id="btnNoCard">no card</button>
+      <canvas id="photo" width="320" height="180" style="border-radius:9px;background:#000;display:none"></canvas>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="step">
+    <h2><b>3</b>What it saw</h2>
+    <p class="why">It plays your take back and measures it, so the tricks land where they will hold up.</p>
+    <div class="row">
+      <button class="btn gold" id="btnTest" disabled>Watch my take back</button>
+      <span class="hint" id="testHint">Takes about half as long as the take itself.</span>
+    </div>
+    <div class="prog" id="testProg" hidden><i id="testBar"></i></div>
+    <div class="report" id="report" hidden></div>
+    <div class="bar" id="stillBar" hidden><canvas id="stillCv"></canvas><div class="best" id="bestBand" hidden></div></div>
+    <p class="hint" id="bestSays" hidden></p>
+  </section>
+
+  <!-- 4 -->
+  <section class="step">
+    <h2><b>4</b>What happens</h2>
+    <p class="why">One line each, in your own words: what you do, roughly when, and what should be seen.</p>
+    <textarea id="script" placeholder="I hold up a card and wave my hand over it and it is gone, about 5 seconds in
+it comes back at 9 seconds in a puff of smoke
+thick smoke from my hand at 13 seconds"></textarea>
+    <div class="ex" id="ex"></div>
+    <div class="row">
+      <button class="btn gold" id="btnRead">Read it</button>
+      <label class="chk"><input type="checkbox" id="snapStill" checked> move each trick onto the stillest moment near it</label>
+    </div>
+    <div class="tricks" id="tricks"></div>
+    <div class="note" id="says" hidden></div>
+  </section>
+
+  <!-- 5 -->
+  <section class="step">
+    <h2><b>5</b>Make it</h2>
+    <div class="row">
+      <label class="chk">Size
+        <select id="size" class="btn small">
+          <option value="1280x720" selected>720p</option>
+          <option value="1920x1080">1080p</option>
+          <option value="854x480">480p</option>
+        </select>
+      </label>
+      <label class="chk"><input type="checkbox" id="hear" checked> play it while it builds</label>
+      <button class="btn go" id="btnMake" disabled>Make the video</button>
+      <button class="btn" id="btnStop" hidden>Stop</button>
+      <span class="timer" id="makeInfo"></span>
+    </div>
+    <div class="prog"><i id="makeBar"></i></div>
+    <canvas id="out" width="1280" height="720" style="width:100%;border-radius:12px;margin-top:11px;background:#000;display:none"></canvas>
+    <div id="done" hidden>
+      <div class="note">Done. Your take, your voice, the tricks on top.</div>
+      <video id="outVid" controls playsinline style="margin-top:11px"></video>
+      <div class="row"><a class="dl" id="dl" download="trick.webm">&#11015; Save it</a></div>
+    </div>
+    <p class="hint">It builds in real time, so a 30 second film takes about 30 seconds.</p>
+  </section>
+</div>
+
+<script>
+/* ===== the effects engine, lifted straight out of Video Studio ===== */
+
+var COL = { red:"#e02b20", orange:"#ff8a1f", yellow:"#ffd400", green:"#2fbf3f", blue:"#2b6cff",
+  purple:"#8b3ff0", pink:"#ff5fae", black:"#101010", white:"#f2f2f2", brown:"#7a4a1f",
+  grey:"#8a8a8a", gray:"#8a8a8a", gold:"#d4af37", silver:"#c0c0c0", teal:"#17c3c3", cyan:"#17c3c3" };
+
+var OBJ = {"ball":"⚽", "football":"🏈", "basketball":"🏀", "baseball":"⚾", "hat":"🎩", "crown":"👑", "sunglasses":"🕶️", "glasses":"👓", "dog":"🐶", "puppy":"🐶", "cat":"🐱", "bird":"🐦", "dragon":"🐉", "dinosaur":"🦖", "monkey":"🐒", "star":"⭐", "sun":"☀️", "moon":"🌙", "cloud":"☁️", "rainbow":"🌈", "tree":"🌳", "flower":"🌸", "pizza":"🍕", "cake":"🎂", "burger":"🍔", "apple":"🍎", "banana":"🍌", "ice cream":"🍦", "balloon":"🎈", "car":"🚗", "truck":"🚚", "rocket":"🚀", "plane":"✈️", "boat":"⛵", "train":"🚂", "sword":"⚔️", "shield":"🛡️", "guitar":"🎸", "drum":"🥁", "trumpet":"🎺", "phone":"📱", "book":"📚", "money":"💰", "trophy":"🏆", "medal":"🏅", "ghost":"👻", "alien":"👽", "robot":"🤖", "skull":"💀", "fish":"🐟", "butterfly":"🦋", "bee":"🐝", "snowman":"⛄", "pumpkin":"🎃", "gift":"🎁", "present":"🎁", "bell":"🔔", "key":"🔑", "clock":"⏰", "lightbulb":"💡", "umbrella":"☂️", "hammer":"🔨", "camera":"📷", "microphone":"🎤", "piano":"🎹", "pen":"🖊️", "hand":"👋", "eyes":"👀", "fire hydrant":"🚒"};
+
+var KINDS = [
+  { t:"hide",     w:["disappear","vanish","dissapear","gone","remove","erase","take away","take out","hide",
+                  "not in the video","not in the picture","not in it","not there","invisible","get rid of","without"], spot:1, dur:null, nm:"gone" },
+  /* "make the pen orange" -- paints one thing a colour, keeping its shadows */
+  { t:"paint",    w:["red","orange","yellow","green","blue","purple","pink","black","white","brown",
+                  "grey","gray","gold","silver","teal","cyan"], spot:1, dur:null, nm:"colour" },
+  /* "add a dog at second 4" -- drops a thing into the picture where you tap */
+  { t:"add",      w:["ball","football","basketball","baseball","hat","crown","sunglasses","glasses","dog","puppy","cat","bird","dragon","dinosaur","monkey","star","sun","moon","cloud","rainbow","tree","flower","pizza","cake","burger","apple","banana","ice cream","balloon","car","truck","rocket","plane","boat","train","sword","shield","guitar","drum","trumpet","phone","book","money","trophy","medal","ghost","alien","robot","skull","fish","butterfly","bee","snowman","pumpkin","gift","present","bell","key","clock","lightbulb","umbrella","hammer","camera","microphone","piano","pen","hand","eyes","fire hydrant"], spot:1, dur:null, nm:"added" },
+  /* "reappear at second 9" ends whichever disappear was running, with a puff */
+  { t:"reappear", w:["reappear","reapear","re-appear","come back","comes back","bring it back","put it back",
+                  "appear again","unhide"], spot:0, dur:0.9, nm:"comes back" },
+  /* "undisappear", then tap the circle: that disappear is taken off the clip for good */
+  { t:"undo",     w:["undisappear","undissapear","un-disappear","un disappear","undo the disappear",
+                  "remove the disappear","take the disappear off","take off the disappear","cancel the disappear",
+                  "stop hiding","never disappeared","not hidden any more"], spot:1, dur:null, nm:"disappear taken off" },
+  /* "smoke hole" keeps one spot clear of whatever is going on */
+  /* "keep my head in the video" -- a guard nothing may draw over */
+  { t:"keep",     w:["keep my head","keep my face","my head stay","head stay there","my head stays","head stays",
+                  "keep my head there","my head there","leave my head","leave my face",
+                  "my head in the video","my face in the video","never cover my head",
+                  "never cover my face","do not cover my head","always show my head","always show my face",
+                  "head always in","face always in"], spot:1, dur:null, nm:"head guarded" },
+  { t:"clear",    w:["smoke hole","smoke whole","hole in the smoke","no smoke here","no smoke","keep this clear",
+                  "keep it clear","clear spot","nothing here","nothing there"], spot:1, dur:null, nm:"kept clear" },
+  { t:"censor",   w:["censor","pixelate","blur out","blur his face","blur her face","blur the face"], spot:1, dur:null, nm:"blurred out" },
+  { t:"freeze",   w:["freeze","freeze frame","hold the frame","stop time","pause there"], spot:0, dur:2, nm:"freeze" },
+  { t:"mirror",   w:["mirror","flip it","flipped","back to front"], spot:0, dur:null, nm:"mirrored" },
+  { t:"flipv",    w:["upside down","upside-down"], spot:0, dur:null, nm:"upside down" },
+  { t:"loud",     w:["louder","turn it up","volume up"], spot:0, dur:null, nm:"louder" },
+  { t:"quiet",    w:["quieter","turn it down","volume down","softer"], spot:0, dur:null, nm:"quieter" },
+  { t:"smoke",    w:["smoke","steam","fog","mist"], spot:1, dur:3, nm:"smoke" },
+  { t:"fire",     w:["fire","flame","flames","burn","burning"], spot:1, dur:3, nm:"fire" },
+  { t:"sparkle",  w:["sparkle","sparkles","magic","glitter","shine","twinkle","stars","star"], spot:1, dur:2.5, nm:"sparkles" },
+  { t:"explode",  w:["explode","explosion","boom","blast","bomb"], spot:1, dur:1.6, nm:"explosion" },
+  { t:"lightning",w:["lightning","electric","electricity","zap","thunder"], spot:1, dur:1.2, nm:"lightning" },
+  { t:"hearts",   w:["hearts","heart","love"], spot:1, dur:4, nm:"hearts" },
+  { t:"bubbles",  w:["bubbles","bubble"], spot:1, dur:4, nm:"bubbles" },
+  { t:"glow",     w:["glow","glowing","aura","shining light"], spot:1, dur:3, nm:"glow" },
+  { t:"spot",     w:["spotlight","focus on","highlight"], spot:1, dur:3, nm:"spotlight" },
+  { t:"confetti", w:["confetti","party","celebrate"], spot:0, dur:4, nm:"confetti" },
+  { t:"snow",     w:["snow","snowing","snowflakes"], spot:0, dur:5, nm:"snow" },
+  { t:"rain",     w:["rain","raining"], spot:0, dur:5, nm:"rain" },
+  { t:"flash",    w:["flash","blink"], spot:0, dur:0.5, nm:"flash" },
+  { t:"shake",    w:["shake","shaking","earthquake","wobble"], spot:0, dur:1, nm:"shake" },
+  { t:"zoomout",  w:["zoom out"], spot:0, dur:2, nm:"zoom out" },
+  { t:"zoomin",   w:["zoom in","zoom"], spot:0, dur:2, nm:"zoom in" },
+  { t:"blur",     w:["blur","blurry","fuzzy"], spot:0, dur:2, nm:"blur" },
+  { t:"bw",       w:["black and white","grayscale","greyscale","no colour","no color","grey","gray"], spot:0, dur:null, nm:"black and white" },
+  { t:"old",      w:["old film","vintage","sepia","olden","old"], spot:0, dur:null, nm:"old film" },
+  { t:"bright",   w:["brighter","brighten","lighter"], spot:0, dur:null, nm:"brighter" },
+  { t:"dark",     w:["darker","darken","night","dark"], spot:0, dur:null, nm:"darker" },
+  { t:"slow",     w:["slow motion","slow-mo","slomo","slow down","slower","slow"], spot:0, dur:null, nm:"slow motion" },
+  { t:"fast",     w:["speed up","fast forward","faster","speed"], spot:0, dur:null, nm:"speeded up" },
+  { t:"mute",     w:["mute","silence","no sound","quiet"], spot:0, dur:null, nm:"no sound" },
+  { t:"title",    w:["title","big words","heading"], spot:0, dur:3, nm:"title" },
+  { t:"subtitle", w:["subtitle","subtitles","caption","captions"], spot:0, dur:3, nm:"subtitle" },
+  { t:"text",     w:["say","write","words"], spot:0, dur:3, nm:"words" }
+];
+
+function fmt(s){ s = Math.max(0, s||0); var m = Math.floor(s/60), r = Math.floor(s%60); return m + ":" + String(r).padStart(2,"0"); }
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+function esc(s){ return String(s).replace(/[<>&]/g, function(m){ return {"<":"&lt;",">":"&gt;","&":"&amp;"}[m]; }); }
+
+function pickMime(){
+  var list = ["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm","video/mp4"];
+  for (var i=0;i<list.length;i++) if (window.MediaRecorder && MediaRecorder.isTypeSupported(list[i])) return list[i];
+  return "";
+}
+
+/* Blobs from MediaRecorder often report duration = Infinity, so seek far ahead first. */
+
+function probe(url){
+  return new Promise(function(res){
+    var v = document.createElement("video");
+    v.preload = "metadata"; v.muted = true; v.src = url;
+    var done = function(){ res({ d: isFinite(v.duration) ? v.duration : 0, w: v.videoWidth, h: v.videoHeight }); };
+    v.onloadedmetadata = function(){
+      if (!isFinite(v.duration) || v.duration === 0) {
+        v.currentTime = 1e6;
+        v.ontimeupdate = function(){ v.ontimeupdate = null; v.currentTime = 0; done(); };
+        setTimeout(done, 2500);
+      } else done();
+    };
+    v.onerror = function(){ res({ d:0, w:0, h:0 }); };
+  });
+}
+
+/* A thumbnail, and how bright the clip is (used to match two clips to each other). */
+
+function hash(x){
+  x = String(x); var h = 2166136261;
+  for (var i = 0; i < x.length; i++) { h ^= x.charCodeAt(i); h = (h * 16777619) >>> 0; }
+  return h >>> 0;
+}
+
+function rnd2(st, f){
+  var k = f.id;
+  var s = (st.rng[k] === undefined ? hash(k) : st.rng[k]);
+  s = (s * 1664525 + 1013904223) >>> 0; st.rng[k] = s;
+  return s / 4294967296;
+}
+
+function jit(st, f, n){ return (rnd2(st, f) - 0.5) * 2 * n; }
+/* every effect is a little different from every other one of its kind */
+
+function vary(f){
+  if (f._v) return f._v;
+  var h = hash(f.id);
+  f._v = { rate: 0.82 + (h % 100) / 250, size: 0.88 + ((h >> 7) % 100) / 400, hue: ((h >> 13) % 32) - 16 };
+  return f._v;
+}
+/* 0 while it fades up, 1 in the middle, 0 again as it goes */
+
+function env(f, t){
+  var d = f.dur, up = Math.min(0.4, d === null ? 0.4 : d * 0.3);
+  var a = clamp((t - f.at) / Math.max(0.05, up), 0, 1);
+  if (d === null) return a;
+  var down = Math.min(0.5, d * 0.35);
+  return Math.min(a, clamp((f.at + d - t) / Math.max(0.05, down), 0, 1));
+}
+/* smoke surges and stalls instead of pouring evenly */
+
+function gust(f, t){
+  var h = hash(f.id) % 1000 / 100;
+  return clamp(0.3 + 0.9 * (0.5 + 0.5 * Math.sin(t * 1.7 + h)) + 0.5 * Math.sin(t * 3.9 + h * 2), 0.2, 2.0);
+}
+/* the colour of the room, how grainy the picture is, and which way the light falls */
+
+function sampleScene(st, v, dt){
+  st.sampT += dt;
+  if (st.sampT < 0.4) return;
+  st.sampT = 0;
+  var cv = st.sc || (st.sc = document.createElement("canvas"));
+  cv.width = 48; cv.height = 27;
+  var x = cv.getContext("2d", { willReadFrequently: true });
+  try { x.drawImage(v, 0, 0, 48, 27); } catch(e){ return; }
+  var d; try { d = x.getImageData(0, 0, 48, 27).data; } catch(e){ return; }
+  var R = 0, G = 0, B = 0, n = 0, diff = 0, best = -1, bx = 0.5, by = 0.5;
+  for (var yy = 0; yy < 27; yy++) for (var xx = 0; xx < 48; xx++) {
+    var i = (yy * 48 + xx) * 4;
+    R += d[i]; G += d[i+1]; B += d[i+2]; n++;
+    if (xx < 47) diff += Math.abs(d[i] - d[i+4]);
+    var l = d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114;
+    if (l > best) { best = l; bx = xx / 48; by = yy / 27; }
+  }
+  st.scData = d;
+  st.avg = [R/n, G/n, B/n];
+  st.grain = clamp(diff / n / 255 * 0.55, 0.012, 0.055);
+  st.light = Math.atan2(by - 0.55, bx - 0.5);   /* where the brightest part of the room is */
+}
+/* Which side of a spot is the plainest? The patch is filled from there, so it
+   grabs blank wall rather than somebody's head. Judged on the little 48x27
+   copy of the frame taken a couple of times a second. */
+
+function roomy(st, r, g, b, amt){
+  var a = st.avg || [128,128,128];
+  return "rgb(" + Math.round(r + (a[0]-r)*amt) + "," + Math.round(g + (a[1]-g)*amt) + "," + Math.round(b + (a[2]-b)*amt) + ")";
+}
+/* paste something with a soft edge instead of a cut-out circle */
+
+function soft(ctx, W, H, st, px, py, rad, drawFn){
+  var o = st.off || (st.off = document.createElement("canvas"));
+  if (o.width !== W || o.height !== H) { o.width = W; o.height = H; }
+  var g = o.getContext("2d");
+  g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation = "source-over";
+  g.clearRect(0, 0, W, H);
+  g.save(); drawFn(g); g.restore();
+  g.globalCompositeOperation = "destination-in";
+  var grd = g.createRadialGradient(px, py, rad * 0.62, px, py, rad);
+  grd.addColorStop(0, "rgba(0,0,0,1)"); grd.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = grd; g.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+  g.globalCompositeOperation = "source-over";
+  ctx.drawImage(o, 0, 0);
+}
+/* film grain over the effects, so they stop looking cleaner than the footage */
+
+function grainOver(ctx, W, H, st){
+  if (!st.grainTile) {
+    var c2 = document.createElement("canvas"); c2.width = c2.height = 96;
+    var g2 = c2.getContext("2d"), im = g2.createImageData(96, 96);
+    for (var i = 0; i < im.data.length; i += 4) {
+      var n = 100 + Math.random() * 56;
+      im.data[i] = im.data[i+1] = im.data[i+2] = n; im.data[i+3] = 255;
+    }
+    g2.putImageData(im, 0, 0); st.grainTile = c2;
+  }
+  ctx.save();
+  ctx.globalCompositeOperation = "overlay";
+  ctx.globalAlpha = st.grain || 0.02;
+  var pat = ctx.createPattern(st.grainTile, "repeat");
+  ctx.translate(-Math.floor(Math.random()*96), -Math.floor(Math.random()*96));
+  ctx.fillStyle = pat; ctx.fillRect(0, 0, W + 96, H + 96);
+  ctx.restore();
+}
+/* ---------- following a thing about the picture ----------
+   A small square of the picture is kept from where you tapped, and each frame
+   we look for it again nearby. No model, no training: just the closest match,
+   at 320 pixels wide so it is quick. When the match gets bad -- the thing left
+   the shot, or went behind something -- it stops and holds its last good spot. */
+
+function flatWay(st, nx, ny, nr){
+  var d = st.scData, W2 = 48, H2 = 27;
+  var base = (nx > 0.5 ? -1 : 1);
+  if (!d) return base * nr * 2.1 * 1280;
+  var look = function(ox){
+    var cx = Math.round((nx + ox) * W2), cy = Math.round(ny * H2), n = 0, sum = 0, sum2 = 0;
+    for (var y = cy - 2; y <= cy + 2; y++) for (var x = cx - 3; x <= cx + 3; x++) {
+      if (x < 0 || y < 0 || x >= W2 || y >= H2) continue;
+      var i = (y * W2 + x) * 4, l = d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114;
+      sum += l; sum2 += l * l; n++;
+    }
+    if (!n) return 1e9;
+    var m = sum / n;
+    return sum2 / n - m * m;                                   /* how busy that patch is */
+  };
+  var best = base, bv = 1e9;
+  [-2.6, -2.1, 2.1, 2.6].forEach(function(k){
+    var ox = k * nr, v = look(ox);
+    if (nx + ox < 0.06 || nx + ox > 0.94) return;
+    if (v < bv) { bv = v; best = k; }
+  });
+  return best * nr;
+}
+
+/* nudge a colour towards the colour of the room */
+
+function posAt(f, t, r, st){
+  if (st && st.pos && st.pos[f.id + ":p"]) {
+    var g = st.pos[f.id + ":p"];
+    return { x: r.x + g.x * r.w, y: r.y + g.y * r.h, dir: g.dir, scale: 1 };
+  }
+  var pt = { x: f.x, y: f.y };
+  var path = f.path;
+  if (path && path.length) {
+    var all = [{ t: f.at, x: f.x, y: f.y }].concat(path).sort(function(a,b){ return a.t - b.t; });
+    if (t <= all[0].t) pt = all[0];
+    else if (t >= all[all.length-1].t) pt = all[all.length-1];
+    else for (var i = 0; i < all.length - 1; i++) {
+      if (t >= all[i].t && t <= all[i+1].t) {
+        var k = (t - all[i].t) / Math.max(0.001, all[i+1].t - all[i].t);
+        k = k * k * (3 - 2 * k);                       /* ease, so it does not jerk between taps */
+        pt = { x: all[i].x + (all[i+1].x - all[i].x) * k, y: all[i].y + (all[i+1].y - all[i].y) * k };
+        break;
+      }
+    }
+  }
+  var cdx = (st && st.camDx && f.pin !== false) ? st.camDx : 0;
+  var cdy = (st && st.camDy && f.pin !== false) ? st.camDy : 0;
+  var sc = 1;
+  if (f.path && f.path.length) {                         /* size and turn can be set at each point */
+    var last = f.path[f.path.length - 1];
+    if (last.size) sc = 1 + (last.size - 1) * clamp((t - f.at) / Math.max(0.2, last.t - f.at), 0, 1);
+  }
+  return { x: r.x + (pt.x + cdx) * r.w, y: r.y + (pt.y + cdy) * r.h, scale: sc };
+}
+
+/* ---------- the noise an effect makes ----------
+   All of it is built out of an oscillator and a lump of white noise, so there
+   are no files to load and it lands in the render as well as the speakers. */
+
+function trackFrame(st, v, live, t, keep){
+  var jobs = [];
+  if (keep) jobs.push({ f: { id: "keep", x: keep.x, y: keep.y }, key: "keep:p", ax: "x", ay: "y" });
+  live.forEach(function(f){
+    if (f.trk) jobs.push({ f: f, key: f.id + ":p", ax: "x", ay: "y" });
+    if (f.trkHole && f.nr > 0) jobs.push({ f: f, key: f.id + ":h", ax: "nx", ay: "ny" });
+  });
+  if (!jobs.length && !st.camTrack) return;
+  var TW = 320, TH = Math.max(80, Math.round(TW * (v.videoHeight || 720) / (v.videoWidth || 1280)));
+  var cv = st.tkc || (st.tkc = document.createElement("canvas"));
+  if (cv.width !== TW || cv.height !== TH) { cv.width = TW; cv.height = TH; }
+  var g = cv.getContext("2d", { willReadFrequently: true });
+  try { g.drawImage(v, 0, 0, TW, TH); } catch(e){ return; }
+  var im; try { im = g.getImageData(0, 0, TW, TH); } catch(e){ return; }
+  var d = im.data;
+  st.trk = st.trk || {};
+
+  var R = 10;                                  /* half the template, in small-picture pixels */
+  function grab(cx, cy){
+    var out = new Uint8Array((R*2+1) * (R*2+1)), k = 0;
+    for (var y = cy - R; y <= cy + R; y++) for (var x = cx - R; x <= cx + R; x++) {
+      var xx = clamp(x, 0, TW-1) | 0, yy = clamp(y, 0, TH-1) | 0, i = (yy*TW + xx) * 4;
+      out[k++] = (d[i]*77 + d[i+1]*151 + d[i+2]*28) >> 8;
+    }
+    return out;
+  }
+  function score(tmpl, cx, cy){
+    var sum = 0, k = 0;
+    for (var y = cy - R; y <= cy + R; y += 2) for (var x = cx - R; x <= cx + R; x += 2) {
+      var xx = clamp(x, 0, TW-1) | 0, yy = clamp(y, 0, TH-1) | 0, i = (yy*TW + xx) * 4;
+      var gv = (d[i]*77 + d[i+1]*151 + d[i+2]*28) >> 8;
+      var ti = ((y - (cy - R)) * (R*2+1)) + (x - (cx - R));
+      sum += Math.abs(gv - tmpl[ti]); k++;
+    }
+    return k ? sum / k : 1e9;
+  }
+  function follow(key, nx, ny){
+    var s2 = st.trk[key];
+    var cx = Math.round(nx * TW), cy = Math.round(ny * TH);
+    if (!s2) { st.trk[key] = { x: nx, y: ny, t: grab(cx, cy), bad: 0 }; return { x: nx, y: ny }; }
+    var bx = Math.round(s2.x * TW), by = Math.round(s2.y * TH), best = 1e9, mx = bx, my = by;
+    for (var dy = -12; dy <= 12; dy++) for (var dx = -12; dx <= 12; dx++) {
+      var sc = score(s2.t, bx + dx, by + dy);
+      if (sc < best) { best = sc; mx = bx + dx; my = by + dy; }
+    }
+    if (best > 34) { s2.bad++; } else {
+      s2.bad = 0; s2.x = clamp(mx / TW, 0, 1); s2.y = clamp(my / TH, 0, 1);
+      if (best < 12) s2.t = grab(mx, my);      /* a good match refreshes what we are looking for */
+    }
+    return { x: s2.x, y: s2.y };
+  }
+
+  jobs.forEach(function(j){
+    var got = follow(j.key, j.f[j.ax], j.f[j.ay]);
+    st.pos = st.pos || {};
+    st.pos[j.key] = got;
+    if (j.key.slice(-1) === "p" && st.trk[j.key]) {
+      var s3 = st.trk[j.key];
+      if (s3.lastX !== undefined) st.pos[j.key].dir = Math.atan2(got.y - s3.lastY, got.x - s3.lastX);
+      s3.lastX = got.x; s3.lastY = got.y;
+    }
+  });
+
+  /* the whole frame moving: four corners, and the middle answer of the four */
+  if (st.camTrack) {
+    var pts = [[0.15,0.2],[0.85,0.2],[0.15,0.8],[0.85,0.8]], dxs = [], dys = [];
+    pts.forEach(function(q, i){
+      var key = "cam" + i, before = st.trk[key] ? { x: st.trk[key].x, y: st.trk[key].y } : null;
+      var got = follow(key, q[0], q[1]);
+      if (before) { dxs.push(got.x - before.x); dys.push(got.y - before.y); }
+    });
+    if (dxs.length === 4) {
+      dxs.sort(function(a,b){ return a-b; }); dys.sort(function(a,b){ return a-b; });
+      st.camDx = (st.camDx || 0) + (dxs[1] + dxs[2]) / 2;
+      st.camDy = (st.camDy || 0) + (dys[1] + dys[2]) / 2;
+    }
+  }
+}
+
+/* ---------- the clean plate ----------
+   A picture of the room with nobody in it. Anything that differs from it is a
+   person or a thing, which is how an effect can be drawn behind them and how a
+   vanished object can be filled in with the real background. It only works
+   from a camera that has not moved. */
+
+function rectOf(v, W, H, fill){
+  var vw = v.videoWidth || 16, vh = v.videoHeight || 9;
+  var s = fill ? Math.max(W/vw, H/vh) : Math.min(W/vw, H/vh);
+  return { x:(W - vw*s)/2, y:(H - vh*s)/2, w: vw*s, h: vh*s };
+}
+
+function liveFx(c, t){
+  return (c.fx||[]).filter(function(f){ return t >= f.at - 0.02 && (f.dur === null || t <= f.at + f.dur); });
+}
+
+function rateAt(c, t){
+  var r = 1;
+  liveFx(c, t).forEach(function(f){ if (f.type === "slow") r = 0.5; if (f.type === "fast") r = 2; });
+  return r;
+}
+
+function mutedAt(c, t){ return liveFx(c, t).some(function(f){ return f.type === "mute"; }); }
+
+function volAt(c, t){
+  var g = 1;
+  liveFx(c, t).forEach(function(f){ if (f.type === "loud") g = 1.9; if (f.type === "quiet") g = 0.35; });
+  return g;
+}
+/* while the picture is frozen the video is paused, so the clip lasts that much longer */
+/* a freeze holds the picture but lets the sound run on, so the clip is no longer than it was */
+
+function freezeTime(c){ return 0; }
+/* pauses the picture when a freeze is due, and starts it again when the time is up */
+
+function realLen(c){
+  var L = c.end - c.start, total = L;
+  if ((c.fx||[]).some(function(f){ return f.type === "slow" || f.type === "fast"; })) {
+    total = 0;
+    for (var x = 0; x < L; x += 0.1) total += 0.1 / rateAt(c, x);
+  }
+  return total + freezeTime(c);
+}
+
+/* ---------- the bits every effect leans on ----------
+   Seeded randomness (so a preview and the finished render come out the same),
+   a ramp so nothing snaps on, a gust so nothing is mechanical, and one look at
+   the scene a couple of times a second for its colour, its grain and its light. */
+
+function drawFrame(ctx, W, H, v, c, t, alpha, dt, st, opt){
+  opt = opt || {};
+  var S = H / 720, live = liveFx(c, t), filt = [], shx = 0, shy = 0, scale = 1, sx = 1, sy = 1;
+  st.spill = [];
+  sampleScene(st, v, dt);
+  st.camTrack = !!c.camPin;
+  trackFrame(st, v, live, t, c.keep);
+
+  /* a freeze holds the picture still while the sound carries on underneath */
+  var fz = null;
+  for (var q = 0; q < live.length; q++) if (live[q].type === "freeze") fz = live[q];
+  var src = v;
+  if (fz) {
+    if (st.frzId !== fz.id) {
+      var fc = st.frzCv || (st.frzCv = document.createElement("canvas"));
+      fc.width = v.videoWidth || 1280; fc.height = v.videoHeight || 720;
+      try { fc.getContext("2d").drawImage(v, 0, 0); st.frzId = fz.id; } catch(e){}
+    }
+    if (st.frzCv && st.frzId === fz.id) src = st.frzCv;
+  } else st.frzId = null;
+
+  live.forEach(function(f){
+    var e = env(f, t), p = f.dur === null ? 1 : clamp((t - f.at) / Math.max(0.001, f.dur), 0, 1);
+    if (f.type === "bw") filt.push("grayscale(" + e.toFixed(2) + ")");
+    if (f.type === "old") filt.push("sepia(" + (0.65*e).toFixed(2) + ") contrast(" + (1 + 0.08*e).toFixed(2) + ") saturate(" + (1 - 0.2*e).toFixed(2) + ")");
+    if (f.type === "bright") filt.push("brightness(" + (1 + 0.35*e).toFixed(2) + ")");
+    if (f.type === "dark") filt.push("brightness(" + (1 - 0.5*e).toFixed(2) + ")");
+    if (f.type === "blur") filt.push("blur(" + (7*S*e).toFixed(1) + "px)");
+    if (f.type === "hide" && f.lamp) filt.push("brightness(" + (1 - 0.34 * clamp((t - f.at)/0.25, 0, 1)).toFixed(2) + ")");
+    if (f.type === "shake") { var k = 14 * S * (1 - p); shx = jit(st,f,k); shy = jit(st,f,k); }
+    if (f.type === "zoomin") scale *= 1 + 0.4 * p;
+    if (f.type === "zoomout") scale *= 1.4 - 0.4 * p;
+    if (f.type === "mirror") sx = -1;
+    if (f.type === "flipv") sy = -1;
+  });
+  if (opt.k && Math.abs(opt.k - 1) > 0.02) filt.push("brightness(" + opt.k.toFixed(2) + ")");
+
+  var r = rectOf(v, W, H, opt.fill);
+  var FILT = filt.length ? filt.join(" ") : "none";
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.filter = FILT;
+  ctx.translate(W/2 + shx, H/2 + shy); ctx.scale(scale * sx, scale * sy); ctx.translate(-W/2, -H/2);
+  try { ctx.drawImage(src, r.x, r.y, r.w, r.h); } catch(e){}
+
+  /* slow motion: a little of the frame before, laid over this one, takes the judder off */
+  if (opt.smooth && st.prevCv) { ctx.globalAlpha = alpha * 0.34; try { ctx.drawImage(st.prevCv, r.x, r.y, r.w, r.h); } catch(e){} ctx.globalAlpha = alpha; }
+  ctx.filter = "none";
+
+  /* --- make something disappear: a patch of what is beside it, soft at the rim --- */
+  live.forEach(function(f){
+    if (f.type !== "hide") return;
+    var here = posAt(f, t, r, st);
+    var areas = [{ x: (here.x - r.x) / r.w, y: (here.y - r.y) / r.h, r: f.r }].concat(f.extra || []);
+    var age = t - f.at, fade = clamp(age / 0.35, 0, 1);
+    areas.forEach(function(ar, idx){
+      var px = r.x + ar.x * r.w, py = r.y + ar.y * r.h;
+      var rad = ar.r ? ar.r * r.w : Math.max(r.w, r.h) * 0.10;
+      var dx = flatWay(st, ar.x, ar.y, rad / Math.max(1, r.w)) * r.w;  /* copy from the emptiest side, not a face */
+      var dy = 0;
+      if (idx === 0 && f.askX !== undefined) {            /* Claude looked at the picture and pointed here */
+        dx = (ar.x - f.askX) * r.w; dy = (ar.y - f.askY) * r.h;
+      }
+      ctx.save(); ctx.globalAlpha = alpha * fade;
+      var pl = plateImg(st, c);
+      soft(ctx, W, H, st, px, py, rad, function(g){
+        g.filter = FILT;                                  /* the patch wears the same look as the frame */
+        try {
+          if (pl) g.drawImage(pl, r.x, r.y, r.w, r.h);    /* the real empty background, not a copy of next door */
+          else g.drawImage(src, r.x + dx, r.y + dy, r.w, r.h);
+        } catch(e){}
+      });
+      ctx.restore();
+      if (age < 0.9 && idx === 0) puff(st, f, px, py, rad, S, dt, 1 - age/0.9);
+    });
+  });
+
+  /* --- blur one thing out --- */
+  live.forEach(function(f){
+    if (f.type !== "censor") return;
+    var hc = posAt(f, t, r, st);
+    var areas = [{ x: (hc.x - r.x) / r.w, y: (hc.y - r.y) / r.h, r: f.r }].concat(f.extra || []);
+    areas.forEach(function(ar){
+      var px = r.x + ar.x * r.w, py = r.y + ar.y * r.h;
+      var rad = ar.r ? ar.r * r.w : Math.max(r.w, r.h) * 0.09;
+      ctx.save(); ctx.globalAlpha = alpha;
+      soft(ctx, W, H, st, px, py, rad, function(g){
+        g.filter = "blur(" + (26 * S).toFixed(1) + "px)";
+        try { g.drawImage(src, r.x, r.y, r.w, r.h); } catch(e){}
+      });
+      ctx.restore();
+    });
+  });
+  ctx.restore();
+
+  /* --- paint one thing: only the pixels that match what you tapped --- */
+  live.forEach(function(f){
+    if (f.type !== "paint") return;
+    var pp = posAt(f, t, r, st), rad = (f.r ? f.r * r.w : Math.max(r.w, r.h) * 0.085);
+    paintThing(ctx, W, H, f, pp.x, pp.y, rad, alpha * clamp((t - f.at) / 0.2, 0, 1));
+  });
+
+  /* --- particles and the rest, over the picture --- */
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  live.forEach(function(f){
+    var pp = posAt(f, t, r, st), px = pp.x, py = pp.y;
+    var p = f.dur === null ? 0 : clamp((t - f.at) / Math.max(0.001, f.dur), 0, 1);
+    var e = env(f, t), vv = vary(f), G = gust(f, t) * e * vv.rate;
+    var once = function(fn){ if (!st.seen[f.id]) { st.seen[f.id] = 1; fn(); } };
+    if (opt.actx && !st.snd[f.id]) { st.snd[f.id] = 1; try { playFx(f, opt.actx, opt.snd, opt.hear); } catch(e){} }
+    var ALL = f.area === "all";
+    var spread = f.r ? f.r * r.w : 14 * S;               /* the circle you dragged is the area it comes from */
+    var from = function(sp){
+      if (ALL) return { x: rnd2(st,f)*W, y: H * (0.15 + rnd2(st,f)*0.95) };
+      var a = rnd2(st,f) * 6.283, d = Math.sqrt(rnd2(st,f)) * (sp || spread);
+      return { x: px + Math.cos(a)*d, y: py + Math.sin(a)*d*0.7 };
+    };
+    var wind = (f.wind || 0) * 60 * S;
+    var mk = function(o){ o.z = 0.55 + rnd2(st,f) * 0.95; o.vx += wind; o.r *= o.z * vv.size; o.vx *= o.z; o.vy *= o.z; o.px = o.x; o.py = o.y; return o; };
+
+    if (f.type === "smoke")    spawn(st, f, dt * (ALL ? 70 : 42) * G * (f.thick || 1), function(){ var q = from();
+        return mk({ k:"smoke", x:q.x, y:q.y, vx:jit(st,f,22*S), vy:-(45+rnd2(st,f)*45)*S,
+                    r:(ALL?30:15)*S, a:0, m:ALL?3.8:2.4, s:rnd2(st,f)*6, th: f.thick || 1 }); });
+    if (f.type === "fire")     spawn(st, f, dt * (ALL ? 190 : 70) * G, function(){ var q = ALL ? { x:rnd2(st,f)*W, y:H*(0.75+rnd2(st,f)*0.3) } : from();
+        return mk({ k:"fire", x:q.x, y:q.y, vx:jit(st,f,28*S), vy:-(110+rnd2(st,f)*90)*S, r:(7+rnd2(st,f)*7)*S, a:0, m:.75 }); });
+    if (f.type === "sparkle")  spawn(st, f, dt * (ALL ? 110 : 30) * e, function(){ var q = from(spread*1.6);
+        return mk({ k:"spark", x:q.x, y:q.y, vx:jit(st,f,18*S), vy:jit(st,f,18*S) - 12*S, r:(2+rnd2(st,f)*3)*S, a:0, m:.9 }); });
+    if (f.type === "hearts")   spawn(st, f, dt * (ALL ? 26 : 7) * e, function(){ var q = ALL ? { x:rnd2(st,f)*W, y:H } : from(spread*1.2);
+        return mk({ k:"heart", x:q.x, y:q.y, vx:jit(st,f,16*S), vy:-(45+rnd2(st,f)*30)*S, r:(14+rnd2(st,f)*12)*S, a:0, m:2.4 }); });
+    if (f.type === "bubbles")  spawn(st, f, dt * (ALL ? 45 : 12) * e, function(){ var q = ALL ? { x:rnd2(st,f)*W, y:H } : from(spread*1.2);
+        return mk({ k:"bub", x:q.x, y:q.y, vx:jit(st,f,14*S), vy:-(55+rnd2(st,f)*40)*S, r:(5+rnd2(st,f)*12)*S, a:0, m:3 }); });
+    if (f.type === "confetti") spawn(st, f, dt * 55 * e, function(){
+        return mk({ k:"conf", x:rnd2(st,f)*W, y:-20*S, vx:jit(st,f,45*S), vy:(90+rnd2(st,f)*130)*S, r:(5+rnd2(st,f)*6)*S, a:0, m:5,
+                    c:"hsl(" + Math.floor(rnd2(st,f)*360) + ",90%,60%)", rot:rnd2(st,f)*6, vr:jit(st,f,7) }); });
+    if (f.type === "snow")     spawn(st, f, dt * 40 * e, function(){
+        return mk({ k:"snow", x:rnd2(st,f)*W, y:-10*S, vx:jit(st,f,20*S), vy:(40+rnd2(st,f)*60)*S, r:(2+rnd2(st,f)*4)*S, a:0, m:9 }); });
+    if (f.type === "rain")     spawn(st, f, dt * 160 * e, function(){
+        return mk({ k:"rain", x:rnd2(st,f)*W, y:-20*S, vx:-60*S, vy:(900+rnd2(st,f)*350)*S, r:(11+rnd2(st,f)*13)*S, a:0, m:2 }); });
+    if (f.type === "reappear") {                         /* a puff, and it is there again */
+      var rp = clamp((t - f.at) / Math.max(0.2, f.dur || 0.9), 0, 1);
+      spawn(st, f, dt * 120 * (1 - rp), function(){
+        var an = rnd2(st,f) * 6.3, sp = (40 + rnd2(st,f) * 170) * S;
+        return mk({ k:"smoke", x:px, y:py, vx:Math.cos(an)*sp, vy:Math.sin(an)*sp - 20*S,
+                    r:(f.r ? f.r * r.w * 0.5 : 26*S), a:0, m:1.5, s:rnd2(st,f)*6 });
+      });
+      spawn(st, f, dt * 40 * (1 - rp), function(){
+        var an2 = rnd2(st,f) * 6.3, sp2 = (60 + rnd2(st,f) * 200) * S;
+        return mk({ k:"spark", x:px, y:py, vx:Math.cos(an2)*sp2, vy:Math.sin(an2)*sp2, r:(2+rnd2(st,f)*3)*S, a:0, m:.8 });
+      });
+      st.spill.push({ x:px, y:py, r: 200*S, c:[255,240,200], a: 0.25 * (1 - rp) });
+    }
+    if (f.type === "explode")  once(function(){
+        spawn(st, f, 90, function(){ var an = rnd2(st,f)*6.3, sp = (180 + rnd2(st,f)*420)*S;
+          return mk({ k:"fire", x:px, y:py, vx:Math.cos(an)*sp, vy:Math.sin(an)*sp, r:(6+rnd2(st,f)*10)*S, a:0, m:.9 }); });
+        spawn(st, f, 45, function(){ var an = rnd2(st,f)*6.3, sp = (60 + rnd2(st,f)*190)*S;
+          return mk({ k:"smoke", x:px, y:py, vx:Math.cos(an)*sp, vy:Math.sin(an)*sp - 25*S, r:16*S, a:0, m:2.4, s:rnd2(st,f)*6 }); });
+      });
+
+    /* light thrown into the room, which is what makes a bright thing belong in it */
+    var flick = 0.75 + 0.45 * Math.sin(t * 27 + hash(f.id) % 10) * (0.4 + 0.6 * Math.sin(t * 13.3));
+    if (f.type === "fire")      st.spill.push({ x:px, y:py, r: 260*S*(ALL?2.4:1), c:[255,150,40], a: 0.34 * e * flick * G * 0.6 });
+    if (f.type === "explode" && p < 0.5) st.spill.push({ x:px, y:py, r: 900*S, c:[255,170,70], a: 0.6 * (1 - p*2) });
+    if (f.type === "glow")      st.spill.push({ x:px, y:py, r: 220*S, c:[255,240,170], a: 0.30 * e });
+    if (f.type === "sparkle")   st.spill.push({ x:px, y:py, r: 150*S, c:[255,246,200], a: 0.12 * e });
+
+    if (f.type === "add") {
+      var sz = (f.r ? f.r * r.w * 2 : Math.max(r.w, r.h) * 0.14 * (f.size || 1)) * vv.size;
+      sz *= (pp.scale || 1);
+      if (f.grow && f.grow !== 1) {                        /* walks towards the camera, or away from it */
+        var gk = f.dur === null ? clamp((t - f.at) / 3, 0, 1) : clamp((t - f.at) / Math.max(0.2, f.dur), 0, 1);
+        sz *= 1 + (f.grow - 1) * gk;
+      }
+      var bob = Math.sin(t * 2.2 + hash(f.id) % 6) * sz * 0.035;
+      var turn = f.trk && pp.dir !== undefined ? clamp(pp.dir, -0.6, 0.6) * 0.5 : 0;
+      var aa = alpha * clamp((t - f.at) / 0.25, 0, 1);
+      var ang = st.light === undefined ? 0.8 : st.light;
+      ctx.save(); ctx.globalAlpha = aa * 0.33;            /* a shadow thrown away from the light */
+      ctx.translate(px - Math.cos(ang) * sz * 0.34, py + bob + sz * 0.42 - Math.sin(ang) * sz * 0.12);
+      ctx.scale(1, 0.32); ctx.filter = "blur(" + (7*S).toFixed(1) + "px)";
+      ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(0, 0, sz * 0.42, 0, 7); ctx.fill();
+      ctx.restore();
+      ctx.save(); ctx.globalAlpha = aa;
+      if (f.img && st.imgs && !st.imgs[f.id]) { var im0 = new Image(); im0.src = f.img; st.imgs[f.id] = im0; }
+      if (f.img && st.imgs && st.imgs[f.id] && st.imgs[f.id].complete) {
+        var im = st.imgs[f.id], ih = sz * (im.naturalHeight / Math.max(1, im.naturalWidth));
+        ctx.translate(px, py + bob); ctx.rotate(turn);
+        ctx.drawImage(im, -sz/2, -ih/2, sz, ih);
+      } else {
+        ctx.font = Math.round(sz) + "px \"Apple Color Emoji\", \"Segoe UI Emoji\", serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.translate(px, py + bob); ctx.rotate(turn); ctx.fillText(f.emoji, 0, 0);
+      }
+      ctx.restore();
+    }
+    if (f.type === "flash") {                              /* a flash comes from somewhere */
+      var fx0 = (f.x || 0.5) * W, dir = ctx.createLinearGradient(fx0 - W*0.6, 0, fx0 + W*0.6, H*0.4);
+      var k2 = (1 - p) * 0.95;
+      dir.addColorStop(0, "rgba(255,255,255," + (k2 * 0.35).toFixed(3) + ")");
+      dir.addColorStop(0.45, "rgba(255,255,255," + k2.toFixed(3) + ")");
+      dir.addColorStop(1, "rgba(255,255,255," + (k2 * 0.25).toFixed(3) + ")");
+      ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = dir; ctx.fillRect(0,0,W,H);
+      ctx.globalCompositeOperation = "multiply"; ctx.globalAlpha = alpha * (1-p) * 0.2;
+      ctx.fillStyle = "#000"; ctx.fillRect(fx0 + W*0.35, 0, W, H); ctx.restore();
+    }
+    if (f.type === "lightning" && rnd2(st,f) < 0.55) {
+      bolt(ctx, st, f, px, py, W, S);
+      st.spill.push({ x: px, y: py * 0.4, r: 1200*S, c:[190,220,255], a: 0.55 });
+    }
+    if (f.type === "spot") { ctx.save(); ctx.fillStyle = "rgba(0,0,0," + (0.62*e).toFixed(2) + ")"; ctx.fillRect(0,0,W,H);
+        ctx.globalCompositeOperation = "destination-out";
+        var g2 = ctx.createRadialGradient(px,py,10*S,px,py,170*S);
+        g2.addColorStop(0,"rgba(0,0,0,1)"); g2.addColorStop(1,"rgba(0,0,0,0)");
+        ctx.fillStyle = g2; ctx.fillRect(px-200*S,py-200*S,400*S,400*S); ctx.restore(); }
+    if (f.type === "text" || f.type === "title" || f.type === "subtitle") {
+        var size = f.type === "title" ? 92 : f.type === "subtitle" ? 46 : 54;
+        var yy = f.pos === "top" ? H * 0.17 : f.pos === "middle" ? H / 2 + size * S * 0.33 : H - 60 * S;
+        ctx.save(); ctx.globalAlpha = alpha * e;
+        ctx.font = (f.type === "title" ? "800 " : "700 ") + Math.round(size * S) + "px Helvetica, Arial, sans-serif";
+        ctx.textAlign = "center"; ctx.lineWidth = (f.type === "title" ? 11 : 8) * S;
+        ctx.strokeStyle = "rgba(0,0,0,.78)"; ctx.fillStyle = "#fff";
+        ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 16 * S;
+        ctx.strokeText(f.text, W/2, yy); ctx.shadowBlur = 0; ctx.fillText(f.text, W/2, yy);
+        ctx.restore(); }
+  });
+  step(ctx, st, dt, H, S);
+
+  /* light from the effects, laid over the room */
+  if (st.spill.length) {
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    st.spill.forEach(function(sp){
+      if (sp.a <= 0.002) return;
+      var g = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, sp.r);
+      g.addColorStop(0, "rgba(" + sp.c[0] + "," + sp.c[1] + "," + sp.c[2] + "," + Math.min(0.8, sp.a).toFixed(3) + ")");
+      g.addColorStop(1, "rgba(" + sp.c[0] + "," + sp.c[1] + "," + sp.c[2] + ",0)");
+      ctx.globalAlpha = alpha; ctx.fillStyle = g;
+      ctx.fillRect(sp.x - sp.r, sp.y - sp.r, sp.r * 2, sp.r * 2);
+    });
+    ctx.restore();
+  }
+  if (live.length) grainOver(ctx, W, H, st);
+
+  /* --- anything that is not part of the empty room goes in front of the effects --- */
+  if (c.plate) {
+    var mk = buildMask(st, v, c);
+    if (mk) {
+      var o3 = st.off3 || (st.off3 = document.createElement("canvas"));
+      if (o3.width !== W || o3.height !== H) { o3.width = W; o3.height = H; }
+      var g3 = o3.getContext("2d");
+      g3.setTransform(1,0,0,1,0,0); g3.globalCompositeOperation = "source-over"; g3.clearRect(0,0,W,H);
+      g3.filter = FILT; try { g3.drawImage(src, r.x, r.y, r.w, r.h); } catch(e){} g3.filter = "none";
+      g3.globalCompositeOperation = "destination-in";
+      g3.filter = "blur(" + (3.5 * S).toFixed(1) + "px)";   /* soft edge, so the cut-out does not show */
+      try { g3.drawImage(mk, r.x, r.y, r.w, r.h); } catch(e){}
+      g3.filter = "none"; g3.globalCompositeOperation = "source-over";
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(W/2 + shx, H/2 + shy); ctx.scale(scale * sx, scale * sy); ctx.translate(-W/2, -H/2);
+      ctx.drawImage(o3, 0, 0);
+      ctx.restore();
+    }
+  }
+
+  /* --- "but not the human": their picture painted back over the effect --- */
+  var holes = [];
+  if (c.keep) {                                          /* your head: never covered by anything */
+    var kp = (st.pos && st.pos["keep:p"]) || { x: c.keep.x, y: c.keep.y };
+    kp = { x: clamp(kp.x, c.keep.x - 0.16, c.keep.x + 0.16),   /* it follows you, but it cannot run off */
+           y: clamp(kp.y, c.keep.y - 0.16, c.keep.y + 0.16) };
+    holes.push({ x: kp.x, y: kp.y, r: c.keep.r || 0.22, tall: true, guard: true });
+  }
+  live.forEach(function(f){
+    if (f.nr > 0) {
+      var hp = (st.pos && st.pos[f.id + ":h"]) || { x: f.nx, y: f.ny };
+      holes.push({ x: hp.x, y: hp.y, r: f.nr, tall: true });     /* a person: taller than wide */
+    }
+    var tp = (f.holes && f.holes.length === 1 && st.pos && st.pos[f.id + ":p"]) ? st.pos[f.id + ":p"] : null;
+    (f.holes || []).forEach(function(h, hi){
+      var hx = (tp && hi === 0) ? clamp(tp.x, h.x - 0.16, h.x + 0.16) : h.x;
+      var hy = (tp && hi === 0) ? clamp(tp.y, h.y - 0.16, h.y + 0.16) : h.y;
+      holes.push({ x: hx, y: hy, r: h.r, tall: f.type !== "clear", guard: !!h.guard });
+    });
+  });
+  if (holes.length) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(W/2 + shx, H/2 + shy); ctx.scale(scale * sx, scale * sy); ctx.translate(-W/2, -H/2);
+    var o = st.off2 || (st.off2 = document.createElement("canvas"));
+    if (o.width !== W || o.height !== H) { o.width = W; o.height = H; }
+    var g = o.getContext("2d");
+    g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation = "source-over"; g.clearRect(0,0,W,H);
+    g.filter = FILT; try { g.drawImage(src, r.x, r.y, r.w, r.h); } catch(e){} g.filter = "none";
+    /* all the holes go into one mask first -- applying them one at a time with
+       destination-in left only the overlap of them, which meant two holes made none */
+    var hm = st.holeCv || (st.holeCv = document.createElement("canvas"));
+    if (hm.width !== W || hm.height !== H) { hm.width = W; hm.height = H; }
+    var gh = hm.getContext("2d");
+    gh.setTransform(1,0,0,1,0,0); gh.globalCompositeOperation = "source-over"; gh.clearRect(0,0,W,H);
+    holes.forEach(function(h){
+      var hx = r.x + h.x * r.w, hy = r.y + h.y * r.h, hr = h.r * r.w, up = h.tall ? 1.55 : 1;
+      if (h.guard) { up = 1.35; hy -= hr * 0.12; }          /* a head sits a little high in its own oval */
+      var grd = gh.createRadialGradient(hx, hy, hr * (h.guard ? 0.86 : 0.78), hx, hy, hr * (h.guard ? 1.14 : 1.06));
+      grd.addColorStop(0, "rgba(0,0,0,1)"); grd.addColorStop(1, "rgba(0,0,0,0)");
+      gh.save(); gh.translate(hx, hy); gh.scale(1, up); gh.translate(-hx, -hy);
+      gh.fillStyle = grd; gh.beginPath(); gh.arc(hx, hy, hr * (h.guard ? 1.14 : 1.06), 0, 7); gh.fill(); gh.restore();
+    });
+    g.globalCompositeOperation = "destination-in";
+    g.drawImage(hm, 0, 0);
+    g.globalCompositeOperation = "source-over";
+    ctx.drawImage(o, 0, 0);
+    ctx.restore();
+  }
+  ctx.restore();
+
+  /* while previewing, show where the guard is, so a half-covered head is obvious */
+  if (opt.guide) {
+    var rings = [];
+    if (c.keep) rings.push(c.keep);
+    live.forEach(function(f){ if (f.type === "keep") (f.holes || []).forEach(function(h){ rings.push(h); }); });
+    rings.forEach(function(k){
+      var gx = r.x + k.x * r.w, gy = r.y + k.y * r.h - k.r * r.w * 0.12, gr2 = k.r * r.w;
+      ctx.save();
+      ctx.setLineDash([9 * S, 7 * S]); ctx.lineWidth = 2.5 * S; ctx.strokeStyle = "rgba(51,214,166,.9)";
+      ctx.translate(gx, gy); ctx.scale(1, 1.35); ctx.beginPath(); ctx.arc(0, 0, gr2 * 1.05, 0, 7); ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  /* keep this frame, in case the next one is a slow-motion one that wants it */
+  if (opt.smooth) {
+    var pc = st.prevCv || (st.prevCv = document.createElement("canvas"));
+    pc.width = v.videoWidth || 640; pc.height = v.videoHeight || 360;
+    try { pc.getContext("2d").drawImage(src, 0, 0, pc.width, pc.height); } catch(e){}
+  }
+}
+
+/* recolour only the pixels that match the one you tapped, keeping their light and their shine */
+
+function paintThing(ctx, W, H, f, px, py, rad, alpha){
+  var x0 = Math.max(0, Math.floor(px - rad)), y0 = Math.max(0, Math.floor(py - rad));
+  var w = Math.min(W - x0, Math.ceil(rad * 2)), h = Math.min(H - y0, Math.ceil(rad * 2));
+  if (w < 2 || h < 2 || alpha <= 0.01) return;
+  var img; try { img = ctx.getImageData(x0, y0, w, h); } catch(e){ return; }
+  var d = img.data, col = hex2rgb(f.col || "#ff8a1f");
+  var cx = px - x0, cy = py - y0, tol = (f.tol || 78);
+  if (!f._key) {
+    var ki = ((Math.round(cy) * w) + Math.round(cx)) * 4;
+    f._key = [d[ki], d[ki+1], d[ki+2]];
+  }
+  var k = f._key;
+  for (var yy = 0; yy < h; yy++) for (var xx = 0; xx < w; xx++) {
+    var i = (yy * w + xx) * 4;
+    var dx = xx - cx, dy = yy - cy, dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist > rad) continue;
+    var near = Math.abs(d[i]-k[0]) + Math.abs(d[i+1]-k[1]) + Math.abs(d[i+2]-k[2]);
+    if (near > tol * 3) continue;
+    var lum = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114) / 255;
+    if (lum > 0.88) continue;                              /* leave the highlight white */
+    var edge = clamp((rad - dist) / Math.max(1, rad * 0.35), 0, 1);
+    var soft2 = clamp(1 - (near / (tol * 3)), 0, 1);
+    var a = alpha * edge * (0.35 + 0.65 * soft2);
+    var sh = Math.min(1.25, lum * 1.35 + 0.08);
+    d[i]   = d[i]   + (clamp(col[0] * sh, 0, 255) - d[i])   * a;
+    d[i+1] = d[i+1] + (clamp(col[1] * sh, 0, 255) - d[i+1]) * a;
+    d[i+2] = d[i+2] + (clamp(col[2] * sh, 0, 255) - d[i+2]) * a;
+  }
+  ctx.putImageData(img, x0, y0);
+}
+
+function hex2rgb(x){
+  x = String(x).replace("#", "");
+  if (x.length === 3) x = x[0]+x[0]+x[1]+x[1]+x[2]+x[2];
+  return [parseInt(x.slice(0,2),16) || 0, parseInt(x.slice(2,4),16) || 0, parseInt(x.slice(4,6),16) || 0];
+}
+
+/* One ragged, soft-edged puff, drawn twice: a dark pass that multiplies into
+   the room (so smoke darkens what is behind it and picks up the room's own
+   colour) and a lighter pass on top. Solid circles were the giveaway. */
+
+function rnd(n){ return (Math.random() - 0.5) * 2 * n; }
+
+function spawn(st, f, n, make){
+  if (st.p.length > 1400) return;
+  var k = Math.floor(n) + (rnd2(st, f) < (n % 1) ? 1 : 0);
+  for (var i = 0; i < k; i++) st.p.push(make());
+}
+
+function puff(st, f, x, y, rad, S, dt, k){
+  spawn(st, f, dt * 90 * k, function(){
+    var a = rnd2(st,f)*6.3, s = rnd2(st,f)*rad*2.6;
+    return { k:"smoke", x:x + Math.cos(a)*s*0.5, y:y + Math.sin(a)*s*0.5, px:x, py:y,
+             vx:Math.cos(a)*60*S, vy:Math.sin(a)*60*S - 30*S, r:rad*0.5, a:0, m:1.6, z:1, s:rnd2(st,f)*6 };
+  });
+}
+
+function bolt(ctx, st, f, x, y, W, S){
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  ctx.strokeStyle = "rgba(190,225,255,.95)"; ctx.lineWidth = 3.5*S; ctx.shadowColor = "#9fd0ff"; ctx.shadowBlur = 24*S;
+  ctx.beginPath(); var cx = x, cy = 0; ctx.moveTo(cx, cy);
+  while (cy < y) { cy += 26*S + rnd2(st,f)*34*S; cx += jit(st,f,40*S); ctx.lineTo(cx, Math.min(cy, y)); }
+  ctx.lineTo(x, y); ctx.stroke(); ctx.restore();
+}
+/* move and draw every particle: streaks rather than dots, and smoke made of lobes */
+
+function step(ctx, st, dt, H, S){
+  var keep = [];
+  for (var i = 0; i < st.p.length; i++) {
+    var p = st.p[i];
+    p.a += dt; if (p.a > p.m) continue;
+    p.px = p.x; p.py = p.y;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    var life = 1 - p.a / p.m;
+    ctx.save();
+    if (p.k === "smoke") {
+      p.r += 30*S*dt*(p.z||1); p.vy -= 12*S*dt;
+      p.vx += Math.sin(p.a * 0.9 + (p.s || 0)) * 9 * S * dt;   /* it drifts, even with no wind asked for */
+      var sp3 = smokeSprites(st), base = ctx.globalAlpha * life, turn = (p.s || 0) + p.a * 0.45;
+      var d2 = p.r * 2.6;
+      ctx.translate(p.x, p.y);
+      ctx.globalCompositeOperation = "multiply";               /* takes the colour of what is behind it */
+      ctx.globalAlpha = base * 0.56 * (p.th || 1);
+      for (var j = 0; j < 2; j++) {
+        ctx.save(); ctx.rotate(turn + j * 2.3); ctx.scale(1, 0.86);
+        ctx.drawImage(sp3.dark, -d2/2, -d2/2, d2, d2); ctx.restore();
+      }
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = base * 0.26 * (p.th || 1);
+      for (var j2 = 0; j2 < 2; j2++) {
+        ctx.save(); ctx.rotate(-turn * 0.7 + j2 * 1.9); ctx.scale(1, 0.9);
+        ctx.drawImage(sp3.lite, -d2/2, -d2/2, d2, d2); ctx.restore();
+      }
+    } else if (p.k === "fire") {
+      p.r *= (1 - 0.9*dt); p.vy += 60*S*dt;
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha *= life;
+      ctx.strokeStyle = "hsl(" + Math.floor(12 + life*45) + ",100%," + Math.floor(45 + life*25) + "%)";
+      ctx.lineWidth = Math.max(1, p.r * 1.6); ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke();
+    } else if (p.k === "spark") {
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha *= Math.abs(Math.sin(p.a*14)) * life;
+      ctx.strokeStyle = "#fff6b0"; ctx.lineWidth = Math.max(1, p.r * 1.2); ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke();
+    } else if (p.k === "heart") {
+      ctx.globalAlpha *= life; ctx.font = p.r*2 + "px serif"; ctx.fillText("❤️", p.x, p.y);
+    } else if (p.k === "bub") {
+      ctx.globalAlpha *= life * .8; ctx.strokeStyle = "#dff6ff"; ctx.lineWidth = 2*S;
+      ctx.beginPath(); ctx.arc(p.x + Math.sin(p.a*3)*8*S, p.y, p.r, 0, 7); ctx.stroke();
+    } else if (p.k === "conf") {
+      p.rot += p.vr*dt; ctx.globalAlpha *= life; ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.r/2, -p.r/4, p.r, p.r/2);
+    } else if (p.k === "snow") {
+      ctx.globalAlpha *= life; ctx.fillStyle = roomy(st, 255, 255, 255, 0.18);
+      ctx.beginPath(); ctx.arc(p.x + Math.sin(p.a*2)*14*S, p.y, p.r, 0, 7); ctx.fill();
+    } else if (p.k === "rain") {
+      ctx.globalAlpha *= .5; ctx.strokeStyle = "#bcd8ff"; ctx.lineWidth = 1.6*S;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - 3*S, p.y + p.r); ctx.stroke();
+    }
+    ctx.restore();
+    if (p.y < H + 60) keep.push(p);
+  }
+  st.p = keep;
+}
+
+/* ---------- preview one clip with its effects ---------- */
+
+function smokeSprites(st){
+  if (st.smk) return st.smk;
+  var mk = function(col){
+    var c = document.createElement("canvas"); c.width = c.height = 128;
+    var g = c.getContext("2d");
+    var gr = g.createRadialGradient(64, 64, 3, 64, 64, 62);
+    gr.addColorStop(0, "rgba(255,255,255,.92)");
+    gr.addColorStop(0.5, "rgba(255,255,255,.44)");
+    gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    g.globalCompositeOperation = "destination-out";          /* bite lumps out of it */
+    for (var i = 0; i < 22; i++) {
+      var a = Math.random()*6.3, d = 24 + Math.random()*38;
+      var x = 64 + Math.cos(a)*d, y = 64 + Math.sin(a)*d, r = 9 + Math.random()*18;
+      var g2 = g.createRadialGradient(x, y, 0, x, y, r);
+      g2.addColorStop(0, "rgba(0,0,0,.6)"); g2.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = g2; g.fillRect(x-r, y-r, r*2, r*2);
+    }
+    g.globalCompositeOperation = "source-in"; g.fillStyle = col; g.fillRect(0, 0, 128, 128);
+    return c;
+  };
+  st.smk = { lite: mk("#c8ccd3"), dark: mk("#23252b") };
+  return st.smk;
+}
+
+function noiseBuf(A){
+  if (A._nb) return A._nb;
+  var n = Math.floor(A.sampleRate * 2), b = A.createBuffer(1, n, A.sampleRate), d = b.getChannelData(0);
+  for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  A._nb = b; return b;
+}
+
+function playFx(f, A, out, hear){
+  if (!A || !out || f.sound === "off") return;
+  var t0 = A.currentTime + 0.01, vol = (f.vol === undefined ? 1 : f.vol);
+  var bus = A.createGain(); bus.gain.value = vol;
+  bus.connect(out); if (hear && hear !== out) bus.connect(hear);
+  var life = f.dur === null ? 3 : Math.min(f.dur, 6);
+
+  function noise(dur, type, freq, q, peak, atk, endFreq){
+    var src = A.createBufferSource(); src.buffer = noiseBuf(A); src.loop = true;
+    var bp = A.createBiquadFilter(); bp.type = type; bp.frequency.value = freq; bp.Q.value = q || 1;
+    if (endFreq) bp.frequency.exponentialRampToValueAtTime(endFreq, t0 + dur);
+    var g = A.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t0 + (atk || 0.01));
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(bp); bp.connect(g); g.connect(bus);
+    src.start(t0); src.stop(t0 + dur + 0.05);
+    return g;
+  }
+  function tone(dur, f1, f2, peak, type, when){
+    var o = A.createOscillator(), g = A.createGain(), st2 = t0 + (when || 0);
+    o.type = type || "sine"; o.frequency.setValueAtTime(f1, st2);
+    if (f2) o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), st2 + dur);
+    g.gain.setValueAtTime(0.0001, st2);
+    g.gain.exponentialRampToValueAtTime(peak, st2 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, st2 + dur);
+    o.connect(g); g.connect(bus); o.start(st2); o.stop(st2 + dur + 0.05);
+  }
+
+  switch (f.type) {
+    case "explode":
+      noise(0.9, "lowpass", 1400, 1, 0.9, 0.006, 160); tone(0.7, 110, 32, 0.8); break;
+    case "fire": {
+      var g = noise(life, "bandpass", 1100, 0.8, 0.12, 0.35);
+      for (var i = 0; i < life * 9; i++) {                      /* crackles on top */
+        var w = t0 + Math.random() * life;
+        g.gain.setValueAtTime(0.12, w); g.gain.linearRampToValueAtTime(0.3, w + 0.012);
+        g.gain.linearRampToValueAtTime(0.1, w + 0.05);
+      }
+      break; }
+    case "smoke":  noise(Math.min(life, 2.4), "lowpass", 220, 0.7, 0.10, 0.5, 900); break;
+    case "sparkle":
+      for (var j = 0; j < 6; j++) tone(0.10, 1600 + Math.random()*2200, 3400, 0.16, "sine", j * 0.09); break;
+    case "lightning":
+      noise(0.16, "highpass", 2400, 0.7, 0.75, 0.003); noise(1.4, "lowpass", 140, 1, 0.35, 0.05); break;
+    case "flash":  noise(0.06, "highpass", 3000, 0.7, 0.35, 0.002); break;
+    case "hide":   noise(0.45, "lowpass", 900, 0.8, 0.28, 0.01, 200); tone(0.3, 520, 180, 0.12); break;
+    case "add":    tone(0.14, 420, 170, 0.32); break;
+    case "reappear": noise(0.45, "lowpass", 300, 0.8, 0.26, 0.01, 1400); tone(0.32, 200, 620, 0.16); break;
+    case "hearts": for (var h = 0; h < 3; h++) tone(0.12, 500 + h*160, 900 + h*160, 0.18, "sine", h*0.13); break;
+    case "bubbles":for (var b2 = 0; b2 < 4; b2++) tone(0.09, 300 + b2*120, 700, 0.16, "sine", b2*0.16); break;
+    case "confetti":noise(0.5, "highpass", 1800, 0.7, 0.22, 0.02); break;
+    case "shake":  noise(Math.min(life, 1.2), "lowpass", 90, 1, 0.4, 0.02); break;
+    case "freeze": noise(0.35, "bandpass", 1200, 6, 0.3, 0.005, 180); break;
+    case "snow":
+    case "rain":   noise(Math.min(life, 6), "lowpass", 1600, 0.7, 0.16, 0.6); break;
+    case "zoomin":
+    case "zoomout":noise(0.5, "bandpass", 700, 1.2, 0.14, 0.15, 1800); break;
+    default: break;
+  }
+}
+
+function plateImg(st, c){
+  if (!c.plate) return null;
+  if (st.plateSrc !== c.plate) { st.plateSrc = c.plate; st.plateIm = new Image(); st.plateIm.src = c.plate; }
+  return (st.plateIm && st.plateIm.complete && st.plateIm.naturalWidth) ? st.plateIm : null;
+}
+
+function buildMask(st, v, c){
+  var pl = plateImg(st, c); if (!pl) return null;
+  var MW = 192, MH = Math.max(50, Math.round(MW * (v.videoHeight || 720) / (v.videoWidth || 1280)));
+  var a = st.mA || (st.mA = document.createElement("canvas"));
+  var b = st.mB || (st.mB = document.createElement("canvas"));
+  var m = st.mM || (st.mM = document.createElement("canvas"));
+  if (a.width !== MW) { a.width = b.width = m.width = MW; a.height = b.height = m.height = MH; }
+  var ga = a.getContext("2d", { willReadFrequently: true });
+  var gb = b.getContext("2d", { willReadFrequently: true });
+  try { ga.drawImage(v, 0, 0, MW, MH); } catch(e){ return null; }
+  if (st.plateDrawn !== c.plate) { gb.drawImage(pl, 0, 0, MW, MH); st.plateDrawn = c.plate; }
+  var cur, old;
+  try { cur = ga.getImageData(0,0,MW,MH).data; old = gb.getImageData(0,0,MW,MH).data; } catch(e){ return null; }
+  var gm = m.getContext("2d"), im = gm.createImageData(MW, MH), th = (c.plateTol || 34) * 3, any = false;
+  for (var i = 0; i < cur.length; i += 4) {
+    var d0 = Math.abs(cur[i]-old[i]) + Math.abs(cur[i+1]-old[i+1]) + Math.abs(cur[i+2]-old[i+2]);
+    var on = d0 > th ? 255 : 0;
+    if (on) any = true;
+    im.data[i] = im.data[i+1] = im.data[i+2] = 255; im.data[i+3] = on;
+  }
+  gm.putImageData(im, 0, 0);
+  return any ? m : null;
+}
+
+/* where an effect is at this moment: one spot, a path you tapped out, or a thing it follows */
+
+function newFx(){ return { p: [], seen: {}, fz: {}, fzUntil: 0, rng: {}, spill: [], sampT: 9,
+                           grain: 0.02, avg: [128,128,128], light: 0.8, snd: {}, imgs: {} }; }
+
+function secs(str){
+  if (str.indexOf(":") > -1) { var p = str.split(":"); return (+p[0])*60 + (+p[1]); }
+  return parseFloat(str);
+}
+/* Pull the "when" out of the sentence. */
+
+function parseWhen(s, c){
+  var L = c.end - c.start, m;
+  if (/\b(whole|entire|all the way|the whole time|all of it)\b/.test(s)) return { at:0, dur:null };
+  m = s.match(/from\s+(\d+(?::\d\d)?(?:\.\d+)?)\s*(?:s\b|sec\w*|seconds?)?\s*(?:to|until|till|-|and)\s*(\d+(?::\d\d)?(?:\.\d+)?)/);
+  if (m) return { at: secs(m[1]), dur: Math.max(0.2, secs(m[2]) - secs(m[1])) };
+  /* "at seconds 11 to 15", "11-15", "second 4 through 9" -- a range without the word "from" */
+  m = s.match(/(\d+(?::\d\d)?(?:\.\d+)?)\s*(?:s\b|secs?\b|seconds?\b)?\s*(?:to|until|till|through|-)\s*(\d+(?::\d\d)?(?:\.\d+)?)/);
+  if (m && secs(m[2]) > secs(m[1])) return { at: secs(m[1]), dur: Math.max(0.2, secs(m[2]) - secs(m[1])) };
+  /* "for 5 seconds" says how long, never when, so it is taken out first */
+  var sAt = s.replace(/\bfor\s+\d+(?:\.\d+)?\s*(?:s\b|secs?\b|seconds?\b)?/g, " ");
+  var at = null;
+  m = sAt.match(/\b(?:second|sec|minute)\s+(\d+(?::\d\d)?(?:\.\d+)?)/);        /* "second 11" */
+  if (m) at = secs(m[1]);
+  if (at === null) { m = sAt.match(/(\d+:\d\d)/); if (m) at = secs(m[1]); }     /* "1:05" */
+  if (at === null) { m = sAt.match(/(\d+(?:\.\d+)?)\s*(?:s\b|secs?\b|seconds?\b)/); if (m) at = +m[1]; }
+  if (at === null && /\bend\b/.test(s)) at = Math.max(0, L - 2);
+  if (at === null && /\b(start|beginning)\b/.test(s)) at = 0;
+  var dur;
+  m = s.match(/for\s+(\d+(?:\.\d+)?)\s*(?:s\b|secs?\b|seconds?\b)?/);
+  if (m) dur = +m[1];
+  return { at: at, dur: dur };
+}
+/* One sentence can hold several orders ("add a dog and make it black and white"),
+   so the phrases that contain the word "and" are hidden before the split. */
+
+function parseCmd(s, c){
+  var low = " " + s.toLowerCase().replace(/[.!,]/g," ") + " ", best = null, bestLen = 0, bestWord = "";
+  KINDS.forEach(function(k){
+    k.w.forEach(function(w){
+      if (low.indexOf(" " + w) > -1 && w.length > bestLen) { best = k; bestLen = w.length; bestWord = w; }
+    });
+  });
+  if (!best) return null;
+  var when = parseWhen(low, c);
+  var at = when.at === null || isNaN(when.at) ? 0 : when.at;
+  var dur = when.dur !== undefined && !isNaN(when.dur) ? when.dur : best.dur;
+  /* what are we pointing at? ("out of his hand" -> "his hand") */
+  var tgt = "", m = s.match(/make\s+((?:the|his|her|their|my|a)\s+[a-z]{2,})\b/i);
+  if (m) tgt = m[1].trim();
+  if (!tgt) {
+    m = s.match(/(?:out of|from|on|over|at|above|around|behind)\s+((?:his|her|their|the|my)\s+[a-z ]{2,18}?)(?:\s+(?:at|on|in|for|from|second|when)\b|$)/i);
+    if (m) tgt = m[1].trim();
+  }
+  if (/\b(video|picture|clip|frame|screen|it)\b/i.test(tgt)) tgt = "";
+  /* where the words sit: the middle unless you say otherwise */
+  var pos = /\b(in the middle|middle|centre|center)\b/.test(low) ? "middle"
+          : /\b(at the top|top)\b/.test(low) ? "top"
+          : /\b(at the bottom|bottom|underneath)\b/.test(low) ? "bottom"
+          : (best.t === "title" || best.t === "subtitle") ? "middle" : "bottom";
+  var txt = "";
+  if (best.t === "text" || best.t === "title" || best.t === "subtitle") {
+    var q = s.match(/["“]([^"”]+)["”]/);
+    txt = q ? q[1] : (s.replace(/^.*?\b(say|caption|captions|subtitles?|write|title|heading|words)\b\s*/i, "")
+                       .replace(/\b(at|in|on)\b.*$/i, "").trim() || "Hello");
+  }
+  var big = /\b(huge|giant|massive|enormous)\b/.test(low) ? 2.2 : /\bbig(ger)?\b/.test(low) ? 1.6
+          : /\b(tiny|little)\b/.test(low) ? 0.5 : /\bsmall(er)?\b/.test(low) ? 0.7 : 1;
+  /* "everywhere" spreads it over the whole picture; "but not the human" keeps a hole for them */
+  var area = /\b(everywhere|all over|the whole screen|whole picture|over everything|all of it|everything)\b/.test(low) ? "all" : "";
+  var notT = "", nm2 = low.match(/\b(?:but not|except for|except|apart from|but|not on|not over|around)\s+(?:the|his|her|their|a|my)?\s*([a-z][a-z ]{1,18}?)\s*(?:$|\bat\b|\bfrom\b|\bfor\b|\bsecond\b)/);
+  if (nm2) notT = nm2[1].trim();
+  if (notT && /^(the )?(video|picture|clip|frame|screen|it)$/.test(notT)) notT = "";
+  if (area) tgt = "";
+  var snd = /\b(no sound|silent|silently|quietly)\b/.test(low) ? "off" : "on";
+  var wind = /\b(wind|windy|breeze|blowing|blown|draught|draft)\b/.test(low)
+             ? (/\bleft\b/.test(low) ? -1 : 1) * (/\b(strong|hard|howling|big)\b/.test(low) ? 2.2 : 1) : 0;
+  var lamp = /\b(light|lamp|torch|candle|bulb|lantern)\b/.test(low);
+  var thick = /\b(thick|heavy|dense|loads of|lots of|tons of|a lot of|huge cloud|billowing)\b/.test(low) ? 1.9
+            : /\b(thin|light wisp|wisp|a bit of|a little|faint|hint of)\b/.test(low) ? 0.45 : 1;
+  /* "make it follow his hand" is the default now, but saying it does no harm */
+  var nm = best.t === "paint" ? bestWord : best.nm;
+  var word = best.t === "title" || best.t === "subtitle" || best.t === "text"
+               ? "\u201c" + txt + "\u201d " + (pos === "middle" ? "in the middle" : pos === "top" ? "at the top" : "")
+           : best.t === "add"   ? (OBJ[bestWord] || "") + " " + bestWord + " added"
+           : best.t === "paint" ? (tgt ? tgt + " painted " + bestWord : bestWord)
+           : best.t === "hide"  ? (tgt ? tgt + " gone" : "gone")
+           : nm + (tgt ? " on " + tgt : "");
+  return { id: uid(), type: best.t, at: at, dur: dur === null ? null : dur, x: 0.5, y: 0.5, r: 0,
+           need: best.spot && !area, area: area, notT: notT, nx: 0, ny: 0, nr: 0,
+           target: tgt, text: txt, col: COL[bestWord] || "#ff8a1f",
+           emoji: OBJ[bestWord] || "\u2b50", size: big, pos: pos, sound: snd,
+           vol: /\b(loud|bang|boom)\b/.test(low) ? 1.6 : 1, wind: wind, lamp: lamp, thick: thick,
+           extra: [], holes: [],
+           trk: !!best.spot && !area && !/\b(stay|still|fixed|do not follow|dont follow)\b/.test(low),
+           trkHole: !!notT,
+           label: word + (area ? " everywhere" : "") + (notT ? " but not " + notT : "") + " at " + fmt(at) };
+}
+
+/* ---------- asking Claude what is behind the thing ----------
+   Only works where the page is allowed to ask: published as an artifact on
+   claude.ai. Anywhere else claude.use resolves nothing and the app quietly
+   goes back to working it out for itself. */
+
+function parseAll(s, c){
+  var keep = [], t = s;
+  t = t.replace(/black and white/gi, function(m){ keep.push(m); return "\u0001" + (keep.length-1) + "\u0001"; });
+  t = t.replace(/(\d+(?::\d\d)?)\s+and\s+(\d+)/gi, "$1 to $2");
+  var parts = t.split(/\s+and then\s+|\s+then\s+|\s+and\s+|;|,/);
+  var out = [];
+  parts.forEach(function(x){
+    x = x.replace(/\u0001(\d+)\u0001/g, function(_,i){ return keep[+i]; }).trim();
+    if (!x) return;
+    var f = parseCmd(x, c);
+    if (f) out.push(f);
+  });
+  if (!out.length) { var one = parseCmd(s, c); if (one) out.push(one); }
+  return out;
+}
+
+/* ===================== Trick Maker ===================== */
+var $ = function(id){ return document.getElementById(id); };
+$("ver").textContent = "build 29 Sep 2026, 19:31";
+
+var take = null;        /* { blob, url, duration, w, h, peaks, plate, keep, fx } */
+var photo = null;       /* dataURL of the card picture */
+var report = null;      /* what the screen test found */
+var stream = null, recorder = null, chunks = [], tick = null, t0 = 0;
+var micCtx = null, micNode = null, micBuf = null, micRaf = 0, unmirror = false, roomPlate = null;
+
+function say(html, kind){
+  var n = $("says"); n.hidden = false; n.innerHTML = html;
+  n.className = "note " + (kind || "");
+}
+
+/* ---------- 1. filming ---------- */
+function watchMic(s){
+  try {
+    micCtx = micCtx || new (window.AudioContext || window.webkitAudioContext)();
+    var src = micCtx.createMediaStreamSource(s);
+    micNode = micCtx.createAnalyser(); micNode.fftSize = 1024;
+    micBuf = new Float32Array(micNode.fftSize);
+    src.connect(micNode);
+  } catch(e){ return; }
+  var loop = function(){
+    if (!micNode || !stream) return;
+    micNode.getFloatTimeDomainData(micBuf);
+    var peak = 0;
+    for (var i = 0; i < micBuf.length; i++) { var v = Math.abs(micBuf[i]); if (v > peak) peak = v; }
+    $("lvl").style.width = clamp(peak * 190, 0, 100) + "%";
+    micRaf = requestAnimationFrame(loop);
+  };
+  micRaf = requestAnimationFrame(loop);
+}
+$("btnCam").onclick = function(){
+  if (stream) {
+    stream.getTracks().forEach(function(t){ t.stop(); });
+    stream = null; $("cam").srcObject = null; cancelAnimationFrame(micRaf); micNode = null;
+    $("btnCam").textContent = "Turn on camera"; $("btnRec").disabled = true; $("btnSnap").disabled = true;
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ video:{ width:{ideal:1280}, height:{ideal:720} },
+                                        audio:{ echoCancellation:true, noiseSuppression:true } })
+    .then(function(s){
+      stream = s; $("cam").srcObject = s;
+      $("btnCam").textContent = "Turn off camera";
+      $("btnRec").disabled = false; $("btnSnap").disabled = false;
+      $("camHint").innerHTML = "Press <b>Film</b>, do the trick, press it again.";
+      watchMic(s);
+    })
+    .catch(function(e){
+      $("camHint").innerHTML = "<b>The camera did not open.</b> " + (e && e.message ? e.message : "") +
+        " Safari and iPhones only allow it on an https page.";
+    });
+};
+$("btnUnmirror").onclick = function(){
+  unmirror = !unmirror;
+  $("btnUnmirror").classList.toggle("on", unmirror);
+  $("cam").style.transform = unmirror ? "scaleX(-1)" : "";
+};
+$("btnPlate").onclick = function(){
+  if (!stream) { $("camHint").innerHTML = "Turn the camera on first."; return; }
+  var cv = document.createElement("canvas"), v = $("cam");
+  cv.width = v.videoWidth || 1280; cv.height = v.videoHeight || 720;
+  try { cv.getContext("2d").drawImage(v, 0, 0, cv.width, cv.height); } catch(e){ return; }
+  roomPlate = cv.toDataURL("image/jpeg", 0.75);
+  $("btnPlate").classList.add("on");
+  $("camHint").innerHTML = "<b>Empty room kept.</b> Now anything you rub out gets filled with the real " +
+    "background, and smoke can pass behind you — as long as the camera does not move.";
+};
+$("btnRec").onclick = function(){
+  if (recorder && recorder.state === "recording") { recorder.stop(); return; }
+  chunks = [];
+  var mime = pickMime();
+  try { recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined); }
+  catch(e){ $("camHint").textContent = "This browser cannot film."; return; }
+  recorder.ondataavailable = function(e){ if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = function(){
+    clearInterval(tick); $("timer").classList.remove("on"); $("timer").textContent = "0:00";
+    $("btnRec").textContent = "● Film"; document.body.classList.remove("filming");
+    var blob = new Blob(chunks, { type: chunks[0] ? chunks[0].type : "video/webm" });
+    if (blob.size) useTake(blob, unmirror);
+  };
+  recorder.start(100);
+  document.body.classList.add("filming");
+  t0 = Date.now(); $("timer").classList.add("on");
+  tick = setInterval(function(){ $("timer").textContent = fmt((Date.now() - t0) / 1000); }, 200);
+  $("btnRec").textContent = "■ Stop";
+};
+$("vidFile").onchange = function(e){ if (e.target.files[0]) useTake(e.target.files[0], false); };
+
+function useTake(blob, flip){
+  var url = URL.createObjectURL(blob);
+  probe(url).then(function(m){
+    take = { blob: blob, url: url, duration: m.d, w: m.w, h: m.h, peaks: null,
+             plate: roomPlate, keep: null, fx: [], start: 0, end: m.d };
+    if (flip) take.fx.push(mk("mirror", 0, null, {}));
+    var v = $("take");
+    v.src = url; v.hidden = false; $("noTake").hidden = true;
+    $("btnHead").disabled = false; $("btnTest").disabled = false; $("btnPreview").disabled = false;
+    $("btnMake").disabled = false;
+    $("takeInfo").innerHTML = "<b>" + fmt(m.d) + "</b> · " + m.w + "×" + m.h;
+    peaksOf(blob);
+    say("Take loaded. Next: press <b>Ring my head</b> so nothing can cover your face, then " +
+        "<b>Watch my take back</b>.");
+  });
+}
+function mk(type, at, dur, o){
+  o = o || {};
+  var f = { id: uid(), type: type, at: at, dur: dur, x: o.x === undefined ? .5 : o.x,
+            y: o.y === undefined ? .55 : o.y, r: o.r || 0, need: false, area: o.area || "", notT: "",
+            nx:0, ny:0, nr:0, target:"", text:o.text || "", col:o.col || "#ff8a1f",
+            emoji:o.emoji || "⭐", size:1, pos:o.pos || "middle", sound:"on", vol:1,
+            wind:0, lamp:false, extra:[], holes:o.holes || [], trk:o.trk !== false, trkHole:false,
+            thick:o.thick || 1, label:(o.label || type) + " at " + fmt(at) };
+  return f;
+}
+/* the loudness of the take, for placing things and for the screen test */
+function peaksOf(blob){
+  if (!blob.arrayBuffer) return;
+  blob.arrayBuffer().then(function(buf){
+    var A = new (window.AudioContext || window.webkitAudioContext)();
+    return A.decodeAudioData(buf).then(function(ab){
+      var ch = ab.getChannelData(0), n = 300, step = Math.floor(ch.length / n) || 1, out = [];
+      for (var i = 0; i < n; i++) {
+        var m = 0;
+        for (var j = 0; j < step; j += 11) { var v = Math.abs(ch[i * step + j] || 0); if (v > m) m = v; }
+        out.push(m);
+      }
+      try { A.close(); } catch(e){}
+      if (take) take.peaks = out;
+    });
+  }).catch(function(){});
+}
+
+/* ---------- tapping a spot ---------- */
+var picking = null, down = null;
+function ptOf(e){
+  var b = $("pick").getBoundingClientRect();
+  return { x: clamp((e.clientX - b.left) / b.width, 0, 1), y: clamp((e.clientY - b.top) / b.height, 0, 1),
+           w: b.width, h: b.height };
+}
+function ringAt(p, rad){
+  var b = $("pick").getBoundingClientRect(), R = $("ring");
+  R.hidden = false;
+  R.style.left = (p.x * b.width - rad * b.width) + "px";
+  R.style.top = (p.y * b.height - rad * b.width) + "px";
+  R.style.width = R.style.height = (rad * 2 * b.width) + "px";
+}
+$("pick").onpointerdown = function(e){ if (!picking) return; down = ptOf(e); ringAt(down, 0.03); };
+$("pick").onpointermove = function(e){
+  if (!picking || !down) return;
+  var p = ptOf(e), dx = p.x - down.x, dy = (p.y - down.y) * (p.h / p.w);
+  ringAt(down, Math.max(0.03, Math.sqrt(dx*dx + dy*dy)));
+};
+$("pick").onpointerup = function(e){
+  if (!picking) return;
+  var p = ptOf(e), s = down || p;
+  var dx = p.x - s.x, dy = (p.y - s.y) * (p.h / p.w), rad = Math.sqrt(dx*dx + dy*dy);
+  down = null; $("ring").hidden = true; $("pick").hidden = true;
+  var f = picking; picking = null;
+  f({ x: s.x, y: s.y, r: rad > 0.03 ? rad : 0 });
+};
+function askSpot(what, circle){
+  return new Promise(function(res){
+    $("pickMsg").textContent = (circle ? "Drag a circle round " : "Tap ") + what + " on the take";
+    $("pick").hidden = false; $("ring").hidden = true;
+    try { $("take").scrollIntoView({ behavior:"smooth", block:"center" }); } catch(e){}
+    picking = res;
+  });
+}
+$("btnHead").onclick = function(){
+  askSpot("your head", true).then(function(q){
+    take.keep = { x:q.x, y:q.y, r: q.r ? q.r * 1.3 : 0.22 };
+    say("<b>Your head is guarded.</b> Nothing will be drawn over it — and it follows you about.");
+  });
+};
+
+/* ---------- 2. the card picture ---------- */
+function setPhoto(data){
+  photo = data;
+  var im = new Image();
+  im.onload = function(){
+    var cv = $("photo"), g = cv.getContext("2d");
+    cv.style.display = "block";
+    g.fillStyle = "#000"; g.fillRect(0, 0, cv.width, cv.height);
+    var s = Math.min(cv.width / im.naturalWidth, cv.height / im.naturalHeight);
+    g.drawImage(im, (cv.width - im.naturalWidth*s)/2, (cv.height - im.naturalHeight*s)/2,
+                im.naturalWidth*s, im.naturalHeight*s);
+  };
+  im.src = data;
+}
+$("btnSnap").onclick = function(){
+  var v = $("cam"), cv = document.createElement("canvas");
+  cv.width = v.videoWidth || 1280; cv.height = v.videoHeight || 720;
+  var g = cv.getContext("2d");
+  if (unmirror) { g.translate(cv.width, 0); g.scale(-1, 1); }
+  try { g.drawImage(v, 0, 0, cv.width, cv.height); } catch(e){ return; }
+  setPhoto(cv.toDataURL("image/jpeg", 0.88));
+};
+$("photoFile").onchange = function(e){
+  var f = e.target.files[0]; if (!f) return;
+  var rd = new FileReader(); rd.onload = function(){ setPhoto(rd.result); }; rd.readAsDataURL(f);
+};
+$("btnNoCard").onclick = function(){ photo = null; $("photo").style.display = "none"; };
+
+/* ---------- 3. the screen test ----------
+   The take is played back at double speed and measured: how much the picture
+   changes from moment to moment (how still you are), how bright it is, how much
+   the corners drift (whether the camera moved), and quick flickers inside the
+   head ring, which is what a blink looks like from here. */
+$("btnTest").onclick = function(){
+  if (!take) return;
+  var v = document.createElement("video");
+  v.src = take.url; v.muted = true; v.playsInline = true;
+  var W = 160, H = Math.max(60, Math.round(W * (take.h || 720) / (take.w || 1280)));
+  var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  var g = cv.getContext("2d", { willReadFrequently: true });
+  var prev = null, prevEye = null, samples = [], eyes = [], lums = [], drift = [], first = null;
+  var head = take.keep || { x: 0.5, y: 0.38, r: 0.22 };
+  $("testProg").hidden = false; $("btnTest").disabled = true;
+  $("testHint").textContent = "Watching it back…";
+
+  var grabEye = function(d){
+    var x0 = Math.round((head.x - head.r * 0.8) * W), x1 = Math.round((head.x + head.r * 0.8) * W);
+    var y0 = Math.round((head.y - head.r * 0.5) * H), y1 = Math.round((head.y + head.r * 0.1) * H);
+    var out = [], n = 0;
+    for (var y = Math.max(0,y0); y < Math.min(H,y1); y++)
+      for (var x = Math.max(0,x0); x < Math.min(W,x1); x++) {
+        var i = (y * W + x) * 4; out[n++] = (d[i]*77 + d[i+1]*151 + d[i+2]*28) >> 8;
+      }
+    return out;
+  };
+  var sample = function(){
+    if (v.ended || v.currentTime >= take.duration - 0.05) return finish();
+    try { g.drawImage(v, 0, 0, W, H); } catch(e){}
+    var d;
+    try { d = g.getImageData(0, 0, W, H).data; } catch(e){ return finish(); }
+    var lum = 0, n = 0, move = 0, corner = 0;
+    for (var i = 0; i < d.length; i += 4) {
+      var l = (d[i]*77 + d[i+1]*151 + d[i+2]*28) >> 8;
+      lum += l; n++;
+      if (prev) move += Math.abs(l - prev[i >> 2]);
+    }
+    var flat = new Uint8Array(n);
+    for (var k = 0; k < n; k++) flat[k] = (d[k*4]*77 + d[k*4+1]*151 + d[k*4+2]*28) >> 8;
+    if (first) {
+      for (var y2 = 0; y2 < 8; y2++) for (var x2 = 0; x2 < 8; x2++) {
+        var a = (y2 * W + x2), b = ((H-1-y2) * W + (W-1-x2));
+        corner += Math.abs(flat[a] - first[a]) + Math.abs(flat[b] - first[b]);
+      }
+      corner /= 128;
+    } else first = flat;
+    var eye = grabEye(d), eMove = 0;
+    if (prevEye && prevEye.length === eye.length) {
+      for (var e2 = 0; e2 < eye.length; e2++) eMove += Math.abs(eye[e2] - prevEye[e2]);
+      eMove /= Math.max(1, eye.length);
+    }
+    prevEye = eye; prev = flat;
+    samples.push({ t: v.currentTime, move: n ? move / n : 0 });
+    eyes.push({ t: v.currentTime, m: eMove });
+    lums.push(lum / Math.max(1, n));
+    drift.push(corner);
+    $("testBar").style.width = clamp(v.currentTime / take.duration * 100, 0, 100) + "%";
+    requestAnimationFrame(sample);
+  };
+  var finish = function(){
+    try { v.pause(); } catch(e){}
+    $("btnTest").disabled = false; $("testProg").hidden = true;
+    report = crunch(samples, eyes, lums, drift);
+    showReport();
+  };
+  v.onloadeddata = function(){ v.playbackRate = 2; v.play().then(function(){ requestAnimationFrame(sample); },
+                                                                function(){ finish(); }); };
+  v.onerror = finish;
+};
+
+function crunch(samples, eyes, lums, drift){
+  var moves = samples.map(function(s){ return s.move; });
+  var sorted = moves.slice().sort(function(a,b){ return a-b; });
+  var quiet = sorted[Math.floor(sorted.length * 0.35)] || 1;
+  var thresh = Math.max(1.4, quiet * 1.7);
+  /* longest run of stillness */
+  var best = { a:0, b:0 }, run = null;
+  samples.forEach(function(s, i){
+    if (s.move <= thresh) { if (!run) run = { a:s.t, b:s.t }; else run.b = s.t; }
+    else { if (run && run.b - run.a > best.b - best.a) best = run; run = null; }
+  });
+  if (run && run.b - run.a > best.b - best.a) best = run;
+  /* blinks: short spikes in the eye band */
+  var em = eyes.map(function(e){ return e.m; });
+  var es = em.slice().sort(function(a,b){ return a-b; });
+  var eq = es[Math.floor(es.length * 0.6)] || 1;
+  var blinks = [], last = -9;
+  eyes.forEach(function(e){
+    if (e.m > Math.max(2.2, eq * 2.4) && e.t - last > 0.22) { blinks.push(e.t); last = e.t; }
+  });
+  var gaps = [];
+  for (var i = 1; i < blinks.length; i++) gaps.push(blinks[i] - blinks[i-1]);
+  var avgGap = gaps.length ? gaps.reduce(function(a,b){ return a+b; }, 0) / gaps.length : null;
+  var lumAvg = lums.reduce(function(a,b){ return a+b; }, 0) / Math.max(1, lums.length);
+  var lumMin = Math.min.apply(null, lums), lumMax = Math.max.apply(null, lums);
+  var driftMax = Math.max.apply(null, drift.concat([0]));
+  var peaks = (take && take.peaks) || [];
+  var loud = peaks.length ? peaks.reduce(function(a,b){ return a+b; }, 0) / peaks.length : 0;
+  var top = peaks.length ? Math.max.apply(null, peaks) : 0;
+  return { samples: samples, thresh: thresh, best: best, blinks: blinks, avgGap: avgGap,
+           lumAvg: lumAvg, lumSwing: lumMax - lumMin, driftMax: driftMax, loud: loud, top: top,
+           still: moves.reduce(function(a,b){ return a+b; }, 0) / Math.max(1, moves.length) };
+}
+
+function showReport(){
+  if (!report) return;
+  var r = report, cards = [];
+  var steady = r.best.b - r.best.a;
+  cards.push(card(steady > 0.4 ? fmt(steady) : "none", "stillest run",
+    steady > 0.4 ? "from " + fmt(r.best.a) + " to " + fmt(r.best.b) : "you never stopped moving",
+    steady < 1.2));
+  cards.push(card(r.blinks.length, "blinks",
+    r.avgGap ? "about one every " + r.avgGap.toFixed(1) + "s" : "too few to measure", false));
+  cards.push(card(r.still.toFixed(1), "how much you move",
+    r.still < 3 ? "very still" : r.still < 7 ? "normal" : "a lot of movement", r.still > 10));
+  cards.push(card(r.driftMax < 6 ? "no" : "yes", "camera moved",
+    r.driftMax < 6 ? "it stayed put — patches will hold" : "put it on something solid next time",
+    r.driftMax >= 6));
+  cards.push(card(Math.round(r.top * 100) + "%", "your voice",
+    r.top < 0.05 ? "the take came out silent" : r.loud > 0.25 ? "good and loud" : "quiet but there",
+    r.top < 0.05));
+  cards.push(card(Math.round(r.lumAvg), "light",
+    r.lumAvg < 60 ? "dark in here" : r.lumAvg > 205 ? "blown out" :
+      (r.lumSwing > 45 ? "it changed partway through" : "steady"),
+    r.lumAvg < 60 || r.lumAvg > 205 || r.lumSwing > 45));
+  $("report").innerHTML = cards.join("");
+  $("report").hidden = false;
+
+  /* the stillness stripe */
+  var cv = $("stillCv"), bar = $("stillBar");
+  bar.hidden = false;
+  cv.width = bar.clientWidth * 2; cv.height = 68;
+  var g = cv.getContext("2d"), n = r.samples.length;
+  var top = Math.max.apply(null, r.samples.map(function(s){ return s.move; })) || 1;
+  for (var i = 0; i < n; i++) {
+    var h = clamp(r.samples[i].move / top, 0, 1) * cv.height;
+    g.fillStyle = r.samples[i].move <= r.thresh ? "rgba(51,214,166,.75)" : "rgba(240,180,41,.75)";
+    g.fillRect(i / n * cv.width, cv.height - h, Math.ceil(cv.width / n) + 1, h);
+  }
+  if (steady > 0.4 && take) {
+    var b = $("bestBand");
+    b.hidden = false;
+    b.style.left = (r.best.a / take.duration * 100) + "%";
+    b.style.width = ((r.best.b - r.best.a) / take.duration * 100) + "%";
+  }
+  $("bestSays").hidden = false;
+  $("bestSays").innerHTML = steady > 0.4
+    ? "Green is still, gold is moving. Your best window is <b>" + fmt(r.best.a) + " to " + fmt(r.best.b) +
+      "</b> — a vanish put there will hold." + (r.driftMax < 6 && take.plate ?
+        " You have an empty room too, so it can be filled with the real background." : "")
+    : "You never really stopped moving, so keep the tricks to smoke and sparkles — a vanish needs a still shot.";
+}
+function card(v, k, s, warn){
+  return '<div class="card' + (warn ? " warn" : "") + '"><div class="k">' + esc(k) + '</div>' +
+         '<div class="v">' + esc(String(v)) + '</div><div class="s">' + esc(s) + '</div></div>';
+}
+
+/* ---------- 4. the tricks ---------- */
+var EXAMPLES = [
+  "I hold up a card and wave my hand over it and it is gone, about 5 seconds in",
+  "it comes back at 9 seconds",
+  "thick smoke from my hand at 13 seconds",
+  "the ball disappears at 4 seconds",
+  "sparkles on the ball at 6 seconds",
+  "an explosion at 10 seconds",
+  "slow motion from 8 to 11 seconds",
+  "confetti everywhere at 20 seconds",
+  "title “Trick Shot” at the start",
+  "add a dog at second 7"
+];
+$("ex").innerHTML = EXAMPLES.map(function(e){ return "<button>" + esc(e) + "</button>"; }).join("");
+Array.prototype.forEach.call($("ex").children, function(b){
+  b.onclick = function(){
+    var t = $("script");
+    t.value = (t.value ? t.value.replace(/\s*$/, "") + "\n" : "") + b.textContent;
+    t.focus();
+  };
+});
+
+/* One line, one trick. And a sentence is full of nouns that are not instructions:
+   "wave my hand" should not add a hand, so the names of things only count when
+   the line actually asks for one. */
+var ADD_VERB = /\b(add|adds|put|puts|appear|appears|appearing|drop in|drops in|bring in|brings in|spawn|give me|show up|shows up)\b/i;
+function readLine(line){
+  var lean = line;
+  if (!ADD_VERB.test(line)) {
+    Object.keys(OBJ).forEach(function(w){
+      lean = lean.replace(new RegExp("\\b" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi"), " ");
+    });
+  }
+  return parseCmd(lean, take) || parseCmd(line, take);
+}
+
+/* put a trick where the picture is stillest, within a second either side */
+function stillestNear(t){
+  if (!report || !report.samples.length) return t;
+  var best = t, bv = 1e9;
+  report.samples.forEach(function(s){
+    if (Math.abs(s.t - t) > 1.0) return;
+    if (s.move < bv) { bv = s.move; best = s.t; }
+  });
+  return Math.round(best * 10) / 10;
+}
+
+$("btnRead").onclick = function(){
+  if (!take) { say("Film a take first, or choose a video.", "bad"); return; }
+  var lines = $("script").value.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
+  if (!lines.length) { say("Write what happens, one line each.", "bad"); return; }
+  take.fx = take.fx.filter(function(f){ return f.type === "mirror"; });
+  var missed = [];
+  lines.forEach(function(line){
+    var f = readLine(line);
+    if (!f) { missed.push(line); return; }
+    f.said = line;
+    if ($("snapStill").checked) {
+      var moved = stillestNear(f.at);
+      if (Math.abs(moved - f.at) > 0.05) { f.movedFrom = f.at; f.at = moved; }
+    }
+    take.fx.push(f);
+  });
+  take.fx.sort(function(a,b){ return a.at - b.at; });
+  drawTricks();
+  var needs = take.fx.filter(function(f){ return f.need; });
+  if (needs.length) {
+    say("Read " + take.fx.length + " trick" + (take.fx.length>1?"s":"") + ". Now show it where: <b>" +
+        needs.length + "</b> of them need a spot on the take." +
+        (missed.length ? " I did not understand: <b>" + esc(missed.join(" / ")) + "</b>" : ""), "ask");
+    askEach(needs, 0);
+  }
+  else say(take.fx.length + " trick" + (take.fx.length>1?"s":"") + " read." +
+           (missed.length ? " I did not understand: <b>" + esc(missed.join(" / ")) + "</b>" : ""),
+           missed.length ? "bad" : "");
+};
+function askEach(list, i){
+  if (i >= list.length) { drawTricks(); say("All placed. Press <b>Preview with the tricks</b> to watch it."); return; }
+  var f = list[i];
+  askSpot(f.target || "where it happens", f.type === "hide" || f.type === "censor").then(function(q){
+    f.x = q.x; f.y = q.y; f.r = q.r; f.need = false;
+    if (f.type === "keep") f.holes = [{ x:q.x, y:q.y, r: q.r ? q.r*1.3 : 0.22, guard:1 }];
+    if (f.type === "clear") f.holes = [{ x:q.x, y:q.y, r: q.r || 0.14 }];
+    drawTricks(); askEach(list, i + 1);
+  });
+}
+function drawTricks(){
+  var box = $("tricks"); box.innerHTML = "";
+  if (!take) return;
+  take.fx.filter(function(f){ return f.type !== "mirror"; }).forEach(function(f){
+    var el = document.createElement("div"); el.className = "trick";
+    el.innerHTML =
+      '<span class="when">' + fmt(f.at) + '</span>' +
+      '<span class="said">' + esc(f.said || f.label) +
+        (f.movedFrom !== undefined ? '<i>moved from ' + fmt(f.movedFrom) + ' onto a stiller moment</i>' : '') +
+        (f.need ? '<i>needs a spot</i>' : '') + '</span>' +
+      '<span class="spot">' + esc(f.label.replace(/ at \d+:\d\d$/, "")) + '</span>' +
+      ' <input type="number" class="num at" step="0.5" min="0" value="' + f.at.toFixed(1) + '">' +
+      ' <input type="number" class="num du" step="0.5" min="0.2" placeholder="all" value="' +
+        (f.dur === null ? "" : f.dur.toFixed(1)) + '">' +
+      ' <button title="Take it off">&#10005;</button>';
+    el.querySelector(".at").onchange = function(){
+      f.at = clamp(+this.value || 0, 0, take.duration); delete f.movedFrom; drawTricks();
+    };
+    el.querySelector(".du").onchange = function(){
+      f.dur = this.value === "" ? null : clamp(+this.value || 1, 0.2, 600);
+    };
+    el.querySelector("button").onclick = function(){
+      take.fx = take.fx.filter(function(x){ return x.id !== f.id; }); drawTricks();
+    };
+    box.appendChild(el);
+  });
+}
+
+/* ---------- previewing ---------- */
+var prevRun = null, prevA = null;
+function actx(){
+  try { prevA = prevA || new (window.AudioContext || window.webkitAudioContext)();
+        if (prevA.state === "suspended") prevA.resume(); } catch(e){ prevA = null; }
+  return prevA;
+}
+$("btnPreview").onclick = function(){
+  if (!take) return;
+  var v = $("take"), cv = $("stage");
+  if (prevRun) { cancelAnimationFrame(prevRun); prevRun = null; v.pause(); cv.hidden = true;
+                 $("btnPreview").textContent = "▶ Preview with the tricks"; return; }
+  cv.width = 1280; cv.height = Math.round(1280 * (take.h || 720) / (take.w || 1280));
+  cv.hidden = false; v.hidden = true;
+  $("btnPreview").textContent = "■ Stop";
+  var ctx = cv.getContext("2d"), st = newFx(), last = performance.now();
+  v.currentTime = 0; v.play();
+  var loop = function(){
+    if (!prevRun) return;
+    var now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now;
+    var t = v.currentTime;
+    v.playbackRate = rateAt(take, t);
+    v.preservesPitch = true; v.webkitPreservesPitch = true;
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
+    drawFrame(ctx, cv.width, cv.height, v, take, t, 1, dt, st,
+              { fill:false, k:1, guide:true, smooth: rateAt(take, t) < 1, actx: actx(),
+                snd: actx() ? actx().destination : null });
+    if (v.ended || t >= take.duration - 0.05) {
+      v.pause(); cv.hidden = true; v.hidden = false; prevRun = null;
+      $("btnPreview").textContent = "▶ Preview with the tricks"; return;
+    }
+    prevRun = requestAnimationFrame(loop);
+  };
+  prevRun = requestAnimationFrame(loop);
+};
+
+/* ---------- 5. making it ---------- */
+var stopIt = false;
+$("btnStop").onclick = function(){ stopIt = true; };
+$("btnMake").onclick = function(){
+  if (!take) return;
+  stopIt = false;
+  $("btnMake").disabled = true; $("btnStop").hidden = false; $("done").hidden = true;
+  var wh = $("size").value.split("x"), W = +wh[0], H = +wh[1];
+  var cv = $("out"); cv.width = W; cv.height = H; cv.style.display = "block";
+  var ctx = cv.getContext("2d");
+  var CARD = photo ? 2.6 : 0;
+  var total = CARD + realLen(take);
+
+  var A = new (window.AudioContext || window.webkitAudioContext)();
+  var dest = A.createMediaStreamDestination();
+  var hear = $("hear").checked;
+  var v = document.createElement("video");
+  v.src = take.url; v.playsInline = true; v.preload = "auto";
+  var gain = null, srcNode = null;
+  var im = null;
+  if (photo) { im = new Image(); im.src = photo; }
+
+  var out = cv.captureStream(30);
+  dest.stream.getAudioTracks().forEach(function(t){ out.addTrack(t); });
+  var mime = pickMime(), mr;
+  try { mr = new MediaRecorder(out, mime ? { mimeType: mime, videoBitsPerSecond: 5000000,
+                                             audioBitsPerSecond: 128000 } : undefined); }
+  catch(e){ say("This browser cannot make videos.", "bad"); $("btnMake").disabled = false;
+            $("btnStop").hidden = true; return; }
+  var parts = [];
+  mr.ondataavailable = function(e){ if (e.data && e.data.size) parts.push(e.data); };
+  mr.onstop = function(){ finish(parts); };
+
+  var st = newFx(), startWall = 0, lastWall = 0, rolling = false;
+  v.onloadeddata = function(){
+    try {
+      srcNode = A.createMediaElementSource(v);
+      gain = A.createGain(); gain.gain.value = 0;
+      srcNode.connect(gain); gain.connect(dest);
+      if (hear) gain.connect(A.destination);
+    } catch(e){}
+    A.resume().then(function(){
+      mr.start(250);
+      startWall = performance.now(); lastWall = startWall;
+      requestAnimationFrame(loop);
+    });
+  };
+
+  function drawCard(k){
+    ctx.fillStyle = "#0b0e13"; ctx.fillRect(0, 0, W, H);
+    if (im && im.complete) {
+      var s = Math.min(W / im.naturalWidth, H / im.naturalHeight) * (1.02 + 0.06 * k);
+      var w = im.naturalWidth * s, h = im.naturalHeight * s;
+      ctx.save(); ctx.globalAlpha = 0.85;
+      ctx.drawImage(im, (W - w)/2, (H - h)/2, w, h);
+      ctx.restore();
+      var g = ctx.createLinearGradient(0, H*0.4, 0, H);
+      g.addColorStop(0, "rgba(11,14,19,0)"); g.addColorStop(1, "rgba(11,14,19,.92)");
+      ctx.fillStyle = g; ctx.fillRect(0, H*0.4, W, H*0.6);
+    }
+    var words = $("cardText").value.trim();
+    if (words) {
+      var S = H / 720;
+      ctx.save();
+      ctx.textAlign = "center"; ctx.fillStyle = "#fff";
+      ctx.font = "800 " + Math.round(86 * S) + "px Helvetica, Arial, sans-serif";
+      ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 24 * S;
+      ctx.fillText(words, W / 2, H * 0.82);
+      ctx.restore();
+    }
+  }
+
+  function loop(){
+    var now = (performance.now() - startWall) / 1000;
+    var dt = Math.min(0.1, (performance.now() - lastWall) / 1000); lastWall = performance.now();
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+
+    if (now < CARD) {
+      drawCard(clamp(now / CARD, 0, 1));
+      if (gain) gain.gain.value = 0;
+    } else {
+      if (!rolling) { rolling = true; v.currentTime = take.start || 0; v.play().catch(function(){}); }
+      var t = v.currentTime;
+      v.playbackRate = rateAt(take, t);
+      v.preservesPitch = true; v.webkitPreservesPitch = true;
+      if (gain) gain.gain.value = mutedAt(take, t) ? 0 : volAt(take, t);
+      drawFrame(ctx, W, H, v, take, t, 1, dt, st,
+                { fill:true, k:1, smooth: rateAt(take, t) < 1, actx: A, snd: dest,
+                  hear: hear ? A.destination : null });
+    }
+
+    var fade = Math.min(clamp(now / 0.6, 0, 1), clamp((total - now) / 0.6, 0, 1));
+    if (fade < 1) { ctx.save(); ctx.globalAlpha = 1 - fade; ctx.fillStyle = "#000";
+                    ctx.fillRect(0, 0, W, H); ctx.restore(); }
+
+    $("makeBar").style.width = clamp(now / total * 100, 0, 100) + "%";
+    $("makeInfo").textContent = fmt(now) + " / " + fmt(total);
+    if (stopIt || now >= total + 0.2) { try { mr.stop(); } catch(e){} try { v.pause(); } catch(e){} return; }
+    requestAnimationFrame(loop);
+  }
+
+  function finish(parts){
+    try { A.close(); } catch(e){}
+    var blob = new Blob(parts, { type: parts[0] ? parts[0].type : "video/webm" });
+    var url = URL.createObjectURL(blob);
+    $("outVid").src = url;
+    $("dl").href = url;
+    $("dl").download = "trick." + (blob.type.indexOf("mp4") > -1 ? "mp4" : "webm");
+    $("done").hidden = false;
+    $("makeBar").style.width = "100%";
+    $("makeInfo").textContent = stopIt ? "stopped early" : "done";
+    $("btnMake").disabled = false; $("btnStop").hidden = true;
+    $("outVid").scrollIntoView({ behavior:"smooth", block:"center" });
+  }
+};
+
+if (!window.MediaRecorder) $("camHint").innerHTML = "<b>This browser cannot film or make videos.</b> Try Chrome.";
+</script>
+</body></html>

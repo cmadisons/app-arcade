@@ -88,6 +88,14 @@
   .trick button:hover{color:var(--rec)}
   .trick .spot{color:var(--go);font-size:13px}
   .chk{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:14px}
+  .props{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+  .prop{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:8px;width:136px}
+  .prop canvas{width:120px;height:90px;display:block;border-radius:8px;
+    background:repeating-conic-gradient(#262c35 0% 25%, #1b2029 0% 50%) 50%/14px 14px}
+  .prop .nm{font-size:13.5px;font-weight:600;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .prop .ops{display:flex;gap:5px;margin-top:5px}
+  .prop .ops button{flex:1;background:#2b3240;border:none;color:var(--fg);border-radius:7px;padding:3px 0;font-size:12.5px}
+  .prop .ops button:hover{background:var(--gold);color:#241a00}
   .prog{height:11px;background:var(--panel2);border-radius:999px;overflow:hidden;margin-top:11px}
   .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--go));transition:width .2s}
   a.dl{display:inline-block;background:var(--go);color:#06241c;font-weight:700;text-decoration:none;
@@ -165,7 +173,25 @@
 
   <!-- 3 -->
   <section class="step">
-    <h2><b>3</b>What it saw</h2>
+    <h2><b>3</b>Your things</h2>
+    <p class="why">Photograph the actual thing &mdash; your magic set, the ball somebody signed &mdash; and
+      name it. Then just say its name in a line and that is what turns up in the video, not a cartoon one.</p>
+    <div class="row">
+      <button class="btn" id="btnPropCam" disabled>Take a picture of it</button>
+      <label class="btn" for="propFile">Choose a picture</label>
+      <input type="file" id="propFile" accept="image/*" hidden>
+      <input type="text" id="propName" class="num" style="width:200px" placeholder="what to call it">
+      <label class="chk"><input type="checkbox" id="propCut" checked> rub out the background</label>
+      <input type="range" id="propTol" min="20" max="160" value="62" style="width:120px" title="how fussy the rubbing out is">
+    </div>
+    <div class="props" id="props"></div>
+    <p class="hint" id="propHint">Photograph it against something plain and it cuts out cleanly. Then write
+      <b>my magic set appears at 6 seconds</b>, or <b>the signed basketball flies in from the left at 8 seconds</b>.</p>
+  </section>
+
+  <!-- 4 -->
+  <section class="step">
+    <h2><b>4</b>What it saw</h2>
     <p class="why">It plays your take back and measures it, so the tricks land where they will hold up.</p>
     <div class="row">
       <button class="btn gold" id="btnTest" disabled>Watch my take back</button>
@@ -177,9 +203,9 @@
     <p class="hint" id="bestSays" hidden></p>
   </section>
 
-  <!-- 4 -->
+  <!-- 5 -->
   <section class="step">
-    <h2><b>4</b>What happens</h2>
+    <h2><b>5</b>What happens</h2>
     <p class="why">One line each, in your own words: what you do, roughly when, and what should be seen.</p>
     <textarea id="script" placeholder="I hold up a card and wave my hand over it and it is gone, about 5 seconds in
 it comes back at 9 seconds in a puff of smoke
@@ -193,9 +219,9 @@ thick smoke from my hand at 13 seconds"></textarea>
     <div class="note" id="says" hidden></div>
   </section>
 
-  <!-- 5 -->
+  <!-- 6 -->
   <section class="step">
-    <h2><b>5</b>Make it</h2>
+    <h2><b>6</b>Make it</h2>
     <div class="row">
       <label class="chk">Size
         <select id="size" class="btn small">
@@ -1332,7 +1358,7 @@ function parseAll(s, c){
 
 /* ===================== Trick Maker ===================== */
 var $ = function(id){ return document.getElementById(id); };
-$("ver").textContent = "build 29 Sep 2026, 19:31";
+$("ver").textContent = "build 29 Sep 2026, 19:36";
 
 var take = null;        /* { blob, url, duration, w, h, peaks, plate, keep, fx } */
 var photo = null;       /* dataURL of the card picture */
@@ -1369,6 +1395,7 @@ $("btnCam").onclick = function(){
     stream.getTracks().forEach(function(t){ t.stop(); });
     stream = null; $("cam").srcObject = null; cancelAnimationFrame(micRaf); micNode = null;
     $("btnCam").textContent = "Turn on camera"; $("btnRec").disabled = true; $("btnSnap").disabled = true;
+    $("btnPropCam").disabled = true;
     return;
   }
   navigator.mediaDevices.getUserMedia({ video:{ width:{ideal:1280}, height:{ideal:720} },
@@ -1376,7 +1403,7 @@ $("btnCam").onclick = function(){
     .then(function(s){
       stream = s; $("cam").srcObject = s;
       $("btnCam").textContent = "Turn off camera";
-      $("btnRec").disabled = false; $("btnSnap").disabled = false;
+      $("btnRec").disabled = false; $("btnSnap").disabled = false; $("btnPropCam").disabled = false;
       $("camHint").innerHTML = "Press <b>Film</b>, do the trick, press it again.";
       watchMic(s);
     })
@@ -1535,6 +1562,109 @@ $("photoFile").onchange = function(e){
   var rd = new FileReader(); rd.onload = function(){ setPhoto(rd.result); }; rd.readAsDataURL(f);
 };
 $("btnNoCard").onclick = function(){ photo = null; $("photo").style.display = "none"; };
+
+/* ---------- your own things ----------
+   A photograph of the real prop, with the background rubbed out by flooding in
+   from the four corners: every pixel close enough in colour to the corner it is
+   joined to goes clear, and the edge is softened so it does not look cut with
+   scissors. */
+var props = [];
+try { props = JSON.parse(localStorage.getItem("trick-props") || "[]") || []; } catch(e){ props = []; }
+
+function saveProps(){
+  try { localStorage.setItem("trick-props", JSON.stringify(props.slice(0, 6))); } catch(e){}
+}
+function cutOut(im, tol){
+  var W = Math.min(480, im.naturalWidth), H = Math.round(W * im.naturalHeight / im.naturalWidth);
+  var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  var g = cv.getContext("2d", { willReadFrequently: true });
+  g.drawImage(im, 0, 0, W, H);
+  var img = g.getImageData(0, 0, W, H), d = img.data;
+  var seen = new Uint8Array(W * H);
+  /* Each corner floods on its OWN colour. Comparing a pixel with its neighbour
+     instead walks across a gradient and eats the whole picture. */
+  [[0,0], [W-1,0], [0,H-1], [W-1,H-1]].forEach(function(c){
+    var seed = c[1] * W + c[0];
+    var sr = d[seed*4], sg = d[seed*4+1], sb = d[seed*4+2];
+    var stack = [seed];
+    while (stack.length) {
+      var i = stack.pop();
+      if (seen[i]) continue;
+      if (Math.abs(d[i*4]-sr) + Math.abs(d[i*4+1]-sg) + Math.abs(d[i*4+2]-sb) >= tol * 3) continue;
+      seen[i] = 1;
+      var x = i % W, y = (i / W) | 0;
+      if (x > 0) stack.push(i - 1);
+      if (x < W-1) stack.push(i + 1);
+      if (y > 0) stack.push(i - W);
+      if (y < H-1) stack.push(i + W);
+    }
+  });
+  for (var k = 0; k < W * H; k++) if (seen[k]) d[k*4+3] = 0;
+  /* soften whatever is left at the edge */
+  for (var y2 = 1; y2 < H-1; y2++) for (var x2 = 1; x2 < W-1; x2++) {
+    var p = y2 * W + x2;
+    if (d[p*4+3] === 0) continue;
+    var open = 0;
+    if (!d[(p-1)*4+3]) open++; if (!d[(p+1)*4+3]) open++;
+    if (!d[(p-W)*4+3]) open++; if (!d[(p+W)*4+3]) open++;
+    if (open) d[p*4+3] = 255 - open * 55;
+  }
+  g.putImageData(img, 0, 0);
+  return cv.toDataURL("image/png");
+}
+function addProp(dataURL){
+  var name = ($("propName").value || "").trim();
+  var im = new Image();
+  im.onload = function(){
+    var data = $("propCut").checked ? cutOut(im, +$("propTol").value) : dataURL;
+    props.unshift({ id: uid(), name: name || ("thing " + (props.length + 1)), data: data });
+    props = props.slice(0, 6);
+    saveProps(); drawProps();
+    $("propName").value = "";
+    $("propHint").innerHTML = "Kept as <b>" + esc(props[0].name) + "</b>. Now write a line with that name " +
+      "in it, like <b>" + esc(props[0].name) + " appears at 6 seconds</b>.";
+  };
+  im.src = dataURL;
+}
+function drawProps(){
+  var box = $("props"); box.innerHTML = "";
+  props.forEach(function(p){
+    var el = document.createElement("div"); el.className = "prop";
+    el.innerHTML = '<canvas width="240" height="180"></canvas><div class="nm">' + esc(p.name) + '</div>' +
+      '<div class="ops"><button data-a="r">rename</button><button data-a="x">remove</button></div>';
+    var g = el.querySelector("canvas").getContext("2d");
+    var im = new Image();
+    im.onload = function(){
+      var s = Math.min(240 / im.naturalWidth, 180 / im.naturalHeight);
+      g.drawImage(im, (240 - im.naturalWidth*s)/2, (180 - im.naturalHeight*s)/2,
+                  im.naturalWidth*s, im.naturalHeight*s);
+    };
+    im.src = p.data;
+    el.onclick = function(ev){
+      var a = ev.target.dataset ? ev.target.dataset.a : null;
+      if (a === "x") { props = props.filter(function(q){ return q.id !== p.id; }); saveProps(); drawProps(); }
+      if (a === "r") {
+        var n = window.prompt("What should it be called?", p.name);
+        if (n) { p.name = n.trim(); saveProps(); drawProps(); }
+      }
+    };
+    box.appendChild(el);
+  });
+}
+drawProps();
+$("btnPropCam").onclick = function(){
+  var v = $("cam"), cv = document.createElement("canvas");
+  cv.width = v.videoWidth || 1280; cv.height = v.videoHeight || 720;
+  var g = cv.getContext("2d");
+  if (unmirror) { g.translate(cv.width, 0); g.scale(-1, 1); }
+  try { g.drawImage(v, 0, 0, cv.width, cv.height); } catch(e){ return; }
+  addProp(cv.toDataURL("image/jpeg", 0.92));
+};
+$("propFile").onchange = function(e){
+  var f = e.target.files[0]; if (!f) return;
+  var rd = new FileReader(); rd.onload = function(){ addProp(rd.result); }; rd.readAsDataURL(f);
+  e.target.value = "";
+};
 
 /* ---------- 3. the screen test ----------
    The take is played back at double speed and measured: how much the picture
@@ -1705,7 +1835,9 @@ var EXAMPLES = [
   "slow motion from 8 to 11 seconds",
   "confetti everywhere at 20 seconds",
   "title “Trick Shot” at the start",
-  "add a dog at second 7"
+  "add a dog at second 7",
+  "my magic set appears at 6 seconds",
+  "the signed basketball flies in from the left at 8 seconds"
 ];
 $("ex").innerHTML = EXAMPLES.map(function(e){ return "<button>" + esc(e) + "</button>"; }).join("");
 Array.prototype.forEach.call($("ex").children, function(b){
@@ -1720,6 +1852,21 @@ Array.prototype.forEach.call($("ex").children, function(b){
    "wave my hand" should not add a hand, so the names of things only count when
    the line actually asks for one. */
 var ADD_VERB = /\b(add|adds|put|puts|appear|appears|appearing|drop in|drops in|bring in|brings in|spawn|give me|show up|shows up)\b/i;
+function escRe(x){ return String(x).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+/* does this line name one of your things? */
+function propIn(line){
+  var hit = null;
+  props.forEach(function(p){
+    if (!p.name) return;
+    if (new RegExp("\\b" + escRe(p.name) + "\\b", "i").test(line)) { hit = hit || p; return; }
+    var words = p.name.split(/\s+/).filter(function(w){ return w.length > 3; });
+    if (words.length && words.every(function(w){ return new RegExp("\\b" + escRe(w) + "\\b", "i").test(line); }))
+      hit = hit || p;
+  });
+  return hit;
+}
+var ENTER = /\b(?:flies|fly|comes|come|drops|drop|zooms|zoom|swoops|swoop)\s+in\s+from\s+(?:the\s+)?(left|right|top|bottom)\b/i;
+
 function readLine(line){
   var lean = line;
   if (!ADD_VERB.test(line)) {
@@ -1727,7 +1874,23 @@ function readLine(line){
       lean = lean.replace(new RegExp("\\b" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi"), " ");
     });
   }
-  return parseCmd(lean, take) || parseCmd(line, take);
+  var f = parseCmd(lean, take) || parseCmd(line, take);
+  var prop = propIn(line);
+  if (prop) {
+    if (!f || (f.type !== "add" && ADD_VERB.test(line))) {
+      f = mk("add", f ? f.at : 0, null, {});
+      f.need = true;
+    }
+    if (f.type === "add") {
+      f.img = prop.data; f.prop = prop.name;
+      f.label = prop.name + " at " + fmt(f.at);
+    }
+  }
+  if (f && f.type === "add") {
+    var e = line.match(ENTER);
+    if (e) { f.enter = e[1].toLowerCase(); f.trk = false; f.dur = f.dur === null ? 3 : f.dur; }
+  }
+  return f;
 }
 
 /* put a trick where the picture is stillest, within a second either side */
@@ -1775,6 +1938,12 @@ function askEach(list, i){
   var f = list[i];
   askSpot(f.target || "where it happens", f.type === "hide" || f.type === "censor").then(function(q){
     f.x = q.x; f.y = q.y; f.r = q.r; f.need = false;
+    if (f.enter) {                                    /* comes in from off the edge and lands on the spot */
+      var from = { left:{x:-0.2,y:q.y}, right:{x:1.2,y:q.y},
+                   top:{x:q.x,y:-0.2}, bottom:{x:q.x,y:1.2} }[f.enter];
+      f.path = [{ t: f.at + Math.min(0.9, (f.dur || 3) * 0.4), x: q.x, y: q.y }];
+      f.x = from.x; f.y = from.y;
+    }
     if (f.type === "keep") f.holes = [{ x:q.x, y:q.y, r: q.r ? q.r*1.3 : 0.22, guard:1 }];
     if (f.type === "clear") f.holes = [{ x:q.x, y:q.y, r: q.r || 0.14 }];
     drawTricks(); askEach(list, i + 1);

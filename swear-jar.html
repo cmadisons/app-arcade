@@ -55,13 +55,14 @@
 <div class="foot"><button id="reset">Reset everything</button></div>
 
 <script>
-const PEOPLE = ["Sarah", "Niko", "Tommy", "Richard", "Charlie", "Michiel"];
+const PEOPLE = ["Sarah", "Niko", "Tommy", "Richard", "Michael", "Charlie"];
 const KEY = "swear-jar-v1";
 const money = n => "$" + n.toFixed(2);
 
 let state;
 try { state = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
 if (!state) state = {};
+if (state.Michiel && !state.Michael) { state.Michael = state.Michiel; delete state.Michiel; }
 for (const p of PEOPLE) state[p] = Object.assign({ swears: 0, grays: 0, paid: 0, history: [] }, state[p]);
 let view = "jar";
 

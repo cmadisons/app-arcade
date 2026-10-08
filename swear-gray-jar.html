@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swear Jar</title>
+<style>
+  :root { --bg:#fdf6e9; --card:#fff; --ink:#2b2b2b; --muted:#777; --jar:#d94848; --gray:#8a8f98; --paid:#2e9b5b; --line:#eadfca; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system, system-ui, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+  header { text-align:center; padding:20px 16px 8px; }
+  h1 { margin:0; font-size:2.2rem; }
+  .jar { font-size:3.5rem; line-height:1; }
+  .total { font-size:1.2rem; margin-top:6px; color:var(--muted); }
+  .total b { color:var(--ink); font-size:1.6rem; }
+  .tabs { display:flex; gap:8px; justify-content:center; margin:14px 16px; }
+  .tabs button { flex:1; max-width:220px; padding:12px; font-size:1rem; font-weight:700; border:2px solid var(--line); background:#fff; border-radius:12px; cursor:pointer; }
+  .tabs button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  main { max-width:720px; margin:0 auto; padding:0 16px 40px; display:grid; gap:12px; }
+  .card { background:var(--card); border:2px solid var(--line); border-radius:16px; padding:14px 16px; }
+  .top { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .name { font-size:1.4rem; font-weight:800; }
+  .amt { font-size:1.4rem; font-weight:800; }
+  .sub { color:var(--muted); font-size:.9rem; margin:4px 0 10px; }
+  .btns { display:flex; gap:8px; flex-wrap:wrap; }
+  .btns button { flex:1; min-width:120px; padding:12px 10px; font-size:1rem; font-weight:700; color:#fff; border:none; border-radius:12px; cursor:pointer; transition:transform .08s; }
+  .btns button:active { transform:scale(.95); }
+  .b-jar { background:var(--jar); }
+  .b-gray { background:var(--gray); }
+  .b-paid { background:var(--paid); }
+  .b-undo { background:#fff !important; color:var(--muted) !important; border:2px solid var(--line) !important; flex:0 0 auto !important; min-width:0 !important; }
+  .owe { color:var(--jar); }
+  .ok { color:var(--paid); }
+  .bar { height:10px; background:#f1e9da; border-radius:6px; overflow:hidden; margin:2px 0 10px; }
+  .bar i { display:block; height:100%; background:var(--paid); width:0; transition:width .3s; }
+  .foot { text-align:center; margin-top:8px; }
+  .foot button { background:none; border:none; color:var(--muted); text-decoration:underline; cursor:pointer; font-size:.9rem; }
+  .pop { position:fixed; left:50%; top:40%; transform:translate(-50%,-50%); font-size:2.4rem; font-weight:900; pointer-events:none; animation:pop .8s ease-out forwards; }
+  @keyframes pop { from { opacity:1; transform:translate(-50%,-50%) scale(.6); } to { opacity:0; transform:translate(-50%,-140%) scale(1.3); } }
+</style>
+</head>
+<body>
+<header>
+  <div class="jar">🫙</div>
+  <h1>Swear Jar</h1>
+  <div class="total" id="total"></div>
+</header>
+
+<div class="tabs">
+  <button id="tabJar" class="on">🫙 Swear Jar</button>
+  <button id="tabPaid">💵 Paid</button>
+</div>
+
+<main id="list"></main>
+<div class="foot"><button id="reset">Reset everything</button></div>
+
+<script>
+const PEOPLE = ["Sarah", "Niko", "Tommy", "Richard", "Michael", "Charlie"];
+const KEY = "swear-jar-v1";
+const money = n => "$" + n.toFixed(2);
+
+let state;
+try { state = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+if (!state) state = {};
+if (state.Michiel && !state.Michael) { state.Michael = state.Michiel; delete state.Michiel; }
+for (const p of PEOPLE) state[p] = Object.assign({ swears: 0, grays: 0, paid: 0, history: [] }, state[p]);
+let view = "jar";
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+const owed = p => state[p].swears * 1 + state[p].grays * 0.5;
+const left = p => Math.max(0, owed(p) - state[p].paid);
+
+function pop(text, color) {
+  const d = document.createElement("div");
+  d.className = "pop"; d.textContent = text; d.style.color = color;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 800);
+}
+
+function act(p, kind) {
+  const s = state[p];
+  if (kind === "swear") { s.swears++; pop("+$1.00", "var(--jar)"); }
+  if (kind === "gray")  { s.grays++;  pop("+$0.50", "var(--gray)"); }
+  if (kind === "pay1")  { if (left(p) <= 0) return; s.paid += Math.min(1, left(p)); pop("Paid!", "var(--paid)"); }
+  if (kind === "pay50") { if (left(p) <= 0) return; s.paid += Math.min(0.5, left(p)); pop("Paid!", "var(--paid)"); }
+  if (kind === "payAll"){ if (left(p) <= 0) return; s.history.push({ kind, amt: left(p) }); s.paid = owed(p); pop("All paid! 🎉", "var(--paid)"); save(); render(); return; }
+  s.history.push({ kind });
+  save(); render();
+}
+
+function undo(p) {
+  const s = state[p], h = s.history.pop();
+  if (!h) return;
+  if (h.kind === "swear") s.swears--;
+  if (h.kind === "gray")  s.grays--;
+  if (h.kind === "pay1")  s.paid = Math.max(0, s.paid - 1);
+  if (h.kind === "pay50") s.paid = Math.max(0, s.paid - 0.5);
+  if (h.kind === "payAll") s.paid = Math.max(0, s.paid - h.amt);
+  save(); render();
+}
+
+function render() {
+  const allOwed = PEOPLE.reduce((a, p) => a + owed(p), 0);
+  const allPaid = PEOPLE.reduce((a, p) => a + state[p].paid, 0);
+  document.getElementById("total").innerHTML = view === "jar"
+    ? `In the jar: <b>${money(allOwed)}</b>`
+    : `Paid: <b class="ok">${money(allPaid)}</b> &nbsp;·&nbsp; Still owed: <b class="owe">${money(allOwed - allPaid)}</b>`;
+
+  document.getElementById("list").innerHTML = PEOPLE.map(p => {
+    const s = state[p];
+    const counts = `${s.swears} swear${s.swears === 1 ? "" : "s"} · ${s.grays} gray word${s.grays === 1 ? "" : "s"}`;
+    if (view === "jar") return `
+      <div class="card">
+        <div class="top"><span class="name">${p}</span><span class="amt">${money(owed(p))}</span></div>
+        <div class="sub">${counts}</div>
+        <div class="btns">
+          <button class="b-jar" data-p="${p}" data-k="swear">🫙 Swear Jar ($1)</button>
+          <button class="b-gray" data-p="${p}" data-k="gray">Gray Word ($0.50)</button>
+          <button class="b-undo" data-p="${p}" data-k="undo" title="Undo">↩</button>
+        </div>
+      </div>`;
+    const pct = owed(p) ? Math.min(100, s.paid / owed(p) * 100) : 0;
+    const l = left(p);
+    return `
+      <div class="card">
+        <div class="top"><span class="name">${p}</span><span class="amt ok">Paid ${money(s.paid)}</span></div>
+        <div class="sub">${counts} · owed ${money(owed(p))} · ${l > 0 ? `<b class="owe">still owes ${money(l)}</b>` : `<b class="ok">all paid up ✓</b>`}</div>
+        <div class="bar"><i style="width:${pct}%"></i></div>
+        <div class="btns">
+          <button class="b-paid" data-p="${p}" data-k="pay1">Paid $1</button>
+          <button class="b-paid" data-p="${p}" data-k="pay50">Paid $0.50</button>
+          <button class="b-paid" data-p="${p}" data-k="payAll">Paid it all</button>
+          <button class="b-undo" data-p="${p}" data-k="undo" title="Undo">↩</button>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+document.getElementById("list").addEventListener("click", e => {
+  const b = e.target.closest("button[data-p]");
+  if (!b) return;
+  b.dataset.k === "undo" ? undo(b.dataset.p) : act(b.dataset.p, b.dataset.k);
+});
+function setView(v) {
+  view = v;
+  document.getElementById("tabJar").classList.toggle("on", v === "jar");
+  document.getElementById("tabPaid").classList.toggle("on", v === "paid");
+  render();
+}
+document.getElementById("tabJar").onclick = () => setView("jar");
+document.getElementById("tabPaid").onclick = () => setView("paid");
+document.getElementById("reset").onclick = () => {
+  if (!confirm("Reset everyone back to $0?")) return;
+  for (const p of PEOPLE) state[p] = { swears: 0, grays: 0, paid: 0, history: [] };
+  save(); render();
+};
+render();
+</script>
+</body>
+</html>

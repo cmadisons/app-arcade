@@ -135,6 +135,15 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
 
 .paycard h2 .tax { display: block; margin-top: 2px; font-family: var(--ticket); font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; color: var(--red); }
 .gatebox form[hidden] { display: none; }
+
+.pcard .save { justify-self: center; margin-top: 6px; padding: 3px 12px; border-radius: 999px; background: var(--red); color: #fff; font-family: var(--display); font-size: 1rem; transform: rotate(-4deg); box-shadow: 0 2px 0 var(--card-ink); }
+
+/* smoke puff when a card is tapped */
+.puff { position: fixed; z-index: 60; pointer-events: none; border-radius: 50%; transform: translate(-50%, -50%) scale(.3);
+  background: radial-gradient(circle, rgba(150,146,165,.95) 0%, rgba(110,106,124,.75) 40%, rgba(110,106,124,0) 72%);
+  animation: puff 1s ease-out forwards; }
+@keyframes puff { to { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.6); opacity: 0; } }
+.toast { position: fixed; z-index: 70; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--card-ink); color: #fff; font-weight: 800; padding: 12px 20px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
 </style>
 
 <canvas id="smoke" aria-hidden="true"></canvas>
@@ -206,7 +215,7 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
         </g>
       </svg>
     <div class="paycard">
-        <h2>Pay me to&hellip;<span class="tax">Tax included</span><small>Tap a card to email me about it</small><span class="cash">&#128181; Pay with cash at the show</span></h2>
+        <h2>Book me to&hellip;<span class="tax">Tax included</span><small>Tap a card to email me about it</small><span class="cash">&#128181; Pay with cash at the show</span></h2>
         <div class="pcard split red">
         <span class="corner tl">$<br>&hearts;</span><span class="corner br">$<br>&hearts;</span>
         <a class="half" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Do%20magic&amp;body=Hi%20I%20want%20to%20pay%20for%201%20person%20for%20you%20to%20do%20magic.">
@@ -238,6 +247,7 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
         <span class="price">$110</span>
         <span class="per">4 people</span>
         <span class="per">come to the show + meet the magician</span>
+        <span class="save">Save $30!</span>
       <span class="tap">&#9993; tap to email me</span></a>
         <a class="pcard" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Help%20you%20make%20a%20show&amp;body=Hi%20I%20want%20you%20to%20help%20me%20make%20a%20show.%20You%20get%2050%25%20of%20the%20money%20I%20make." aria-label="Email me about Help you make a show">
         <span class="corner tl">$<br>&clubs;</span><span class="corner br">$<br>&clubs;</span>
@@ -306,11 +316,54 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
 </script>
 
 <script>
+// Formspree: paste the form code here (from formspree.io, set up with a grown-up) and
+// every card tap + sign-up is sent straight to my email. Empty = open the visitor's email app.
+window.LCM_FORM = "";
+// Sends a message: Formspree if set up, otherwise opens an email to me.
+window.lcmSend = function (subject, body) {
+  const mailto = "mailto:cmadison@foundationchristianschool.ca?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+  if (!window.LCM_FORM) { location.href = mailto; return; }
+  let who = {};
+  try { who = JSON.parse(localStorage.getItem("lcm-account")) || {}; } catch (e) {}
+  fetch("https://formspree.io/f/" + window.LCM_FORM, {
+    method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({ _subject: subject, message: body, name: who.name || "", email: who.email || "", phone: who.phone || "" })
+  }).then(r => { if (!r.ok) throw 0; toast("Sent to the magician! \u2728"); })
+    .catch(() => { location.href = mailto; });
+};
+function toast(text) {
+  const t = document.createElement("div");
+  t.className = "toast"; t.textContent = text;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
+}
+// tapping a price card: a puff of smoke, then the message is sent
+document.addEventListener("click", e => {
+  const card = e.target.closest("a.pcard, a.half");
+  if (!card) return;
+  e.preventDefault();
+  puff(e.clientX || card.getBoundingClientRect().left + card.offsetWidth / 2, e.clientY || card.getBoundingClientRect().top + card.offsetHeight / 2);
+  const q = new URLSearchParams(card.getAttribute("href").split("?")[1]);
+  setTimeout(() => window.lcmSend(q.get("subject"), q.get("body")), 450);
+});
+function puff(x, y) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement("span");
+    const a = Math.random() * Math.PI * 2, d = 60 + Math.random() * 110, size = 60 + Math.random() * 80;
+    p.className = "puff";
+    p.style.cssText = `left:${x}px;top:${y}px;width:${size}px;height:${size}px;--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d - 40}px;animation-delay:${Math.random() * 80}ms`;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1100);
+  }
+}
+</script>
+<script>
 // Sign up / log in. The account is saved only on this device (localStorage);
 // signing up also opens an email to me with the visitor's info so I get it.
 (function () {
   const ME = "cmadison@foundationchristianschool.ca";
   const ACCOUNT = "lcm-account", SESSION = "lcm-logged-in";
+  if (window.LCM_FORM) document.querySelector("#formUp .gatenote").innerHTML = "&#9993; When you sign up, your info is sent to me. I only use it to plan your show.";
   const mem = {};
   const get = k => { try { return localStorage.getItem(k); } catch (e) { return mem[k] ?? null; } };
   const set = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } };
@@ -360,7 +413,7 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
     if (bad) { const box = up.elements[bad[0]]; box.setCustomValidity(bad[1]); box.reportValidity(); return; }
     set(ACCOUNT, JSON.stringify(a)); set(SESSION, "1"); show();
     const body = "New sign-up for Lights, Cards, Magic!\n\nName: " + a.name + "\nPhone: " + a.phone + "\nEmail: " + a.email + "\nBirth date: " + a.birth + "\n";
-    location.href = "mailto:" + ME + "?subject=" + encodeURIComponent("Lights, Cards, Magic: new sign-up (" + a.name + ")") + "&body=" + encodeURIComponent(body);
+    window.lcmSend("Lights, Cards, Magic: new sign-up (" + a.name + ")", body);
   };
   // Log in works on any device: if this device has the account, email + birth date must match it;
   // if not (signed up on another phone), a real-looking email + birth date logs in and is remembered here.

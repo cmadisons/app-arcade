@@ -315,6 +315,7 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
   const del = k => { try { localStorage.removeItem(k); } catch (e) { delete mem[k]; } };
   const $ = id => document.getElementById(id);
   const gate = $("gate"), up = $("formUp"), inn = $("formIn");
+  if (document.documentElement.dataset.owner) { gate.remove(); return; }  // my own copy: no log in
 
   function account() { try { return JSON.parse(get(ACCOUNT)); } catch (e) { return null; } }
   function show() {

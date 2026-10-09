@@ -8,3 +8,5 @@ cp ~/swear-jar.html swear-gray-jar.html
 # Lights, Cards, Magic: the public copy hides the street address (user chose this 2026-10-09)
 sed 's|<b>Where?</b><br>364 Green Acre Drive|<b>Where?</b><br>Email me to find out|' ~/lights-cards-magic.html > lights-cards-magic.html
 if grep -q 'Green Acre' lights-cards-magic.html; then echo "ERROR: street address still in public lights-cards-magic.html"; rm lights-cards-magic.html; exit 1; fi
+# Lights, Cards, Magic: the user's own no-log-in copy (stays on this Mac, never committed)
+sed 's|^<html lang="en">$|<html lang="en" data-owner="1">|' ~/lights-cards-magic.html > ~/lights-cards-magic-me.html

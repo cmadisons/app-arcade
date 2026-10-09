@@ -155,6 +155,7 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
     <form id="formIn" hidden>
       <label>Email<input name="email" type="email" required autocomplete="email"></label>
       <label>Birth date<input name="birth" type="date" required></label>
+      <p class="gatenote">Signed up on another phone or computer? Log in here with the same email and birth date.</p>
       <p class="gatemsg" id="inMsg" aria-live="polite"></p>
       <button type="submit" class="gatego">Log in</button>
     </form>
@@ -244,13 +245,13 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
         <span class="price">50%</span>
         <span class="per">I get 50% of the money you make</span>
       <span class="tap">&#9993; tap to email me</span></a>
-        <a class="pcard" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Upgrade%20Magic&amp;body=Hi%20I%20want%20to%20pay%20for%20you%20to%20do%20magic%20at%20my%20house%2C%20meet%20the%20magician%2C%20and%20have%20dinner%20with%20you%20%28I%20will%20cook%29." aria-label="Email me about Upgrade Magic">
+        <a class="pcard" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Upgrade%20Magic&amp;body=Hi%20I%20want%20to%20pay%20for%20you%20to%20do%20magic%20at%20my%20house%2C%20meet%20the%20magician%2C%20and%20have%20dinner%20with%20my%20family%20at%20my%20house%20%28a%20grown-up%20will%20be%20there%29." aria-label="Email me about Upgrade Magic">
         <span class="corner tl">$<br>&clubs;</span><span class="corner br">$<br>&clubs;</span>
         <span class="what">Upgrade Magic</span>
         <span class="price">$25</span>
         <span class="per">meet the magician</span>
         <span class="per">+ have it at your house</span>
-        <span class="per">+ have a dinner with me (you cook)</span>
+        <span class="per">+ dinner with your family at your house (a grown-up there)</span>
       <span class="tap">&#9993; tap to email me</span></a>
         <a class="pcard red" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Private%20Show&amp;body=Hi%20I%20want%20to%20pay%20for%201%20person%20to%20see%20a%20private%20show%20at%20my%20house%20and%20meet%20the%20magician." aria-label="Email me about Private Show">
         <span class="corner tl">$<br>&hearts;</span><span class="corner br">$<br>&hearts;</span>
@@ -262,16 +263,17 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
         <a class="pcard" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Upgrade%20Show&amp;body=Hi%20I%20want%20an%20upgraded%20show.%20Here%20is%20what%20I%20want%20you%20to%20do%3A%20" aria-label="Email me about Upgrade Show">
         <span class="corner tl">$<br>&spades;</span><span class="corner br">$<br>&spades;</span>
         <span class="what">Upgrade Show</span>
-        <span class="price ask">$?</span>
-        <span class="per">text me what you want me to do</span>
+        <span class="price ask">$40+</span>
+        <span class="per">at least $40 per person</span>
+        <span class="per">email me what you want me to do</span>
         <span class="per">and I will give you a price per person</span>
       <span class="tap">&#9993; tap to email me</span></a>
         <a class="pcard red" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Upgrade%20Family%20Pack&amp;body=Hi%20I%20want%20an%20upgraded%20family%20pack%20for%204%20people.%20Here%20is%20what%20I%20want%20you%20to%20do%3A%20" aria-label="Email me about Upgrade Family Pack">
         <span class="corner tl">$<br>&diams;</span><span class="corner br">$<br>&diams;</span>
         <span class="what">Upgrade Family Pack</span>
-        <span class="price ask">$?</span>
-        <span class="per">4 people</span>
-        <span class="per">text me what you want me to do and I will do it for 4 people</span>
+        <span class="price ask">$160+</span>
+        <span class="per">4 people &middot; at least $40 per person</span>
+        <span class="per">email me what you want me to do and I will do it for 4 people</span>
       <span class="tap">&#9993; tap to email me</span></a>
       </div>
     </div>
@@ -335,11 +337,13 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
 
   // Checks that the phone, email and birth date look real (a page can't truly look them up).
   function problem(a) {
-    let d = a.phone.replace(/\D/g, "");
-    if (d.length === 11 && d[0] === "1") d = d.slice(1);
-    if (d.length !== 10) return ["phone", "Type a real 10-digit phone number, like ###-###-####."];
-    if (!/^[2-9]\d\d[2-9]\d{6}$/.test(d) || /^(\d)\1+$/.test(d) || d === "1234567890" || /^\d{3}555/.test(d) || d.slice(1, 3) === "11")
-      return ["phone", "That isn't a real phone number. Check it and try again."];
+    if (a.phone !== null) {  // log in has no phone box
+      let d = a.phone.replace(/\D/g, "");
+      if (d.length === 11 && d[0] === "1") d = d.slice(1);
+      if (d.length !== 10) return ["phone", "Type a real 10-digit phone number, like ###-###-####."];
+      if (!/^[2-9]\d\d[2-9]\d{6}$/.test(d) || /^(\d)\1+$/.test(d) || d === "1234567890" || /^\d{3}555/.test(d) || d.slice(1, 3) === "11")
+        return ["phone", "That isn't a real phone number. Check it and try again."];
+    }
     if (!/^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(a.email))
       return ["email", "Type a real email, like name@gmail.com."];
     const y = +a.birth.slice(0, 4), born = new Date(a.birth);
@@ -358,11 +362,19 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
     const body = "New sign-up for Lights, Cards, Magic!\n\nName: " + a.name + "\nPhone: " + a.phone + "\nEmail: " + a.email + "\nBirth date: " + a.birth + "\n";
     location.href = "mailto:" + ME + "?subject=" + encodeURIComponent("Lights, Cards, Magic: new sign-up (" + a.name + ")") + "&body=" + encodeURIComponent(body);
   };
+  // Log in works on any device: if this device has the account, email + birth date must match it;
+  // if not (signed up on another phone), a real-looking email + birth date logs in and is remembered here.
   inn.onsubmit = e => {
     e.preventDefault();
     const f = new FormData(inn), a = account();
-    if (a && a.email === f.get("email").trim().toLowerCase() && a.birth === f.get("birth")) { set(SESSION, "1"); show(); }
-    else $("inMsg").textContent = a ? "That email and birth date don't match. Try again." : "No account on this device yet. Sign up first!";
+    const email = f.get("email").trim().toLowerCase(), birth = f.get("birth");
+    if (a && a.email === email) {
+      if (a.birth !== birth) { $("inMsg").textContent = "That birth date doesn't match. Try again."; return; }
+      set(SESSION, "1"); show(); return;
+    }
+    const bad = problem({ name: "x", phone: null, email, birth });
+    if (bad) { $("inMsg").textContent = bad[1]; return; }
+    set(ACCOUNT, JSON.stringify({ name: email.split("@")[0], phone: "", email, birth })); set(SESSION, "1"); show();
   };
   $("logout").onclick = () => { del(SESSION); inn.reset(); $("inMsg").textContent = ""; tab(account() ? "in" : "up"); show(); };
   tab(account() ? "in" : "up");

@@ -170,8 +170,9 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
 .qhead button { border: none; background: none; font-size: 1.3rem; cursor: pointer; color: var(--card-ink); }
 .quest { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: start; background: #fff; border: 2px solid var(--card-ink); border-radius: 12px; padding: 10px 12px; }
 .quest > div { display: grid; gap: 2px; }
-.qcheck { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--card-ink); display: grid; place-items: center; font-weight: 800; }
-.quest.done .qcheck { background: #2e7d4f; color: #fff; border-color: #2e7d4f; }
+.qcheck { appearance: none; -webkit-appearance: none; margin: 0; width: 28px; height: 28px; border-radius: 6px; border: 3px solid var(--card-ink); background: #fff; display: grid; place-items: center; opacity: 1; }
+.qcheck:checked { background: #2e7d4f; border-color: #2e7d4f; }
+.qcheck:checked::after { content: "\2714"; color: #fff; font-weight: 800; font-size: 1rem; }
 .qreward { color: var(--red); font-weight: 800; font-size: .9rem; }
 .qstatus { font-size: .85rem; color: #4d4659; }
 .qmore { text-align: center; color: #6b6478; margin: 0; font-size: .9rem; }
@@ -411,10 +412,14 @@ function add(what, by = 1) {
 const FIRST = "lcm-first-show-used";
 const hasAccount = () => { try { return !!localStorage.getItem("lcm-account"); } catch (e) { return false; } };
 const firstUsed = () => { try { return localStorage.getItem(FIRST) === "1"; } catch (e) { return false; } };
-const firstShow = () => hasAccount() && !firstUsed() && order && order.items.some(i => i.what.startsWith("Come to my show"));
+const showItem = () => order && order.items.find(i => i.what === "Come to my show");
+const firstShow = () => hasAccount() && !firstUsed() && !!showItem();
 function text() {
   const t = order.items.map(i => (MSG[i.what] || (n => i.what + " x" + n))(i.n)).join("\n\n");
-  return firstShow() ? t + "\n\nThis is my first show I get it for $19." : t;
+  if (!firstShow()) return t;
+  const n = showItem().n;  // the deal is for 1 person only
+  return t + (n === 1 ? "\n\nThis is my first show I get it for $19."
+    : "\n\nThis is my first show I get 1 person for $19 and the other " + ppl(n - 1) + " for $25 each.");
 }
 function send() {
   const subject = "Lights, Cards, Magic: " + (order.items.length === 1 ? order.items[0].what : "booking");
@@ -443,7 +448,7 @@ setInterval(tick, 1000);
 // Quests: a button that shows every quest and its reward.
 const QUESTS = [
   { name: "Make an account", reward: "25% off your first show", done: hasAccount,
-    status: () => !hasAccount() ? "Sign up to finish this quest!" : firstUsed() ? "Reward used on your first show. \u2705" : "Reward ready! Book \u201cCome to my show\u201d and it's $19 instead of $25." },
+    status: () => !hasAccount() ? "Sign up to finish this quest!" : firstUsed() ? "Reward used on your first show. \u2705" : "Reward ready! Book \u201cCome to my show\u201d and 1 person is $19 instead of $25." },
 ];
 const qbtn = document.createElement("button");
 qbtn.id = "questbtn"; qbtn.type = "button"; qbtn.innerHTML = "&#127942; Quests";
@@ -452,7 +457,7 @@ qbox.id = "quests"; qbox.hidden = true; qbox.setAttribute("role", "dialog"); qbo
 document.body.append(qbtn, qbox);
 function drawQuests() {
   qbox.innerHTML = `<div class="qpanel"><div class="qhead"><h2>&#127942; Quests</h2><button type="button" id="qclose" aria-label="Close">&#10005;</button></div>` +
-    QUESTS.map(q => `<div class="quest ${q.done() ? "done" : ""}"><span class="qcheck">${q.done() ? "&#10004;" : ""}</span><div><b>${q.name}</b><span class="qreward">&#127873; ${q.reward}</span><span class="qstatus">${q.status()}</span></div></div>`).join("") +
+    QUESTS.map(q => `<div class="quest ${q.done() ? "done" : ""}"><input type="checkbox" class="qcheck" disabled ${q.done() ? "checked" : ""} aria-label="${q.done() ? "Done" : "Not done yet"}"><div><b>${q.name}</b><span class="qreward">&#127873; ${q.reward}</span><span class="qstatus">${q.status()}</span></div></div>`).join("") +
     `<p class="qmore">More quests coming soon!</p></div>`;
 }
 qbtn.onclick = () => { drawQuests(); qbox.hidden = false; };

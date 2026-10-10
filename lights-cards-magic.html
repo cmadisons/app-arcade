@@ -412,14 +412,16 @@ function add(what, by = 1) {
 const FIRST = "lcm-first-show-used";
 const hasAccount = () => { try { return !!localStorage.getItem("lcm-account"); } catch (e) { return false; } };
 const firstUsed = () => { try { return localStorage.getItem(FIRST) === "1"; } catch (e) { return false; } };
-const showItem = () => order && order.items.find(i => i.what === "Come to my show");
+// first-show prices for 1 person: [deal, normal]
+const FIRST_PRICE = { "Come to my show": [19, 25], "Come to my show + meet the magician": [29, 35] };
+const showItem = () => order && order.items.find(i => FIRST_PRICE[i.what]);  // the first show card they tapped
 const firstShow = () => hasAccount() && !firstUsed() && !!showItem();
 function text() {
   const t = order.items.map(i => (MSG[i.what] || (n => i.what + " x" + n))(i.n)).join("\n\n");
   if (!firstShow()) return t;
-  const n = showItem().n;  // the deal is for 1 person only
-  return t + (n === 1 ? "\n\nThis is my first show I get it for $19."
-    : "\n\nThis is my first show I get 1 person for $19 and the other " + ppl(n - 1) + " for $25 each.");
+  const it = showItem(), [deal, normal] = FIRST_PRICE[it.what];  // the deal is for 1 person only
+  return t + (it.n === 1 ? "\n\nThis is my first show I get it for $" + deal + "."
+    : "\n\nThis is my first show I get 1 person for $" + deal + " and the other " + ppl(it.n - 1) + " for $" + normal + (it.n - 1 === 1 ? "." : " each."));
 }
 function send() {
   const subject = "Lights, Cards, Magic: " + (order.items.length === 1 ? order.items[0].what : "booking");
@@ -448,7 +450,7 @@ setInterval(tick, 1000);
 // Quests: a button that shows every quest and its reward.
 const QUESTS = [
   { name: "Make an account", reward: "25% off your first show", done: hasAccount,
-    status: () => !hasAccount() ? "Sign up to finish this quest!" : firstUsed() ? "Reward used on your first show. \u2705" : "Reward ready! Book \u201cCome to my show\u201d and 1 person is $19 instead of $25." },
+    status: () => !hasAccount() ? "Sign up to finish this quest!" : firstUsed() ? "Reward used on your first show. \u2705" : "Reward ready! Book \u201cCome to my show\u201d and 1 person is $19 instead of $25, or $29 instead of $35 to also meet the magician." },
 ];
 const qbtn = document.createElement("button");
 qbtn.id = "questbtn"; qbtn.type = "button"; qbtn.innerHTML = "&#127942; Quests";

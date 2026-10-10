@@ -176,6 +176,11 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
 .qreward { color: var(--red); font-weight: 800; font-size: .9rem; }
 .qstatus { font-size: .85rem; color: #4d4659; }
 .qmore { text-align: center; color: #6b6478; margin: 0; font-size: .9rem; }
+
+/* first-show deal prices */
+.pcard .price s { color: #9a93a6; font-size: .6em; text-decoration-thickness: 3px; text-decoration-color: var(--red); margin-right: 4px; }
+.pcard .dealnote { justify-self: center; font: 800 .72rem var(--body); color: #fff; background: #2e7d4f; border-radius: 999px; padding: 2px 9px; }
+.pcard .dealnote s { opacity: .8; }
 </style>
 
 <canvas id="smoke" aria-hidden="true"></canvas>
@@ -271,7 +276,6 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
           <span class="price small">+ $10</span>
           <span class="per">per person to meet the magician</span><span class="tap">&#9993; tap for both</span>
         </a>
-        <span class="where"><b>Where?</b><br>Email me to find out</span>
       </div>
         <a class="pcard red" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Family%20pack&amp;body=Hi%20I%20want%20to%20pay%20for%204%20people%20to%20go%20to%20your%20show%20and%20meet%20the%20magician." aria-label="Email me about Family pack">
         <span class="corner tl">$<br>&diams;</span><span class="corner br">$<br>&diams;</span>
@@ -347,6 +351,19 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
 })();
 </script>
 
+<script>
+// Restart all accounts: bump RESET and every visitor's saved account, log in,
+// booking and quest reward are wiped the next time they open the site.
+(function () {
+  const RESET = "2026-10-10";
+  try {
+    if (localStorage.getItem("lcm-reset") !== RESET) {
+      ["lcm-account", "lcm-logged-in", "lcm-first-show-used", "lcm-order"].forEach(k => localStorage.removeItem(k));
+      localStorage.setItem("lcm-reset", RESET);
+    }
+  } catch (e) {}
+})();
+</script>
 <script>
 // Formspree: paste the form code here (from formspree.io, set up with a grown-up) and
 // every card tap + sign-up is sent straight to my email. Empty = open the visitor's email app.
@@ -447,6 +464,25 @@ function tick() {
   if (c) c.textContent = "sends in " + Math.floor(left / 60000) + ":" + String(Math.floor(left / 1000) % 60).padStart(2, "0");
 }
 setInterval(tick, 1000);
+// Quest reward not used yet: show the old show prices crossed out, with the new ones.
+function dealPrices() {
+  const on = hasAccount() && !firstUsed();
+  if (document.body.classList.contains("deal") === on) return;
+  document.body.classList.toggle("deal", on);
+  const card = [...document.querySelectorAll(".pcard.split")].find(c => c.textContent.includes("Come to my show"));
+  if (!card) return;
+  const [top, both] = card.querySelectorAll(".half");
+  const price = top.querySelector(".price");
+  card.querySelectorAll(".dealnote").forEach(n => n.remove());
+  price.innerHTML = on ? "<s>$25</s> $19" : "$25";
+  if (on) {
+    price.insertAdjacentHTML("afterend", '<span class="dealnote">&#127873; 1st show deal: 1 person</span>');
+    both.querySelector(".per").insertAdjacentHTML("afterend", '<span class="dealnote">both: <s>$35</s> <b>$29</b> for 1 person</span>');
+  }
+}
+dealPrices();
+setInterval(dealPrices, 1000);
+
 // Quests: a button that shows every quest and its reward.
 const QUESTS = [
   { name: "Make an account", reward: "25% off your first show", done: hasAccount,

@@ -160,6 +160,26 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
 #order .obtns .osend { background: var(--red); color: #fff; }
 
 
+
+/* Spin the wheel */
+#wheelbtn { position: fixed; z-index: 30; left: 14px; top: 14px; font: 800 .95rem var(--body); padding: 8px 14px; border-radius: 999px; border: 2px solid var(--card-ink); background: var(--bulb); color: var(--card-ink); cursor: pointer; box-shadow: 0 3px 0 var(--card-ink); }
+#wheelbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--card-ink); }
+#wheelbox { position: fixed; inset: 0; z-index: 45; background: rgba(13,10,20,.75); display: grid; place-items: center; padding: 16px; overflow-y: auto; }
+#wheelbox[hidden] { display: none; }
+.wpanel { width: min(420px, 100%); background: var(--card); color: var(--card-ink); border: 3px solid var(--card-ink); border-radius: 18px; padding: 18px; display: grid; gap: 10px; box-shadow: 0 20px 50px rgba(0,0,0,.6); }
+.qhead { display: flex; justify-content: space-between; align-items: center; }
+.qhead h2 { font: 400 1.7rem var(--display); margin: 0; }
+.qhead button { border: none; background: none; font-size: 1.3rem; cursor: pointer; color: var(--card-ink); }
+.wheel { width: 100%; max-width: 300px; justify-self: center; font-family: var(--body); }
+#wheelspin { transform-origin: 150px 150px; transition: transform 4s cubic-bezier(.15,.85,.2,1); }
+.wmsg { text-align: center; font-weight: 800; margin: 0; }
+.wboost { margin: 0; text-align: center; font-weight: 800; color: #1f5e39; background: #e9f7ee; border-radius: 10px; padding: 6px; }
+#wgo:disabled { opacity: .45; cursor: default; }
+.wwon { margin: 0; font-size: .9rem; background: #fff4cf; border-radius: 10px; padding: 6px 10px; }
+.wodds { font-size: .85rem; color: #4d4659; }
+.wodds summary { cursor: pointer; font-weight: 800; }
+.wodds ul { margin: 6px 0; padding-left: 20px; }
+.wodds p { margin: 0; }
 </style>
 
 <canvas id="smoke" aria-hidden="true"></canvas>
@@ -337,7 +357,7 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
   const RESET = "2026-10-10";
   try {
     if (localStorage.getItem("lcm-reset") !== RESET) {
-      ["lcm-account", "lcm-logged-in", "lcm-first-show-used", "lcm-order", "lcm-shows", "lcm-free-show-used"].forEach(k => localStorage.removeItem(k));
+      ["lcm-account", "lcm-logged-in", "lcm-first-show-used", "lcm-order", "lcm-shows", "lcm-free-show-used", "lcm-prizes", "lcm-boost", "lcm-spin-last"].forEach(k => localStorage.removeItem(k));
       localStorage.setItem("lcm-reset", RESET);
     }
   } catch (e) {}
@@ -404,10 +424,22 @@ function add(what, by = 1) {
   if (!order.items.length) order = null;
   keep(); draw();
 }
-function text() { return order.items.map(i => (MSG[i.what] || (n => i.what + " x" + n))(i.n)).join("\n\n"); }
+// Spin the wheel: prizes won wait here and are added to the next booking.
+const PRIZES = "lcm-prizes", BOOST = "lcm-boost";
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
+const prizes = () => { try { return JSON.parse(store.get(PRIZES)) || []; } catch (e) { return []; } };
+const SHOWS = ["Come to my show", "Come to my show + meet the magician", "Family pack", "Private Show", "Upgrade Show", "Upgrade Family Pack"];
+function text() {
+  const t = order.items.map(i => (MSG[i.what] || (n => i.what + " x" + n))(i.n)).join("\n\n");
+  const won = prizes();
+  return won.length ? t + "\n\n" + won.map(w => "From spin the wheel: " + w).join("\n") : t;
+}
 function send() {
   const subject = "Lights, Cards, Magic: " + (order.items.length === 1 ? order.items[0].what : "booking");
   const body = text();
+  store.set(PRIZES, null);  // prizes are used on this booking
+  if (order.items.some(i => SHOWS.includes(i.what))) store.set(BOOST, "1");  // booked a show: next spin has 3x odds
   order = null; keep(); draw();
   window.lcmSend(subject, body);
 }
@@ -429,6 +461,67 @@ function tick() {
 }
 setInterval(tick, 1000);
 
+// Spin the wheel: once a week. After booking a show, the good prizes are 3x as likely.
+const WEEK = 7 * 24 * 60 * 60 * 1000, LAST = "lcm-spin-last";
+const WHEEL = [  // chance is out of 25
+  { label: "Pay $2 extra", chance: 10.9, good: false, color: "#6e6a7c", say: "I have to pay $2 extra." },
+  { label: "$1 off", chance: 5.9, good: true, color: "#ffd23f", say: "I get $1 off." },
+  { label: "$3 off", chance: 3, good: true, color: "#d7263d", say: "I get $3 off." },
+  { label: "25% off everything", chance: 1, good: true, color: "#2e7d4f", say: "I get 25% off everything." },
+  { label: "Free show", chance: 0.1, good: true, color: "#1b1622", say: "I won a free show!" },
+  { label: "Behind the scenes", chance: 0.1, good: true, color: "#7b4fd1", say: "I won behind the scenes: you teach me after a show!" },
+  { label: "No prize", chance: 4, good: false, color: "#b9b2c4", say: "" },
+];
+const boosted = () => store.get(BOOST) === "1";
+const nextSpin = () => (+store.get(LAST) || 0) + WEEK;
+function pick() {
+  const w = WHEEL.map(p => p.chance * (p.good && boosted() ? 3 : 1));
+  let r = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < w.length; i++) { if ((r -= w[i]) < 0) return i; }
+  return 0;
+}
+const wbtn = document.createElement("button");
+wbtn.id = "wheelbtn"; wbtn.type = "button"; wbtn.innerHTML = "&#127905; Spin the wheel";
+const wbox = document.createElement("div");
+wbox.id = "wheelbox"; wbox.hidden = true; wbox.setAttribute("role", "dialog"); wbox.setAttribute("aria-label", "Spin the wheel");
+document.body.append(wbtn, wbox);
+let turn = 0;
+function wheelSVG() {
+  const n = WHEEL.length, R = 140, slice = 360 / n;
+  const pt = (a, r) => [150 + r * Math.sin(a * Math.PI / 180), 150 - r * Math.cos(a * Math.PI / 180)];
+  return `<svg viewBox="0 0 300 300" class="wheel" id="wheel"><g id="wheelspin">` + WHEEL.map((p, i) => {
+    const [x1, y1] = pt(i * slice, R), [x2, y2] = pt((i + 1) * slice, R), mid = i * slice + slice / 2, [tx, ty] = pt(mid, R * 0.62);
+    const dark = ["#6e6a7c", "#d7263d", "#2e7d4f", "#1b1622", "#7b4fd1"].includes(p.color);
+    return `<path d="M150,150 L${x1},${y1} A${R},${R} 0 0,1 ${x2},${y2} Z" fill="${p.color}" stroke="#1b1622" stroke-width="3"/>` +
+      `<text x="${tx}" y="${ty}" transform="rotate(${mid - 90} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="800" fill="${dark ? "#fff" : "#1b1622"}">${p.label}</text>`;
+  }).join("") + `</g><circle cx="150" cy="150" r="16" fill="#fbf8f2" stroke="#1b1622" stroke-width="4"/><path d="M150,2 L140,24 L160,24 Z" fill="#1b1622"/></svg>`;
+}
+function drawWheel(msg) {
+  const ready = Date.now() >= nextSpin(), days = Math.ceil((nextSpin() - Date.now()) / 86400000);
+  const won = prizes();
+  wbox.innerHTML = `<div class="wpanel"><div class="qhead"><h2>&#127905; Spin the wheel</h2><button type="button" id="wclose" aria-label="Close">&#10005;</button></div>` +
+    (boosted() ? `<p class="wboost">&#11088; You booked a show: 3x better odds on this spin!</p>` : "") +
+    wheelSVG() +
+    `<p class="wmsg" aria-live="polite">${msg || (ready ? "You have 1 spin this week!" : "Next spin in " + days + (days === 1 ? " day" : " days") + ".")}</p>` +
+    `<button type="button" id="wgo" class="gatego" ${ready ? "" : "disabled"}>Spin!</button>` +
+    (won.length ? `<p class="wwon">Your prizes (added to your next booking): ${won.join(", ")}</p>` : "") +
+    `<details class="wodds"><summary>Chances</summary><ul>${WHEEL.map(p => `<li>${p.label}: ${p.chance} out of 25</li>`).join("")}</ul><p>After you book a show, every prize except "Pay $2 extra" and "No prize" is 3x as likely on your next spin.</p></details></div>`;
+  document.getElementById("wheelspin").style.transform = `rotate(${turn}deg)`;
+}
+wbtn.onclick = () => { drawWheel(); wbox.hidden = false; };
+wbox.addEventListener("click", e => {
+  if (e.target === wbox || e.target.closest("#wclose")) { wbox.hidden = true; return; }
+  if (!e.target.closest("#wgo") || Date.now() < nextSpin()) return;
+  const i = pick(), p = WHEEL[i], slice = 360 / WHEEL.length;
+  store.set(LAST, Date.now()); store.set(BOOST, null);
+  if (p.say) { const won = prizes(); won.push(p.say); store.set(PRIZES, JSON.stringify(won)); }
+  document.getElementById("wgo").disabled = true;
+  turn += 360 * 5 + (360 - (turn % 360)) - (i * slice + slice / 2) + (Math.random() - 0.5) * slice * 0.6;
+  const g = document.getElementById("wheelspin");
+  g.style.transform = `rotate(${turn}deg)`;
+  document.querySelector(".wmsg").textContent = "Spinning...";
+  setTimeout(() => drawWheel(p.say ? "You got: " + p.label + "!" : "No prize this time. Spin again next week!"), 4200);
+});
 bar.addEventListener("click", e => {
   const b = e.target.closest("[data-o]");
   if (!b) return;

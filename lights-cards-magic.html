@@ -180,6 +180,7 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
 .wodds summary { cursor: pointer; font-weight: 800; }
 .wodds ul { margin: 6px 0; padding-left: 20px; }
 .wodds p { margin: 0; }
+.wbday { color: #7b4fd1; background: #f1eaff; }
 </style>
 
 <canvas id="smoke" aria-hidden="true"></canvas>
@@ -357,7 +358,7 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
   const RESET = "2026-10-10";
   try {
     if (localStorage.getItem("lcm-reset") !== RESET) {
-      ["lcm-account", "lcm-logged-in", "lcm-first-show-used", "lcm-order", "lcm-shows", "lcm-free-show-used", "lcm-prizes", "lcm-boost", "lcm-spin-last"].forEach(k => localStorage.removeItem(k));
+      ["lcm-account", "lcm-logged-in", "lcm-first-show-used", "lcm-order", "lcm-shows", "lcm-free-show-used", "lcm-prizes", "lcm-boost", "lcm-spin-last", "lcm-bday-spin"].forEach(k => localStorage.removeItem(k));
       localStorage.setItem("lcm-reset", RESET);
     }
   } catch (e) {}
@@ -474,6 +475,20 @@ const WHEEL = [  // chance is out of 25
 ];
 const boosted = () => store.get(BOOST) === "1";
 const nextSpin = () => (+store.get(LAST) || 0) + WEEK;
+// Birthday spin: 1 extra free spin in the 7 days starting on their birthday, once a year.
+const BDAY = "lcm-bday-spin";
+function birthdayWeek() {
+  let a; try { a = JSON.parse(store.get("lcm-account")); } catch (e) {}
+  if (!a || !a.birth) return false;
+  const [, m, d] = a.birth.split("-").map(Number), now = new Date();
+  for (const y of [now.getFullYear(), now.getFullYear() - 1]) {  // a birthday week can start last December
+    const start = new Date(y, m - 1, d), end = new Date(y, m - 1, d + 7);
+    if (now >= start && now < end) return String(y);
+  }
+  return false;
+}
+const birthdaySpin = () => { const y = birthdayWeek(); return y && store.get(BDAY) !== y ? y : false; };
+const weeklyReady = () => Date.now() >= nextSpin();
 function pick() {
   const w = WHEEL.map(p => p.chance * (p.good && boosted() ? 3 : 1));
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
@@ -497,23 +512,25 @@ function wheelSVG() {
   }).join("") + `</g><circle cx="150" cy="150" r="16" fill="#fbf8f2" stroke="#1b1622" stroke-width="4"/><path d="M150,2 L140,24 L160,24 Z" fill="#1b1622"/></svg>`;
 }
 function drawWheel(msg) {
-  const ready = Date.now() >= nextSpin(), days = Math.ceil((nextSpin() - Date.now()) / 86400000);
+  const ready = weeklyReady() || !!birthdaySpin(), days = Math.ceil((nextSpin() - Date.now()) / 86400000);
   const won = prizes();
   wbox.innerHTML = `<div class="wpanel"><div class="qhead"><h2>&#127905; Spin the wheel</h2><button type="button" id="wclose" aria-label="Close">&#10005;</button></div>` +
     (boosted() ? `<p class="wboost">&#11088; You booked a show: 3x better odds on this spin!</p>` : "") +
+    (birthdaySpin() ? `<p class="wboost wbday">&#127874; Happy birthday! You have a free birthday spin${weeklyReady() ? " too" : ""}!</p>` : "") +
     wheelSVG() +
-    `<p class="wmsg" aria-live="polite">${msg || (ready ? "You have 1 spin this week!" : "Next spin in " + days + (days === 1 ? " day" : " days") + ".")}</p>` +
+    `<p class="wmsg" aria-live="polite">${msg || (ready ? (weeklyReady() && birthdaySpin() ? "You have 2 spins: your weekly spin and your birthday spin!" : weeklyReady() ? "You have 1 spin this week!" : "Spin your birthday spin!") : "Next spin in " + days + (days === 1 ? " day" : " days") + ".")}</p>` +
     `<button type="button" id="wgo" class="gatego" ${ready ? "" : "disabled"}>Spin!</button>` +
     (won.length ? `<p class="wwon">Your prizes (added to your next booking): ${won.join(", ")}</p>` : "") +
-    `<details class="wodds"><summary>Chances</summary><ul>${WHEEL.map(p => `<li>${p.label}: ${p.chance} out of 25</li>`).join("")}</ul><p>After you book a show, every prize except "Pay $2 extra" and "No prize" is 3x as likely on your next spin.</p></details></div>`;
+    `<details class="wodds"><summary>Chances</summary><ul>${WHEEL.map(p => `<li>${p.label}: ${p.chance} out of 25</li>`).join("")}</ul><p>After you book a show, every prize except "Pay $2 extra" and "No prize" is 3x as likely on your next spin.</p><p>&#127874; In your birthday week you get 1 extra free spin.</p></details></div>`;
   document.getElementById("wheelspin").style.transform = `rotate(${turn}deg)`;
 }
 wbtn.onclick = () => { drawWheel(); wbox.hidden = false; };
 wbox.addEventListener("click", e => {
   if (e.target === wbox || e.target.closest("#wclose")) { wbox.hidden = true; return; }
-  if (!e.target.closest("#wgo") || Date.now() < nextSpin()) return;
+  if (!e.target.closest("#wgo") || !(weeklyReady() || birthdaySpin())) return;
   const i = pick(), p = WHEEL[i], slice = 360 / WHEEL.length;
-  store.set(LAST, Date.now()); store.set(BOOST, null);
+  if (weeklyReady()) store.set(LAST, Date.now()); else store.set(BDAY, birthdaySpin());  // use the weekly spin first
+  store.set(BOOST, null);
   if (p.say) { const won = prizes(); won.push(p.say); store.set(PRIZES, JSON.stringify(won)); }
   document.getElementById("wgo").disabled = true;
   turn += 360 * 5 + (360 - (turn % 360)) - (i * slice + slice / 2) + (Math.random() - 0.5) * slice * 0.6;

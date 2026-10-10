@@ -145,27 +145,6 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
 @keyframes puff { to { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.6); opacity: 0; } }
 .toast { position: fixed; z-index: 70; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--card-ink); color: #fff; font-weight: 800; padding: 12px 20px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
 
-/* My messages (my own copy only) */
-.inbox { margin-top: 10px; padding-top: 18px; border-top: 3px dashed var(--card-ink); display: grid; gap: 12px; }
-.inbox h2 { font-family: var(--display); font-weight: 400; font-size: clamp(1.4rem, 3.6vw, 2rem); margin: 0; text-align: center; }
-.inbox h2 small { display: block; font: 800 .8rem var(--ticket); letter-spacing: .08em; text-transform: uppercase; color: var(--red); }
-.inboxlink { justify-self: center; font-weight: 800; color: var(--red); }
-.inboxadd { background: #fff; border: 2px solid var(--card-ink); border-radius: 12px; padding: 10px 14px; }
-.inboxadd summary { font-weight: 800; cursor: pointer; }
-.inboxadd[open] { display: grid; gap: 10px; }
-.inboxadd label { display: grid; gap: 4px; font-weight: 800; font-size: .85rem; }
-.inboxadd input, .inboxadd textarea { font: 1rem var(--body); padding: 8px 10px; border: 2px solid #b9b2c4; border-radius: 8px; width: 100%; background: #fff; color: var(--card-ink); color-scheme: light; }
-.ibgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
-#ibSave { justify-self: start; font: 400 1.1rem var(--display); color: #fff; background: var(--red); border: 2px solid var(--card-ink); border-radius: 10px; padding: 8px 18px; cursor: pointer; }
-#ibList { display: grid; gap: 10px; }
-.ibmsg { background: #fff; border: 2px solid var(--card-ink); border-radius: 12px; padding: 10px 14px; }
-.ibtop { display: flex; gap: 10px; align-items: baseline; }
-.ibtop span { color: #6b6478; font-size: .85rem; margin-left: auto; }
-.ibtop button { border: none; background: none; cursor: pointer; color: #6b6478; font-size: 1rem; }
-.ibwho { font-size: .9rem; display: flex; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
-.ibwho a { color: var(--red); }
-.ibmsg p { margin: 6px 0 0; }
-.ibnone { text-align: center; color: #6b6478; margin: 0; }
 
 /* booking bar (5 minutes to change it) */
 #order { position: fixed; z-index: 40; left: 50%; bottom: 14px; transform: translateX(-50%); width: min(460px, calc(100% - 24px)); background: var(--card); color: var(--card-ink); border: 3px solid var(--card-ink); border-radius: 16px; padding: 12px 14px; box-shadow: 0 12px 30px rgba(0,0,0,.5); display: grid; gap: 8px; }
@@ -535,64 +514,3 @@ function puff(x, y) {
 })();
 </script>
 
-<script>
-// My messages: only on my own copy (data-owner), saved only on this computer.
-(function () {
-  if (!document.documentElement.dataset.owner) return;
-  const KEY = "lcm-inbox";
-  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } };
-  const save = list => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) {} };
-  const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const box = document.createElement("section");
-  box.className = "inbox";
-  box.innerHTML = `
-    <h2>&#128236; My messages <small>For this computer only</small></h2>
-    ${window.LCM_FORM ? `<a class="inboxlink" href="https://formspree.io/forms/${esc(window.LCM_FORM)}/submissions" target="_blank" rel="noopener">Open my Formspree inbox &#8599;</a>` : ""}
-    <details class="inboxadd"><summary>&#10133; Add a message I got</summary>
-      <label>Paste the email here (I'll fill in the boxes)<textarea id="ibPaste" rows="4" placeholder="Paste the whole email..."></textarea></label>
-      <div class="ibgrid">
-        <label>Name<input id="ibName"></label>
-        <label>Email<input id="ibEmail" type="email"></label>
-        <label>Phone<input id="ibPhone" type="tel"></label>
-      </div>
-      <label>What they said<textarea id="ibSaid" rows="3"></textarea></label>
-      <button type="button" id="ibSave">Save message</button>
-    </details>
-    <div id="ibList"></div>`;
-  document.querySelector(".bigcard.paper").appendChild(box);
-  const $ = id => document.getElementById(id);
-
-  // pull name / email / phone / message out of a pasted email
-  $("ibPaste").addEventListener("input", () => {
-    const t = $("ibPaste").value;
-    const grab = re => (t.match(re) || [])[1] || "";
-    const email = grab(/Email:\s*(\S+@\S+)/i) || grab(/([\w.+-]+@[\w-]+\.[\w.]+)/);
-    $("ibEmail").value = email.toLowerCase().replace(/[>.,;]+$/, "");
-    $("ibName").value = grab(/Name:\s*(.+)/i) || grab(/\(([^)]+)\)\s*$/m);
-    $("ibPhone").value = grab(/Phone:\s*(.+)/i) || grab(/(\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/);
-    $("ibSaid").value = (t.match(/^(Hi.*|I want.*)$/im) || [t.trim()])[0];
-  });
-  $("ibSave").onclick = () => {
-    const m = { name: $("ibName").value.trim(), email: $("ibEmail").value.trim(), phone: $("ibPhone").value.trim(), said: $("ibSaid").value.trim(), when: new Date().toLocaleDateString() };
-    if (!m.name && !m.email && !m.said) return;
-    const list = load(); list.unshift(m); save(list);
-    ["ibPaste", "ibName", "ibEmail", "ibPhone", "ibSaid"].forEach(id => $(id).value = "");
-    draw();
-  };
-  function draw() {
-    const list = load();
-    $("ibList").innerHTML = list.length ? list.map((m, i) => `
-      <div class="ibmsg">
-        <div class="ibtop"><b>${esc(m.name || "No name")}</b><span>${esc(m.when)}</span><button type="button" data-del="${i}" title="Delete">&#10005;</button></div>
-        <div class="ibwho">${m.email ? `&#9993; <a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ""} ${m.phone ? `&#128222; ${esc(m.phone)}` : ""}</div>
-        <p>${esc(m.said)}</p>
-      </div>`).join("") : `<p class="ibnone">No messages yet. When someone emails you, paste it above.</p>`;
-  }
-  $("ibList").onclick = e => {
-    const b = e.target.closest("[data-del]");
-    if (!b || !confirm("Delete this message?")) return;
-    const list = load(); list.splice(+b.dataset.del, 1); save(list); draw();
-  };
-  draw();
-})();
-</script>

@@ -280,10 +280,29 @@ a.half:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
         <a class="pcard red" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Family%20pack&amp;body=Hi%20I%20want%20to%20pay%20for%204%20people%20to%20go%20to%20your%20show%20and%20meet%20the%20magician." aria-label="Email me about Family pack">
         <span class="corner tl">$<br>&diams;</span><span class="corner br">$<br>&diams;</span>
         <span class="what">Family pack</span>
-        <span class="price">$110</span>
+        <span class="price">$100</span>
         <span class="per">4 people</span>
         <span class="per">come to the show + meet the magician</span>
-        <span class="save">Save $30!</span>
+        <span class="save">Save $40!</span>
+      <span class="tap">&#9993; tap to email me</span></a>
+        <div class="pcard split red">
+        <span class="corner tl">$<br>&hearts;</span><span class="corner br">$<br>&hearts;</span>
+        <a class="half" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Birthday%20party&amp;body=Hi%20I%20want%20you%20to%20do%20magic%20at%20a%20birthday%20party%20for%201%20kid.">
+          <span class="what">Birthday party</span>
+          <span class="price">$25</span>
+          <span class="per">per kid</span><span class="tap">&#9993; tap to email me</span>
+        </a>
+        <a class="half addon" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Birthday%20party%20%2B%20learn%20magic&amp;body=Hi%20I%20want%20you%20to%20do%20magic%20at%20a%20birthday%20party%20and%20teach%20magic%20to%201%20kid.">
+          <span class="price small">+ $10</span>
+          <span class="per">per kid to learn magic</span><span class="tap">&#9993; tap for both</span>
+        </a>
+      </div>
+        <a class="pcard" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Learn%20magic%20online&amp;body=Hi%20I%20want%201%20online%20magic%20lesson.%20(A%20grown-up%20will%20set%20up%20the%20video%20call.)" aria-label="Email me about Learn magic online">
+        <span class="corner tl">$<br>&clubs;</span><span class="corner br">$<br>&clubs;</span>
+        <span class="what">Learn magic online</span>
+        <span class="price">$10</span>
+        <span class="per">per lesson</span>
+        <span class="per">I teach you magic on a video call (a grown-up sets it up)</span>
       <span class="tap">&#9993; tap to email me</span></a>
         <a class="pcard" href="mailto:cmadison@foundationchristianschool.ca?subject=Lights%2C%20Cards%2C%20Magic%3A%20Help%20you%20make%20a%20show&amp;body=Hi%20I%20want%20you%20to%20help%20me%20make%20a%20show.%20You%20get%2050%25%20of%20the%20money%20I%20make." aria-label="Email me about Help you make a show">
         <span class="corner tl">$<br>&clubs;</span><span class="corner br">$<br>&clubs;</span>
@@ -395,6 +414,9 @@ const MSG = {  // what each card says, for n people (or n packs)
   "Come to my show": n => "I want to pay for " + ppl(n) + " to go to your show.",
   "Come to my show + meet the magician": n => "I want to pay for " + ppl(n) + " to go to your show and meet the magician.",
   "Family pack": n => "Hi I want to pay for " + (n === 1 ? "1 family pack" : n + " family packs") + " (" + 4 * n + " people) to go to your show and meet the magician.",
+  "Birthday party": n => "Hi I want you to do magic at a birthday party for " + (n === 1 ? "1 kid" : n + " kids") + ".",
+  "Birthday party + learn magic": n => "Hi I want you to do magic at a birthday party and teach magic to " + (n === 1 ? "1 kid" : n + " kids") + ".",
+  "Learn magic online": n => "Hi I want " + (n === 1 ? "1 online magic lesson" : n + " online magic lessons") + ". (A grown-up will set up the video call.)",
   "Help you make a show": n => "Hi I want you to help me make " + (n === 1 ? "a show" : n + " shows") + ". You get 50% of the money I make.",
   "Upgrade Magic": n => "Hi I want to pay for " + ppl(n) + " for you to do magic at my house, meet the magician, and have dinner with my family at my house (a grown-up will be there).",
   "Private Show": n => "Hi I want to pay for " + ppl(n) + " to see a private show at my house and meet the magician.",
@@ -430,7 +452,7 @@ const PRIZES = "lcm-prizes", BOOST = "lcm-boost";
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
                 set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
 const prizes = () => { try { return JSON.parse(store.get(PRIZES)) || []; } catch (e) { return []; } };
-const SHOWS = ["Come to my show", "Come to my show + meet the magician", "Family pack", "Private Show", "Upgrade Show", "Upgrade Family Pack"];
+const SHOWS = ["Come to my show", "Come to my show + meet the magician", "Family pack", "Birthday party", "Birthday party + learn magic", "Private Show", "Upgrade Show", "Upgrade Family Pack"];
 function text() {
   const t = order.items.map(i => (MSG[i.what] || (n => i.what + " x" + n))(i.n)).join("\n\n");
   const won = prizes();

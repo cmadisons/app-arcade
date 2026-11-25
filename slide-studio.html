@@ -31,6 +31,10 @@ button,select,input{font:inherit;font-size:13px;color:var(--text)}
 .mw .shf textarea{height:80px;resize:vertical}
 .mw .shf input:focus,.mw .shf textarea:focus{border-color:var(--sel)}
 .mw .shf .bad{border-color:#d93025}
+.modal .foot{flex-wrap:wrap}
+.mw .shortout{margin-top:12px;text-align:center;background:#fff8e1;border:2px dashed #f4a100;border-radius:12px;padding:14px}
+.mw .shortout .big{font:700 30px/1.2 'Courier New',monospace;color:#202124;user-select:all;word-break:break-all}
+.mw .shortout .row{display:flex;gap:8px;justify-content:center;margin-top:10px}
 .mw .shtip{margin-top:10px;font-size:13px;line-height:1.45;background:#e8f0fe;border-radius:8px;padding:9px 12px;color:#174ea6}
 .toolbar{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:4px 10px;background:var(--tool);margin:4px 10px 0;border-radius:22px}
 .sep{width:1px;height:22px;background:#c4c7c5;margin:0 5px}
@@ -598,7 +602,9 @@ stage.addEventListener('dblclick', e => {
   const n = e.target.closest('.el'); if (n) startEdit(n.dataset.id);
 });
 stage.addEventListener('contextmenu', e => {
-  const n = e.target.closest('.el'); if (!n || n.dataset.id === editingId) return;
+  const n = e.target.closest('.el');
+  if (!n) { e.preventDefault(); select(null); openMenu(e.clientX, e.clientY, [{label:'📌 Paste', kbd:C + 'V', fn:pasteFromMenu}, {label:'🖼 Add a picture…', fn:() => $('#imgBtn').click()}]); return; }
+  if (n.dataset.id === editingId) return;
   e.preventDefault(); select(n.dataset.id); openMenu(e.clientX, e.clientY, editItems());
 });
 
@@ -747,7 +753,50 @@ function order(front) {
   const a = slide().els.filter(e => e !== el); front ? a.push(el) : a.unshift(el);
   slide().els = a; commit(); renderAll();
 }
-function copyEl() { const el = selEl(); if (el) { clip = JSON.stringify(el); toast('Copied'); } }
+let clipMark = '';
+async function picBlob(el) {                 // a picture element → PNG (the computer clipboard only takes PNG)
+  const img = new Image(); img.crossOrigin = 'anonymous';
+  await new Promise((ok, no) => { img.onload = ok; img.onerror = no; img.src = el.src; });
+  const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+  c.getContext('2d').drawImage(img, 0, 0);
+  return await new Promise((ok, no) => c.toBlob(b => b ? ok(b) : no(), 'image/png'));
+}
+function copyEl() {
+  const el = selEl(); if (!el) return;
+  clip = JSON.stringify(el); clipMark = uid();
+  const mark = new Blob([`<span data-slidestudio-clip="${clipMark}"></span>`], {type:'text/html'});
+  if (el.type === 'image') {
+    picBlob(el).then(png => navigator.clipboard.write([new ClipboardItem({'image/png':png, 'text/html':mark})]))
+      .then(() => toast('📋 Picture copied — paste it here or in other apps'), () => toast('📋 Copied (this picture can only be pasted inside Slide Studio)'));
+  } else {
+    const txt = new Blob([plain(el.text) || ' '], {type:'text/plain'});
+    navigator.clipboard.write([new ClipboardItem({'text/plain':txt, 'text/html':mark})]).catch(() => {});
+    toast('📋 Copied');
+  }
+}
+function cutEl() { if (!selId) return; copyEl(); delEl(); }
+// picture from pasted web-page code or a pasted picture link
+function pastedPicURL(html, text) {
+  if (html) { const d = new DOMParser().parseFromString(html, 'text/html'), im = d.querySelector('img[src]'); if (im && /^(https?:|data:image\/)/.test(im.getAttribute('src'))) return im.getAttribute('src'); }
+  const t = (text || '').trim();
+  if (/^https?:\/\/\S+\.(png|jpe?g|gif|webp|svg|bmp|avif)(\?\S*)?$/i.test(t) || /^data:image\//.test(t)) return t;
+  return '';
+}
+function pasteURL(u) { toast('📌 Pasting picture…'); if (u.startsWith('data:')) fetch(u).then(r => r.blob()).then(addImageFile); else addImageFromUrl(u); }
+async function pasteFromMenu() {             // Edit → Paste / right-click → Paste (no ⌘V event, so read the clipboard)
+  try {
+    const items = await navigator.clipboard.read();
+    for (const it of items) {
+      if (it.types.includes('text/html')) { const h = await (await it.getType('text/html')).text(); if (clipMark && h.includes(clipMark)) return pasteEl(); }
+      const t = it.types.find(x => x.startsWith('image/'));
+      if (t) return addImageFile(new File([await it.getType(t)], 'pasted.png', {type:t}));
+      const h = it.types.includes('text/html') ? await (await it.getType('text/html')).text() : '';
+      const x = it.types.includes('text/plain') ? await (await it.getType('text/plain')).text() : '';
+      const u = pastedPicURL(h, x); if (u) return pasteURL(u);
+    }
+  } catch {}
+  if (clip) pasteEl(); else toast(`Nothing to paste — copy a picture first, then press ${C}V`);
+}
 function pasteEl() { if (!clip) return; const el = JSON.parse(clip); addEl({...el, id:uid(), x:el.x + 20, y:el.y + 20}); clip = JSON.stringify({...el, x:el.x + 20, y:el.y + 20}); }
 
 /* ---------- slide actions ---------- */
@@ -821,7 +870,7 @@ const slideItems = () => [
 ];
 const editItems = () => [
   {label:'↶ Undo', kbd:C + 'Z', fn:undo}, {label:'↷ Redo', kbd:isMac ? '⇧⌘Z' : 'Ctrl+Y', fn:redo}, '-',
-  {label:'📋 Copy', kbd:C + 'C', fn:copyEl}, {label:'📌 Paste', kbd:C + 'V', fn:pasteEl},
+  {label:'✂️ Cut', kbd:C + 'X', fn:cutEl}, {label:'📋 Copy', kbd:C + 'C', fn:copyEl}, {label:'📌 Paste', kbd:C + 'V', fn:pasteFromMenu},
   {label:'⧉ Duplicate', kbd:C + 'D', fn:dupEl}, {label:'🗑 Delete', kbd:'Del', fn:delEl}, '-',
   {label:'⬆ Bring to front', fn:() => order(true)}, {label:'⬇ Send to back', fn:() => order(false)},
 ];
@@ -968,12 +1017,55 @@ async function makeShowLink() {
 function gmailURL(addr, subject, body) {
   return 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(addr) + '&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
 }
+// ⌨️ short link people can TYPE (uses the free is.gd service; it only takes links up to ~5000 letters)
+const SHORT_MAX = 4900;
+function openShortLink() {
+  const m = smallModal('⌨️ Short link to type', `<div class="shf">
+      <label>Pick a name for your link (optional, letters and numbers)</label>
+      <div style="display:flex;align-items:center;gap:6px;color:var(--text);font-size:16px"><b>is.gd/</b><input id="slName" placeholder="MagicShow" maxlength="30" style="flex:1"></div></div>
+    <div class="shtip">You get a short link like <b>is.gd/MagicShow</b>. People type it into the <b>address bar at the top</b> of their web browser and your slide show opens.<br><br>⚠️ Anyone who types the link can watch it, so don't put your address or phone number on your slides.</div>
+    <div id="slOut"></div>`, '⌨️ Make short link');
+  const nm = m.querySelector('#slName'), ok = m.querySelector('[data-ok]'), out = m.querySelector('#slOut');
+  setTimeout(() => nm.focus(), 50);
+  nm.oninput = () => { nm.value = nm.value.replace(/[^A-Za-z0-9_]/g, ''); nm.classList.remove('bad'); };
+  nm.onkeydown = e => { if (e.key === 'Enter') ok.click(); };
+  ok.onclick = async () => {
+    const name = nm.value.trim();
+    if (name && name.length < 5) { nm.classList.add('bad'); toast('⚠️ Names need at least 5 letters or numbers'); return; }
+    ok.disabled = true; ok.textContent = '⏳ Making…';
+    const done = () => { ok.disabled = false; ok.textContent = '⌨️ Make short link'; };
+    let link;
+    try { link = await makeShowLink(); } catch { done(); toast('⚠️ This browser can\'t make links'); return; }
+    if (link.length > SHORT_MAX) { done(); out.innerHTML = '<div class="shtip" style="background:#fce8e6;color:#a50e0e">😕 This slide show is too big for a short link (pictures you uploaded make it big).<br>Try <b>🔗 Send a link</b> instead, or use pictures from 🖼 Picture → online search.</div>'; return; }
+    let r;
+    try {
+      const res = await fetch('https://is.gd/create.php?format=json&url=' + encodeURIComponent(link) + (name ? '&shorturl=' + encodeURIComponent(name) : ''));
+      r = await res.json();
+    } catch { done(); toast('⚠️ Couldn\'t reach the short link service. Are you online?'); return; }
+    done();
+    if (!r.shorturl) {
+      const taken = /already|exists|taken|in use/i.test(r.errormessage || '');
+      out.innerHTML = `<div class="shtip" style="background:#fce8e6;color:#a50e0e">😕 ${taken ? 'Someone already has that name. Try a different one!' : 'That didn\'t work: ' + String(r.errormessage || 'unknown problem').replace(/[<>&]/g, '')}</div>`;
+      if (taken) { nm.classList.add('bad'); nm.focus(); }
+      return;
+    }
+    const short = r.shorturl.replace(/^https?:\/\//, '');
+    out.innerHTML = `<div class="shortout"><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Tell people to type this:</div>
+      <div class="big"></div><div class="row"><button class="btn go" data-copy>📋 Copy</button><button class="btn" data-open>👀 Open it</button></div></div>`;
+    out.querySelector('.big').textContent = short;
+    out.querySelector('[data-copy]').onclick = () => navigator.clipboard.writeText(r.shorturl).then(() => toast('📋 Copied ' + short), () => toast('Select it and press ' + (isMac ? '⌘' : 'Ctrl') + ' + C'));
+    out.querySelector('[data-open]').onclick = () => window.open(r.shorturl, '_blank', 'noopener');
+    ok.textContent = '⌨️ Make another'; nm.value = '';
+    try { navigator.clipboard.writeText(r.shorturl); } catch {}
+    toast('⌨️ Your short link: ' + short + ' (copied!)');
+  };
+}
 function openShare() {
   endEdit();
   const m = smallModal('🔗 Share with Gmail', `<div class="shf">
       <label>Send to (their Gmail address)</label><input id="shTo" type="email" placeholder="friend@gmail.com" autocomplete="email">
       <label style="margin-top:6px">Message</label><textarea id="shMsg">Hi! I made a slide show called "${(deck.title || 'My presentation').replace(/[<>&"]/g, '')}" in Slide Studio. Open the file I attached to watch it! 🎉</textarea></div>
-    <div class="shtip"><b>🔗 Send a link</b> (easiest): Gmail opens with a link in the email. Your email gets a big <b>▶ Open my slide show</b> button. Your friend taps it and the slide show plays on any phone or computer, with nothing to download. <b>👀 Open the link</b> lets you watch it first (and copies the link).</div>
+    <div class="shtip"><b>🔗 Send a link</b> (easiest): Gmail opens with a link in the email. Your email gets a big <b>▶ Open my slide show</b> button. Your friend taps it and the slide show plays on any phone or computer, with nothing to download. <b>👀 Open the link</b> lets you watch it first (and copies the link). <b>⌨️ Short link</b> makes one people can type, like <b>is.gd/MagicShow</b>.</div>
     <div class="shtip" id="shAuto" hidden><b>📤 Send with file attached</b> opens your device's share menu with the slide show <b>already attached</b>. Pick <b>Gmail</b> (or Mail), then press Send.</div>
     <div class="shtip">When you press <b>Open Gmail</b>:<br>1. Your slide show is saved to <b>Downloads</b> as a file that plays in any web browser.<br>2. Gmail opens with the email already written.<br>3. Drag the file from Downloads into the email (or click 📎) and press <b>Send</b>.</div>`, '📧 Open Gmail');
   const to = m.querySelector('#shTo'), ok = m.querySelector('[data-ok]');
@@ -983,6 +1075,9 @@ function openShare() {
   m.querySelector('.modal').style.width = 'min(640px,94vw)';
   const lk = document.createElement('button'); lk.className = 'btn go'; lk.textContent = '🔗 Send a link';
   ok.before(lk);
+  const sh = document.createElement('button'); sh.className = 'btn'; sh.textContent = '⌨️ Short link';
+  sh.title = 'Make a short link people can type, like is.gd/MagicShow';
+  lk.before(sh); sh.onclick = () => { m.remove(); openShortLink(); };
   const op = document.createElement('button'); op.className = 'btn'; op.textContent = '👀 Open the link';
   op.title = 'Open your slide show link in a new tab (it also copies it)';
   lk.before(op);
@@ -1082,8 +1177,12 @@ $('#wrap').addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if
 document.addEventListener('paste', e => {
   if (editingId || e.target.closest('input,textarea')) return;
   const item = [...e.clipboardData.items].find(i => i.type.startsWith('image/'));
-  if (item) { e.preventDefault(); addImageFile(item.getAsFile()); }
-  else if (clip) { e.preventDefault(); pasteEl(); }
+  const html = e.clipboardData.getData('text/html'), text = e.clipboardData.getData('text/plain');
+  if (clip && clipMark && html.includes(clipMark)) { e.preventDefault(); pasteEl(); return; }   // copied inside Slide Studio
+  if (item) { e.preventDefault(); addImageFile(item.getAsFile()); return; }
+  const u = pastedPicURL(html, text);
+  if (u) { e.preventDefault(); pasteURL(u); return; }
+  if (clip) { e.preventDefault(); pasteEl(); }
 });
 window.addEventListener('beforeprint', () => {
   const p = $('#printArea'); p.innerHTML = '';
@@ -1282,6 +1381,7 @@ document.addEventListener('keydown', e => {
   if (mod && k.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
   if (mod && k.toLowerCase() === 'd') { e.preventDefault(); selId ? dupEl() : dupSlide(); return; }
   if (mod && k.toLowerCase() === 'c') { if (selId) { e.preventDefault(); copyEl(); } return; }
+  if (mod && k.toLowerCase() === 'x') { if (selId) { e.preventDefault(); cutEl(); } return; }
   if (mod && k.toLowerCase() === 'm') { e.preventDefault(); addSlide('content'); return; }
   if (mod && ['b','i','u'].includes(k.toLowerCase()) && selEl() && selEl().type !== 'image') {
     e.preventDefault(); const el = selEl(), p = {b:'bold', i:'italic', u:'underline'}[k.toLowerCase()]; applyProp(p, !el[p]); return;

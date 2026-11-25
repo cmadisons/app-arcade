@@ -973,7 +973,7 @@ function openShare() {
   const m = smallModal('🔗 Share with Gmail', `<div class="shf">
       <label>Send to (their Gmail address)</label><input id="shTo" type="email" placeholder="friend@gmail.com" autocomplete="email">
       <label style="margin-top:6px">Message</label><textarea id="shMsg">Hi! I made a slide show called "${(deck.title || 'My presentation').replace(/[<>&"]/g, '')}" in Slide Studio. Open the file I attached to watch it! 🎉</textarea></div>
-    <div class="shtip"><b>🔗 Send a link</b> (easiest): Gmail opens with a link in the email. Your friend taps it and the slide show plays on any phone or computer, with nothing to download.</div>
+    <div class="shtip"><b>🔗 Send a link</b> (easiest): Gmail opens with a link in the email. Your friend taps it and the slide show plays on any phone or computer, with nothing to download. <b>👀 Open the link</b> lets you watch it first (and copies the link).</div>
     <div class="shtip" id="shAuto" hidden><b>📤 Send with file attached</b> opens your device's share menu with the slide show <b>already attached</b>. Pick <b>Gmail</b> (or Mail), then press Send.</div>
     <div class="shtip">When you press <b>Open Gmail</b>:<br>1. Your slide show is saved to <b>Downloads</b> as a file that plays in any web browser.<br>2. Gmail opens with the email already written.<br>3. Drag the file from Downloads into the email (or click 📎) and press <b>Send</b>.</div>`, '📧 Open Gmail');
   const to = m.querySelector('#shTo'), ok = m.querySelector('[data-ok]');
@@ -983,6 +983,21 @@ function openShare() {
   m.querySelector('.modal').style.width = 'min(640px,94vw)';
   const lk = document.createElement('button'); lk.className = 'btn go'; lk.textContent = '🔗 Send a link';
   ok.before(lk);
+  const op = document.createElement('button'); op.className = 'btn'; op.textContent = '👀 Open the link';
+  op.title = 'Open your slide show link in a new tab (it also copies it)';
+  lk.before(op);
+  op.onclick = async () => {
+    const tab = window.open('', '_blank');          // open the tab right away so the browser doesn't block it
+    op.disabled = true; op.textContent = '⏳ Making link…';
+    let link;
+    try { link = await makeShowLink(); } catch { link = null; }
+    op.disabled = false; op.textContent = '👀 Open the link';
+    if (!link) { tab && tab.close(); toast('⚠️ This browser can\'t make links — try 📧 Gmail website'); return; }
+    if (link.length > MAX_LINK) { tab && tab.close(); toast('⚠️ Your pictures make this slide show too big for a link'); return; }
+    try { await navigator.clipboard.writeText(link); } catch {}
+    if (tab) { tab.opener = null; tab.location.href = link; } else location.href = link;
+    toast('👀 Opened your slide show link in a new tab (it\'s copied too — paste it anywhere with ' + (isMac ? '⌘' : 'Ctrl') + ' + V)');
+  };
   lk.onclick = async () => {
     const addr = to.value.trim();
     if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(addr)) { to.classList.add('bad'); to.focus(); toast('⚠️ Type the person\'s email, like friend@gmail.com'); return; }

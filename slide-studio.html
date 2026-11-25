@@ -973,7 +973,7 @@ function openShare() {
   const m = smallModal('🔗 Share with Gmail', `<div class="shf">
       <label>Send to (their Gmail address)</label><input id="shTo" type="email" placeholder="friend@gmail.com" autocomplete="email">
       <label style="margin-top:6px">Message</label><textarea id="shMsg">Hi! I made a slide show called "${(deck.title || 'My presentation').replace(/[<>&"]/g, '')}" in Slide Studio. Open the file I attached to watch it! 🎉</textarea></div>
-    <div class="shtip"><b>🔗 Send a link</b> (easiest): Gmail opens with a link in the email. Your friend taps it and the slide show plays on any phone or computer, with nothing to download. <b>👀 Open the link</b> lets you watch it first (and copies the link).</div>
+    <div class="shtip"><b>🔗 Send a link</b> (easiest): Gmail opens with a link in the email. Your email gets a big <b>▶ Open my slide show</b> button. Your friend taps it and the slide show plays on any phone or computer, with nothing to download. <b>👀 Open the link</b> lets you watch it first (and copies the link).</div>
     <div class="shtip" id="shAuto" hidden><b>📤 Send with file attached</b> opens your device's share menu with the slide show <b>already attached</b>. Pick <b>Gmail</b> (or Mail), then press Send.</div>
     <div class="shtip">When you press <b>Open Gmail</b>:<br>1. Your slide show is saved to <b>Downloads</b> as a file that plays in any web browser.<br>2. Gmail opens with the email already written.<br>3. Drag the file from Downloads into the email (or click 📎) and press <b>Send</b>.</div>`, '📧 Open Gmail');
   const to = m.querySelector('#shTo'), ok = m.querySelector('[data-ok]');
@@ -1005,16 +1005,27 @@ function openShare() {
     let link;
     try { link = await makeShowLink(); } catch { lk.disabled = false; lk.textContent = '🔗 Send a link'; toast('⚠️ This browser can\'t make links — try 📧 Gmail website'); return; }
     if (link.length > MAX_LINK) { lk.disabled = false; lk.textContent = '🔗 Send a link'; toast('⚠️ Your pictures make this slide show too big for a link — use 📧 Gmail website (file) instead'); return; }
-    try { await navigator.clipboard.writeText(link); } catch {}
     const subject = 'Check out my slide show: ' + (deck.title || 'My presentation');
-    const msg = m.querySelector('#shMsg').value.replace(/Open the file I attached to watch it!/, 'Tap this link to watch it!');
-    let url = gmailURL(addr, subject, msg + '\n\n' + link);
-    if (url.length <= MAX_GMAIL_URL) {
-      window.open(url, '_blank', 'noopener'); m.remove();
-      toast('📧 Gmail is open with the link in it — just press Send!');
-    } else {                        // too long to put in the Gmail address bar → it's on the clipboard, paste it in
+    const msg = m.querySelector('#shMsg').value.replace(/Open the file I attached to watch it!/, 'Press ▶ Open my slide show to watch it!');
+    // copy a big clickable "▶ Open my slide show" button (rich text) — pasting it into Gmail makes a real button
+    const escH = t => t.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const btnHTML = `<p><a href="${escH(link)}" style="display:inline-block;background:#1a73e8;color:#ffffff;font-weight:bold;font-size:18px;text-decoration:none;padding:12px 26px;border-radius:24px;font-family:Arial,sans-serif">▶ Open my slide show</a></p>`;
+    let rich = false;
+    try {
+      await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([btnHTML], {type:'text/html'}), 'text/plain':new Blob([link], {type:'text/plain'})})]);
+      rich = true;
+    } catch { try { await navigator.clipboard.writeText(link); } catch {} }
+    const k = (isMac ? '⌘' : 'Ctrl') + ' + V';
+    if (rich) {
+      m.remove();
+      smallModal('▶ Your Open button is copied!', `<div class="shtip" style="margin:0">When Gmail opens with your email:<br><br>1. Click at the <b>bottom of the email</b> (under your message).<br>2. Press <b>${k}</b>. A big blue <b>▶ Open my slide show</b> button appears.<br>3. Press <b>Send</b>.<br><br>Your friend taps that button to watch. (While you're still writing the email, Gmail won't let you tap it. That's normal! It works after it's sent.)</div>`, '📧 Open Gmail',
+        () => window.open(gmailURL(addr, subject, msg + '\n\n'), '_blank', 'noopener'));
+    } else if (gmailURL(addr, subject, msg + '\n\n' + link).length <= MAX_GMAIL_URL) {
+      window.open(gmailURL(addr, subject, msg + '\n\n' + link), '_blank', 'noopener'); m.remove();
+      toast('📧 Gmail is open with the link in it — just press Send! (Links can be tapped after it\'s sent)');
+    } else {
       window.open(gmailURL(addr, subject, msg + '\n\n👉 (paste the link here)'), '_blank', 'noopener'); m.remove();
-      smallModal('🔗 Your link is copied!', `<div class="shtip" style="margin:0">Your slide show has pictures, so the link is too long for Gmail to fill in by itself.<br><br>In the Gmail email, click on <b>"(paste the link here)"</b>, delete it, and press <b>${isMac ? '⌘' : 'Ctrl'} + V</b> to paste the link. Then press <b>Send</b>.</div>`, 'Got it');
+      smallModal('🔗 Your link is copied!', `<div class="shtip" style="margin:0">The link is too long for Gmail to fill in by itself.<br><br>In the email, click on <b>"(paste the link here)"</b>, delete it, and press <b>${k}</b>. Then press <b>Send</b>.</div>`, 'Got it');
     }
   };
   if (canAttach) {

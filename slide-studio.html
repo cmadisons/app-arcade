@@ -1,0 +1,1458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slide Studio</title>
+<style>
+:root{--bg:#f1f3f4;--panel:#fff;--line:#dadce0;--text:#202124;--muted:#5f6368;--accent:#f4a100;--sel:#1a73e8;--tool:#edf2fa}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text);background:var(--bg)}
+body{display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;gap:8px;padding:8px 14px 4px;background:var(--panel)}
+.logo{width:36px;height:36px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:#fff;font-size:20px;flex:none}
+.titlebox{display:flex;flex-direction:column}
+#deckTitle{font-size:18px;border:1px solid transparent;border-radius:4px;padding:2px 6px;min-width:220px;font-family:inherit;color:var(--text);background:transparent}
+#deckTitle:hover,#deckTitle:focus{border-color:var(--line);outline:none}
+.menus{display:flex;gap:0}
+.menus .btn{padding:3px 8px;font-size:14px}
+button,select,input{font:inherit;font-size:13px;color:var(--text)}
+.btn{border:0;background:transparent;padding:6px 9px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;position:relative;white-space:nowrap}
+.btn:hover:not(:disabled){background:#dfe3eb}
+.btn:disabled{opacity:.35;cursor:default}
+.btn.on{background:#d3e3fd;color:#0b57d0}
+.present{margin-left:auto;background:var(--accent);color:#fff;font-weight:700;border-radius:22px;padding:9px 20px;font-size:14px}
+.present:hover{background:#e29500!important}
+.share{background:var(--sel);color:#fff;font-weight:700;border-radius:22px;padding:9px 18px;font-size:14px}
+.share:hover{background:#1557b0!important}
+.mw .shf{display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.mw .shf input,.mw .shf textarea{font:inherit;font-size:15px;color:var(--text);padding:9px 12px;border:1px solid var(--line);border-radius:8px;outline:none}
+.mw .shf textarea{height:80px;resize:vertical}
+.mw .shf input:focus,.mw .shf textarea:focus{border-color:var(--sel)}
+.mw .shf .bad{border-color:#d93025}
+.mw .shtip{margin-top:10px;font-size:13px;line-height:1.45;background:#e8f0fe;border-radius:8px;padding:9px 12px;color:#174ea6}
+.toolbar{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:4px 10px;background:var(--tool);margin:4px 10px 0;border-radius:22px}
+.sep{width:1px;height:22px;background:#c4c7c5;margin:0 5px}
+.toolbar select{border:0;background:transparent;padding:5px;border-radius:5px;cursor:pointer;max-width:130px}
+.toolbar select:hover{background:#dfe3eb}
+#fontSize{width:44px;text-align:center;border:1px solid #c4c7c5;border-radius:4px;padding:3px;background:#fff}
+.colorbtn{flex-direction:column;gap:0;padding:3px 8px;line-height:1}
+.colorbtn .bar{width:18px;height:4px;border-radius:2px;margin-top:2px;border:1px solid #0002}
+.colorbtn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+main{flex:1;display:flex;min-height:0}
+#sidebar{width:210px;overflow-y:auto;padding:12px 10px 20px 4px;flex:none}
+.thumb{display:flex;gap:6px;margin-bottom:12px;cursor:pointer}
+.thumb .num{width:18px;font-size:12px;color:var(--muted);text-align:right;padding-top:4px;flex:none}
+.thumb .mini{flex:1;aspect-ratio:16/9;border:2px solid var(--line);border-radius:7px;overflow:hidden;position:relative;background:#fff;pointer-events:none}
+.thumb:hover .mini{border-color:#9aa0a6}
+.thumb.active .mini{border-color:var(--accent);box-shadow:0 0 0 2px #f4a10055}
+#sidebar.focus .thumb.active .mini{border-color:var(--sel);box-shadow:0 0 0 2px #1a73e855}
+.thumb.over .mini{border-color:var(--sel);border-style:dashed}
+.addslide{width:calc(100% - 24px);margin-left:24px;border:2px dashed #bdc1c6;border-radius:7px;background:transparent;padding:10px;cursor:pointer;color:var(--muted)}
+.addslide:hover{background:#fff;border-color:var(--accent);color:var(--text)}
+#work{flex:1;display:flex;flex-direction:column;min-width:0;padding:0 12px 10px 4px}
+#wrap{flex:1;position:relative;overflow:hidden;min-height:200px}
+.slide{position:absolute;left:0;top:0;width:960px;height:540px;transform-origin:0 0;overflow:hidden;background:#fff}
+#stage{box-shadow:0 1px 3px #0003,0 4px 14px #0001;overflow:visible;--hs:11px;--ow:2px}
+#stage .clip{position:absolute;inset:0;overflow:hidden}
+.el{position:absolute;cursor:move}
+.el .bg{position:absolute;inset:0}
+.el .txt{position:absolute;inset:0;padding:6px 10px;display:flex;flex-direction:column;overflow-wrap:anywhere;line-height:1.2;outline:none}
+.el img{width:100%;height:100%;display:block;object-fit:fill;user-select:none;-webkit-user-drag:none}
+#stage .el:hover{outline:var(--ow) solid #1a73e866}
+#stage .el.sel{outline:var(--ow) solid var(--sel)}
+#stage .el.editing{cursor:text}
+#stage .el.editing .txt{cursor:text}
+.h{position:absolute;width:var(--hs);height:var(--hs);background:#fff;border:calc(var(--hs)/5) solid var(--sel);border-radius:50%;z-index:5}
+.h[data-dir=nw]{left:calc(var(--hs)/-2);top:calc(var(--hs)/-2);cursor:nwse-resize}
+.h[data-dir=n]{left:calc(50% - var(--hs)/2);top:calc(var(--hs)/-2);cursor:ns-resize}
+.h[data-dir=ne]{right:calc(var(--hs)/-2);top:calc(var(--hs)/-2);cursor:nesw-resize}
+.h[data-dir=e]{right:calc(var(--hs)/-2);top:calc(50% - var(--hs)/2);cursor:ew-resize}
+.h[data-dir=se]{right:calc(var(--hs)/-2);bottom:calc(var(--hs)/-2);cursor:nwse-resize}
+.h[data-dir=s]{left:calc(50% - var(--hs)/2);bottom:calc(var(--hs)/-2);cursor:ns-resize}
+.h[data-dir=sw]{left:calc(var(--hs)/-2);bottom:calc(var(--hs)/-2);cursor:nesw-resize}
+.h[data-dir=w]{left:calc(var(--hs)/-2);top:calc(50% - var(--hs)/2);cursor:ew-resize}
+.guide{position:absolute;background:#ff3d8b;z-index:9;display:none;pointer-events:none}
+#gv{left:480px;top:0;width:var(--ow);height:540px}
+#gh{top:270px;left:0;height:var(--ow);width:960px}
+#magicBar{display:flex;align-items:center;gap:8px;margin-top:10px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:14px;flex:none}
+#magicBar b{white-space:nowrap}
+#slideMagic{flex:1;min-width:120px;border:1px solid transparent;border-radius:6px;padding:6px 8px;font:inherit;font-size:14px;background:#f8f9fa}
+#slideMagic:focus{outline:2px solid var(--sel);background:#fff}
+#magicBar.has{border-color:#81c995;background:#e6f4ea}
+#magicHint{color:var(--muted);font-size:12px;white-space:nowrap}
+.thumb .num .mic{display:block;font-size:11px;margin-top:2px}
+.mw .slist{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;font-size:13px}
+.mw .slist span{color:var(--muted);max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mw .slist input{font:inherit;font-size:14px;padding:6px 10px;border:1px solid var(--line);border-radius:6px}
+#notes{height:74px;margin-top:10px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font:inherit;font-size:14px;background:#fff;flex:none}
+#notes:focus{outline:2px solid var(--sel);border-color:transparent}
+.pop{position:fixed;z-index:100;background:#fff;border-radius:8px;box-shadow:0 2px 6px #0003,0 8px 24px #0002;padding:6px 0;min-width:200px;max-height:80vh;overflow:auto}
+.pop button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;text-align:left;padding:7px 16px;cursor:pointer;font-size:14px}
+.pop button:hover{background:#f1f3f4}
+.pop button.chk::after{content:"✓";margin-left:auto;color:var(--sel);font-weight:700}
+.pop hr{border:0;border-top:1px solid var(--line);margin:5px 0}
+.pop .sw{width:26px;height:16px;border-radius:3px;border:1px solid #0002;flex:none}
+.pop .kbd{margin-left:auto;color:var(--muted);font-size:12px}
+.shapegrid{display:grid;grid-template-columns:repeat(4,44px);gap:4px;padding:6px 10px}
+.shapegrid button{padding:6px;justify-content:center;border-radius:6px}
+.shapegrid i{display:block;width:28px;height:22px;background:#5f6368}
+#show{position:fixed;inset:0;background:#000;z-index:200;cursor:pointer}
+#show .slide{animation:none}
+#show .fade{animation:fadeIn .5s ease}
+#show .slidein{animation:slideIn .5s ease}
+#show .zoom{animation:zoomIn .45s ease}
+@keyframes fadeIn{from{opacity:0}}
+@keyframes slideIn{from{opacity:0;translate:120px 0}}
+@keyframes zoomIn{from{opacity:0;scale:.85}}
+#showCount{position:fixed;right:16px;bottom:12px;color:#fffc;text-shadow:0 1px 3px #000;font-size:14px;z-index:201;pointer-events:none}
+#showEnd{position:fixed;inset:0;display:grid;place-items:center;font-size:20px}#showEnd::before{content:"";}#showEnd{color:#fff;text-shadow:0 1px 4px #000}
+#toast{position:fixed;left:50%;bottom:24px;translate:-50% 0;background:#323232;color:#fff;padding:10px 18px;border-radius:6px;font-size:14px;z-index:300;opacity:0;transition:opacity .25s;pointer-events:none}
+#toast.show{opacity:1}
+#printArea{display:none}
+footer{display:flex;align-items:center;gap:10px;padding:6px 14px;background:#fff;border-top:1px solid var(--line);flex:none;min-height:46px}
+#adSlot{flex:1;min-width:0}
+.ad{display:flex;align-items:center;gap:10px;padding:5px 8px 5px 10px;border-radius:9px;font-size:13px;animation:adIn .5s ease;min-width:0}
+@keyframes adIn{from{opacity:0;translate:0 6px}}
+.ad .adtag{font-size:10px;font-weight:800;padding:1px 5px;border-radius:3px;background:#0003;color:#fff;flex:none}
+.ad .adico{font-size:20px;flex:none}
+.ad b{white-space:nowrap}
+.ad .adsub{opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.ad button{margin-left:auto;flex:none;border:0;border-radius:16px;padding:6px 14px;font-weight:700;cursor:pointer}
+.ad-donate{background:linear-gradient(90deg,#ffe082,#ffab91);color:#4e2a00}
+.ad-donate button{background:#4e2a00;color:#fff}
+.ad-box{background:linear-gradient(90deg,#1a1033,#3b1f6b);color:#ffe9a8}
+.ad-box button{background:#ffd54f;color:#1a1033}
+.ad-sky{background:linear-gradient(90deg,#4fc3f7,#81c784);color:#0d3b1e}
+.ad-sky button{background:#2e7d32;color:#fff}
+.fullad{position:fixed;inset:0;z-index:145;display:grid;place-items:center;text-align:center;padding:60px 20px 40px;animation:fadeIn .4s ease;overflow:auto}
+.fullad.ad-donate{background:linear-gradient(135deg,#ffe082,#ffab91)}
+.fullad.ad-box{background:radial-gradient(circle at 50% 30%,#4a2a85,#1a1033 70%)}
+.fullad.ad-sky{background:linear-gradient(180deg,#4fc3f7 0%,#b3e5fc 55%,#81c784 100%)}
+.fullad .fa-tag{position:absolute;top:16px;left:16px;font-weight:800;font-size:13px;background:#0005;color:#fff;padding:3px 9px;border-radius:5px}
+.fullad .fa-close{position:absolute;top:14px;right:16px;border:0;border-radius:20px;padding:9px 18px;font-weight:700;font-size:14px;background:#fff;color:#222;cursor:pointer;box-shadow:0 2px 8px #0003}
+.fullad .fa-close:disabled{opacity:.65;cursor:default}
+.fa-body{max-width:780px}
+.fa-ico{font-size:clamp(80px,14vw,150px);line-height:1.1;animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-12px)}}
+.fullad h1{font-size:clamp(32px,5.5vw,64px);margin:10px 0 8px;line-height:1.1}
+.fa-sub{font-size:clamp(18px,2.4vw,26px);margin:0 0 18px;opacity:.9}
+.fa-more{font-size:clamp(15px,1.8vw,19px);line-height:1.75;margin:0 0 24px}
+.fa-small{font-size:13px;opacity:.75;margin-top:14px}
+.fullad .fa-go{border:0;border-radius:32px;padding:16px 42px;font-size:22px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px #0003;transition:transform .15s}
+.fullad .fa-go:hover{transform:scale(1.06)}
+.donate{margin-left:auto;background:#ffcc33;color:#4e2a00;font-weight:700;border-radius:18px;padding:7px 16px}
+.donate:hover{background:#ffb300!important}
+.planchip{background:#fff3cd;color:#7a4b00;border-radius:16px;font-weight:600}
+#paywall{position:fixed;inset:0;z-index:140;background:linear-gradient(160deg,#fff7e0,#f1f3f4 45%,#e8f0fe);overflow:auto;padding:28px 16px}
+.pw{max-width:1040px;margin:0 auto;text-align:center}
+.pw h1{margin:10px 0 4px;font-size:32px}
+.pw .sub{color:var(--muted);margin:0 0 18px;font-size:16px}
+.pw .logo{margin:0 auto;width:56px;height:56px;font-size:28px;border-radius:14px}
+.pwtoggle{display:inline-flex;background:#fff;border-radius:24px;padding:4px;box-shadow:0 1px 3px #0002;margin-bottom:22px}
+.pwtoggle button{border:0;background:none;padding:8px 20px;border-radius:20px;cursor:pointer;font-weight:600;font-size:14px}
+.pwtoggle button.on{background:var(--accent);color:#fff}
+.pwgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;text-align:left}
+.card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 1px 3px #0002,0 6px 20px #0001;display:flex;flex-direction:column;gap:8px;border:2px solid transparent;position:relative}
+.card.best{border-color:var(--accent)}
+.card.mine{border-color:#34a853}
+.card .badge{position:absolute;top:-11px;left:16px;background:var(--accent);color:#fff;font-size:11px;font-weight:800;padding:3px 10px;border-radius:10px}
+.card.mine .badge{background:#34a853}
+.card h3{margin:4px 0 0;font-size:18px}
+.card .price{font-size:30px;font-weight:800}
+.card .price small{font-size:14px;font-weight:500;color:var(--muted)}
+.card .save{color:#188038;font-size:13px;font-weight:600;min-height:18px}
+.card ul{margin:4px 0 8px;padding-left:0;list-style:none;font-size:14px;line-height:1.7;flex:1}
+.card .get{border:0;border-radius:22px;padding:11px;font-weight:700;font-size:15px;cursor:pointer;background:var(--sel);color:#fff}
+.card .get:hover{background:#1557b0}
+.card .get:disabled{background:#34a853;cursor:default}
+.pwfoot{margin-top:22px;color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-items:center}
+.pwfoot .btn{color:var(--text)}
+.amts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.amts button{border:2px solid var(--line);background:#fff;border-radius:20px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:15px}
+.amts button.on{border-color:#ffb300;background:#fff3cd}
+.mw input.money{font:inherit;font-size:15px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;width:140px}
+#micDot{position:fixed;left:16px;bottom:12px;z-index:201;color:#fff;font-size:14px;background:#0008;padding:5px 12px;border-radius:16px;pointer-events:none;transition:background .2s,transform .2s}
+#micDot.heard{background:#2e7d32;transform:scale(1.15)}
+#micDot.off{background:#b71c1c}
+.mw{padding:18px 20px;overflow:auto;flex:1}
+.mw h3{margin:14px 0 6px;font-size:15px}
+.mw p{margin:4px 0 8px;color:var(--muted);font-size:13px}
+.mw textarea{width:100%;height:90px;font:inherit;font-size:15px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;resize:vertical}
+.mw .row{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:14px}
+#mwTest{margin-top:6px;padding:10px 12px;border-radius:8px;background:#f1f3f4;min-height:40px;font-size:14px}
+.modalbg{position:fixed;inset:0;background:#0006;z-index:150;display:grid;place-items:center}
+.modal{background:#fff;border-radius:12px;width:min(880px,94vw);height:min(640px,90vh);display:flex;flex-direction:column;box-shadow:0 10px 40px #0005;overflow:hidden}
+.modal .top{display:flex;gap:8px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.modal .top input{flex:1;font-size:16px;padding:9px 14px;border:1px solid var(--line);border-radius:22px;outline:none}
+.modal .top input:focus{border-color:var(--sel)}
+.modal .go{background:var(--sel);color:#fff;border-radius:22px;padding:9px 18px;font-weight:600}
+.modal .go:hover{background:#1557b0!important}
+.modal .x{font-size:20px}
+.modal .grid{flex:1;overflow:auto;padding:12px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));grid-auto-rows:120px;gap:10px;align-content:start}
+.modal .pic{position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:#eee;border:0;padding:0}
+.modal .pic img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+.modal .pic:hover img{transform:scale(1.06)}
+.modal .pic span{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,#000c);color:#fff;font-size:11px;padding:14px 6px 4px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.modal .pic.loading::after{content:"Adding…";position:absolute;inset:0;background:#fffc;display:grid;place-items:center;font-weight:600}
+.modal .msg{grid-column:1/-1;text-align:center;color:var(--muted);padding:40px 10px;font-size:15px}
+.modal .foot{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.modal .foot label{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--text);font-size:13px}
+@media print{
+  @page{size:960px 540px;margin:0}
+  body{display:block;background:#fff;overflow:visible}
+  body>*:not(#printArea){display:none!important}
+  #printArea{display:block}
+  #printArea .slide{position:relative;page-break-after:always;break-after:page;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">▶</div>
+  <div class="titlebox">
+    <input id="deckTitle" value="My presentation" spellcheck="false">
+    <div class="menus">
+      <button class="btn" id="mFile">File</button>
+      <button class="btn" id="mEdit">Edit</button>
+      <button class="btn" id="mInsert">Insert</button>
+      <button class="btn" id="mSlide">Slide</button>
+      <button class="btn" id="mTheme">Theme</button>
+      <button class="btn" id="mHelp">Help</button>
+    </div>
+  </div>
+  <button class="btn planchip" id="planChip" hidden title="Your plan"></button>
+  <button class="btn" id="micBtn" title="Magic words: say a word to change slides">🎤 Magic words</button>
+  <button class="btn present" id="presentBtn" title="Present (Ctrl+Enter)">▶ Slideshow</button>
+  <button class="btn share" id="shareBtn" title="Send this slide show to someone on Gmail">🔗 Share</button>
+</header>
+
+<div class="toolbar" id="toolbar">
+  <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)">↶</button>
+  <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)">↷</button>
+  <div class="sep"></div>
+  <button class="btn" id="newSlideBtn" title="New slide">＋ Slide ▾</button>
+  <div class="sep"></div>
+  <button class="btn" id="textBtn" title="Text box"><b>T</b> Text</button>
+  <button class="btn" id="shapeBtn" title="Shape">◆ Shape ▾</button>
+  <button class="btn" id="imgBtn" title="Picture">🖼 Picture ▾</button>
+  <div class="sep"></div>
+  <select id="fontSel" data-need="text" title="Font"></select>
+  <button class="btn" id="sizeDown" data-need="text" title="Smaller">−</button>
+  <input id="fontSize" data-need="text" type="number" min="6" max="300" title="Font size">
+  <button class="btn" id="sizeUp" data-need="text" title="Bigger">＋</button>
+  <div class="sep"></div>
+  <button class="btn" id="boldBtn" data-need="text" title="Bold (Ctrl+B)"><b>B</b></button>
+  <button class="btn" id="italicBtn" data-need="text" title="Italic (Ctrl+I)"><i>I</i></button>
+  <button class="btn" id="underBtn" data-need="text" title="Underline (Ctrl+U)"><u>U</u></button>
+  <label class="btn colorbtn" title="Text color"><b>A</b><span class="bar" id="textColorBar"></span><input type="color" id="textColor" data-need="text"></label>
+  <label class="btn colorbtn" title="Fill color"><span>🪣</span><span class="bar" id="fillColorBar"></span><input type="color" id="fillColor" data-need="text"></label>
+  <button class="btn" id="noFillBtn" data-need="text" title="No fill">⊘</button>
+  <div class="sep"></div>
+  <button class="btn" id="alignL" data-need="text" title="Align left">⫷</button>
+  <button class="btn" id="alignC" data-need="text" title="Center">≡</button>
+  <button class="btn" id="alignR" data-need="text" title="Align right">⫸</button>
+  <button class="btn" id="valignBtn" data-need="text" title="Vertical position">⇕</button>
+  <div class="sep"></div>
+  <button class="btn" id="frontBtn" data-need="el" title="Bring to front">⬆ Front</button>
+  <button class="btn" id="backBtn" data-need="el" title="Send to back">⬇ Back</button>
+  <button class="btn" id="delBtn" data-need="el" title="Delete (Del)">🗑</button>
+  <div class="sep"></div>
+  <label class="btn colorbtn" title="Slide background"><span>🎨</span><span class="bar" id="bgColorBar"></span><input type="color" id="bgColor"></label>
+</div>
+
+<main>
+  <div id="sidebar"></div>
+  <div id="work">
+    <div id="wrap"><div id="stage" class="slide"></div></div>
+    <div id="magicBar"><b>🎤 Magic word for this slide:</b>
+      <input id="slideMagic" placeholder="e.g. hot chocolate — leave empty to use the every-slide words" autocomplete="off">
+      <span id="magicHint"></span></div>
+    <textarea id="notes" placeholder="Click to add speaker notes"></textarea>
+  </div>
+</main>
+
+<footer id="footbar"><div id="adSlot" hidden></div><button class="btn donate" id="donateBtn" title="Give money to support my apps">💛 Donate</button></footer>
+<div id="paywall" hidden><div class="pw">
+  <div class="logo">▶</div>
+  <h1>Slide Studio</h1>
+  <p class="sub" id="pwSub">Pick a plan to start making slides</p>
+  <div class="pwtoggle"><button data-per="month" class="on">Monthly</button><button data-per="year">Yearly · save more</button></div>
+  <div class="pwgrid" id="pwGrid"></div>
+  <div class="pwfoot"><span id="pwNote"></span>
+    <button class="btn" id="pwCancel" hidden>Cancel my plan</button>
+    <button class="btn" id="pwClose" hidden>✕ Back to my slides</button>
+    <button class="btn donate" id="pwDonate" style="margin-left:0">💛 Donate</button></div>
+</div></div>
+<div id="fullAd" hidden></div>
+<div id="show" hidden><div id="showInner"></div><div id="showCount"></div><div id="micDot" hidden>🎤 listening</div></div>
+<div id="toast"></div>
+<div id="printArea"></div>
+<input type="file" id="imgFile" accept="image/*" hidden>
+<input type="color" id="showBgInput" hidden>
+<input type="file" id="openFile" accept=".json,application/json" hidden>
+
+<script>
+const W = 960, H = 540, KEY = 'slideStudio.v1';
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+const THEMES = {
+  simple: {name:'Simple Light', bg:'#ffffff', title:'#202124', text:'#3c4043', font:'Arial', accent:'#1a73e8'},
+  midnight:{name:'Midnight', bg:'#1e1f2b', title:'#ffffff', text:'#c9cbe0', font:'Arial', accent:'#7c8cff'},
+  sunny:  {name:'Sunny', bg:'#fff4d6', title:'#b35c00', text:'#5a3d00', font:'Georgia', accent:'#f4a100'},
+  ocean:  {name:'Ocean', bg:'#e0f2f7', title:'#0b4f6c', text:'#145c75', font:'Verdana', accent:'#01a7d6'},
+  forest: {name:'Forest', bg:'#1f3b2c', title:'#e8f5e9', text:'#b9dcc1', font:'Trebuchet MS', accent:'#66bb6a'},
+  candy:  {name:'Candy', bg:'#ffe3f1', title:'#c2185b', text:'#6a1b4d', font:'Comic Sans MS', accent:'#ff4fa3'},
+  space:  {name:'Space', bg:'linear-gradient(135deg,#0f0c29,#302b63,#24243e)', title:'#ffd54f', text:'#e0e0ff', font:'Impact', accent:'#ff7043'},
+  sunset: {name:'Sunset', bg:'linear-gradient(135deg,#ff9a56,#ff5e7e)', title:'#ffffff', text:'#fff3ea', font:'Trebuchet MS', accent:'#5b2a86'},
+  paper:  {name:'Notebook', bg:'repeating-linear-gradient(#fdfdf6 0 31px,#cfe3f5 31px 32px)', title:'#c62828', text:'#263238', font:'Courier New', accent:'#42a5f5'},
+};
+const FONTS = ['Arial','Verdana','Trebuchet MS','Georgia','Times New Roman','Courier New','Comic Sans MS','Impact','Helvetica','Futura','Chalkboard SE','Marker Felt'];
+const SHAPES = {
+  none:{}, rect:{}, rounded:{radius:'18px'}, ellipse:{radius:'50%'},
+  triangle:{clip:'polygon(50% 0,100% 100%,0 100%)'},
+  diamond:{clip:'polygon(50% 0,100% 50%,50% 100%,0 50%)'},
+  star:{clip:'polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)'},
+  arrow:{clip:'polygon(0 30%,62% 30%,62% 0,100% 50%,62% 100%,62% 70%,0 70%)'},
+  hexagon:{clip:'polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)'},
+  pentagon:{clip:'polygon(50% 0,100% 38%,82% 100%,18% 100%,0 38%)'},
+  bubble:{clip:'polygon(0 0,100% 0,100% 75%,40% 75%,20% 100%,22% 75%,0 75%)'},
+  cross:{clip:'polygon(35% 0,65% 0,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0 65%,0 35%,35% 35%)'},
+};
+const LAYOUTS = [
+  ['title','🏷️ Title slide'],['content','📝 Title and body'],['section','🧱 Section header'],
+  ['two','🪟 Two columns'],['big','💥 Big idea'],['blank','⬜ Blank'],
+];
+
+let deck, cur = 0, selId = null, editingId = null, scale = 1, drag = null, clip = null;
+let hist = [], hp = -1, saveWarned = false;
+
+/* ---------- model helpers ---------- */
+const slide = () => deck.slides[cur];
+const findEl = id => slide().els.find(e => e.id === id);
+const selEl = () => selId ? findEl(selId) : null;
+const theme = () => THEMES[deck.theme] || THEMES.simple;
+
+function textEl(role, x, y, w, h, text, size, extra = {}) {
+  const t = theme();
+  return {id:uid(), type:'text', role, shape:'none', x, y, w, h, text, fontSize:size,
+    color: role === 'title' ? t.title : t.text, font:t.font, bold: role === 'title',
+    italic:false, underline:false, align:'left', valign:'top', fill:'transparent', ...extra};
+}
+function makeSlide(layout) {
+  const T = textEl; let els = [];
+  switch (layout) {
+    case 'title': els = [T('title',80,150,800,130,'Click twice to add a title',56,{align:'center',valign:'bottom'}),
+                         T('body',80,295,800,70,'Subtitle',28,{align:'center'})]; break;
+    case 'content': els = [T('title',60,36,840,90,'Slide title',42,{valign:'middle'}),
+                           T('body',60,140,840,360,'• First point<br>• Second point<br>• Third point',28)]; break;
+    case 'section': els = [T('title',80,190,800,160,'Section heading',62,{align:'center',valign:'middle'})]; break;
+    case 'two': els = [T('title',60,36,840,90,'Slide title',42,{valign:'middle'}),
+                       T('body',60,140,410,360,'• Left side',26), T('body',490,140,410,360,'• Right side',26)]; break;
+    case 'big': els = [T('title',60,150,840,240,'BIG IDEA!',110,{align:'center',valign:'middle'})]; break;
+  }
+  return {id:uid(), bg:theme().bg, notes:'', els};
+}
+function newDeck() {
+  deck = {title:'My presentation', theme:'simple', transition:'fade', slides:[]};
+  deck.slides.push(makeSlide('title'));
+}
+
+/* ---------- history & saving ---------- */
+function commit() {
+  const j = JSON.stringify(deck);
+  if (hist[hp] === j) return;
+  hist = hist.slice(0, hp + 1); hist.push(j);
+  if (hist.length > 80) hist.shift();
+  hp = hist.length - 1;
+  save(j);
+}
+function save(j) {
+  try { localStorage.setItem(KEY, j); saveWarned = false; }
+  catch (e) { if (!saveWarned) { toast('⚠️ Too big to auto-save — use File → Save to computer'); saveWarned = true; } }
+}
+function loadJSON(j) {
+  deck = JSON.parse(j);
+  cur = Math.min(cur, deck.slides.length - 1);
+  if (selId && !findEl(selId)) selId = null;
+  renderAll(); save(j);
+}
+function undo() { endEdit(); if (hp > 0) { hp--; loadJSON(hist[hp]); } }
+function redo() { endEdit(); if (hp < hist.length - 1) { hp++; loadJSON(hist[hp]); } }
+
+/* ---------- rendering ---------- */
+function elNode(el) {
+  const d = document.createElement('div'); d.className = 'el'; d.dataset.id = el.id;
+  if (el.type === 'image') {
+    const img = document.createElement('img'); img.src = el.src; img.draggable = false; img.alt = '';
+    d.appendChild(img);
+  } else {
+    const bg = document.createElement('div'); bg.className = 'bg';
+    const t = document.createElement('div'); t.className = 'txt'; t.innerHTML = el.text || '';
+    d.append(bg, t);
+  }
+  styleEl(d, el);
+  return d;
+}
+function styleEl(d, el) {
+  Object.assign(d.style, {left:el.x + 'px', top:el.y + 'px', width:el.w + 'px', height:el.h + 'px'});
+  if (el.type === 'image') return;
+  const s = SHAPES[el.shape] || {}, bg = d.querySelector('.bg'), t = d.querySelector('.txt');
+  Object.assign(bg.style, {background: el.fill || 'transparent', borderRadius: s.radius || '', clipPath: s.clip || ''});
+  Object.assign(d.style, {fontSize: el.fontSize + 'px', color: el.color, fontFamily: `"${el.font}", sans-serif`,
+    fontWeight: el.bold ? '700' : '400', fontStyle: el.italic ? 'italic' : 'normal',
+    textDecoration: el.underline ? 'underline' : 'none', textAlign: el.align});
+  t.style.justifyContent = {top:'flex-start', middle:'center', bottom:'flex-end'}[el.valign] || 'flex-start';
+}
+function fillSlide(container, s) {
+  container.style.background = s.bg;
+  s.els.forEach(el => container.appendChild(elNode(el)));
+}
+const stage = $('#stage');
+function renderStage() {
+  const s = slide();
+  stage.innerHTML = '<div class="clip"></div><div class="guide" id="gv"></div><div class="guide" id="gh"></div>';
+  stage.style.background = s.bg;
+  const c = stage.firstChild;
+  s.els.forEach(el => {
+    const n = elNode(el);
+    if (el.id === selId) {
+      n.classList.add('sel');
+      ['nw','n','ne','e','se','s','sw','w'].forEach(dir => {
+        const h = document.createElement('div'); h.className = 'h'; h.dataset.dir = dir; n.appendChild(h);
+      });
+    }
+    c.appendChild(n);
+  });
+  // selected element sits above the clip so its handles are never cut off
+  const selNode = c.querySelector('.sel');
+  if (selNode) { c.style.overflow = 'visible'; }
+  else c.style.overflow = 'hidden';
+  if (document.activeElement !== $('#notes')) $('#notes').value = s.notes || '';
+  syncMagicBar();
+  syncToolbar();
+}
+function renderThumbs() {
+  const side = $('#sidebar'); side.innerHTML = '';
+  deck.slides.forEach((s, i) => {
+    const t = document.createElement('div');
+    t.className = 'thumb' + (i === cur ? ' active' : ''); t.draggable = true;
+    t.innerHTML = `<div class="num">${i + 1}${s.magic && s.magic.length ? '<span class="mic" title="Has its own magic word">🎤</span>' : ''}</div><div class="mini"><div class="slide"></div></div>`;
+    fillSlide(t.querySelector('.slide'), s);
+    t.onclick = () => go(i);
+    t.oncontextmenu = e => { e.preventDefault(); go(i); openMenu(e.clientX, e.clientY, slideItems()); };
+    t.addEventListener('dragstart', e => { dragFrom = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); });
+    t.addEventListener('dragover', e => { if (dragFrom != null) { e.preventDefault(); t.classList.add('over'); } });
+    t.addEventListener('dragleave', () => t.classList.remove('over'));
+    t.addEventListener('drop', e => {
+      e.preventDefault(); t.classList.remove('over');
+      if (dragFrom == null || dragFrom === i) return;
+      const [m] = deck.slides.splice(dragFrom, 1); deck.slides.splice(i, 0, m);
+      cur = i; dragFrom = null; commit(); renderAll();
+    });
+    t.addEventListener('dragend', () => dragFrom = null);
+    side.appendChild(t);
+  });
+  const add = document.createElement('button'); add.className = 'addslide'; add.textContent = '＋ New slide';
+  add.onclick = () => addSlide('content'); side.appendChild(add);
+  const first = side.querySelector('.mini');
+  if (first) { const k = first.clientWidth / W; side.querySelectorAll('.mini .slide').forEach(sl => sl.style.transform = `scale(${k})`); }
+  const act = side.querySelector('.thumb.active'); if (act) act.scrollIntoView({block:'nearest'});
+}
+let dragFrom = null, thumbFocus = false;
+document.addEventListener('pointerdown', e => {
+  thumbFocus = !!e.target.closest('#sidebar .thumb');
+  $('#sidebar').classList.toggle('focus', thumbFocus);
+}, true);
+function renderAll() {
+  $('#deckTitle').value = deck.title; document.title = deck.title + ' – Slide Studio';
+  renderThumbs(); renderStage(); if (typeof syncMicBtn === 'function') syncMicBtn();
+}
+function fitStage() {
+  const r = $('#wrap').getBoundingClientRect();
+  scale = Math.max(0.1, Math.min((r.width - 40) / W, (r.height - 30) / H));
+  stage.style.transform = `scale(${scale})`;
+  stage.style.left = (r.width - W * scale) / 2 + 'px';
+  stage.style.top = Math.max(10, (r.height - H * scale) / 2) + 'px';
+  stage.style.setProperty('--hs', (12 / scale) + 'px');
+  stage.style.setProperty('--ow', (2 / scale) + 'px');
+}
+new ResizeObserver(() => { fitStage(); }).observe($('#wrap'));
+
+/* ---------- toolbar state ---------- */
+const hex = c => (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c)) ? c : null;
+function syncToolbar() {
+  const el = selEl(), isText = !!el && el.type !== 'image';
+  document.querySelectorAll('[data-need=text]').forEach(b => b.disabled = !isText);
+  document.querySelectorAll('[data-need=el]').forEach(b => b.disabled = !el);
+  $('#undoBtn').disabled = hp <= 0; $('#redoBtn').disabled = hp >= hist.length - 1;
+  if (isText) {
+    $('#fontSel').value = el.font; $('#fontSize').value = el.fontSize;
+    $('#boldBtn').classList.toggle('on', el.bold);
+    $('#italicBtn').classList.toggle('on', el.italic);
+    $('#underBtn').classList.toggle('on', el.underline);
+    ['L','C','R'].forEach(a => $('#align' + a).classList.toggle('on', el.align === {L:'left',C:'center',R:'right'}[a]));
+    $('#textColor').value = hex(el.color) || '#000000'; $('#textColorBar').style.background = el.color;
+    $('#fillColor').value = hex(el.fill) || '#ffffff';
+    $('#fillColorBar').style.background = el.fill === 'transparent' ? 'repeating-conic-gradient(#ccc 0 25%,#fff 0 50%) 0 0/6px 6px' : el.fill;
+  } else {
+    ['#boldBtn','#italicBtn','#underBtn','#alignL','#alignC','#alignR'].forEach(s => $(s).classList.remove('on'));
+    $('#fontSize').value = '';
+    $('#textColorBar').style.background = '#ccc'; $('#fillColorBar').style.background = '#ccc';
+  }
+  const bg = slide().bg; $('#bgColor').value = hex(bg) || '#ffffff'; $('#bgColorBar').style.background = bg;
+}
+function liveNode(id) { return stage.querySelector(`.el[data-id="${id}"]`); }
+function applyProp(key, val, live = false) {
+  const el = selEl(); if (!el) return;
+  el[key] = val;
+  const n = liveNode(el.id); if (n) styleEl(n, el);
+  syncToolbar();
+  if (!live) { commit(); renderThumbs(); }
+}
+
+/* ---------- selection, editing ---------- */
+function select(id) {
+  if (selId !== id) { selId = id; renderStage(); } else syncToolbar();
+}
+function startEdit(id) {
+  const el = findEl(id); if (!el || el.type === 'image') return;
+  if (selId !== id) { selId = id; renderStage(); }
+  const n = liveNode(id), t = n.querySelector('.txt');
+  editingId = id; n.classList.add('editing');
+  t.contentEditable = 'true'; t.focus();
+  const r = document.createRange(); r.selectNodeContents(t);
+  const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  t.addEventListener('blur', endEdit, {once:true});
+}
+function endEdit() {
+  if (!editingId) return;
+  const id = editingId; editingId = null;
+  const el = findEl(id), n = liveNode(id);
+  if (n) {
+    const t = n.querySelector('.txt'); t.contentEditable = 'false'; n.classList.remove('editing');
+    if (el) el.text = t.innerHTML;
+  }
+  getSelection().removeAllRanges();
+  commit(); renderThumbs(); syncToolbar();
+}
+stage.addEventListener('paste', e => {
+  if (!editingId) return;
+  const txt = e.clipboardData.getData('text/plain');
+  if (txt) { e.preventDefault(); document.execCommand('insertText', false, txt); }
+});
+
+/* ---------- mouse: move & resize ---------- */
+stage.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const h = e.target.closest('.h'), n = e.target.closest('.el');
+  if (n && n.dataset.id === editingId && !h) return;          // clicking inside the text being typed
+  endEdit();
+  if (h) {
+    const el = selEl(); drag = {mode:'resize', dir:h.dataset.dir, id:el.id, sx:e.clientX, sy:e.clientY, o:{...el}};
+  } else if (n) {
+    select(n.dataset.id);
+    const el = selEl(); drag = {mode:'move', id:el.id, sx:e.clientX, sy:e.clientY, o:{...el}};
+  } else { select(null); return; }
+  e.preventDefault();
+});
+$('#wrap').addEventListener('pointerdown', e => { if (e.target.id === 'wrap') { endEdit(); select(null); } });
+window.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const el = findEl(drag.id); if (!el) return;
+  const o = drag.o, dx = (e.clientX - drag.sx) / scale, dy = (e.clientY - drag.sy) / scale;
+  if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+  drag.moved = true;
+  const gv = $('#gv'), gh = $('#gh');
+  if (drag.mode === 'move') {
+    let x = o.x + dx, y = o.y + dy, snapX = false, snapY = false;
+    if (!e.altKey) {
+      if (Math.abs(x + o.w / 2 - W / 2) < 8) { x = W / 2 - o.w / 2; snapX = true; }
+      if (Math.abs(y + o.h / 2 - H / 2) < 8) { y = H / 2 - o.h / 2; snapY = true; }
+    }
+    gv.style.display = snapX ? 'block' : 'none'; gh.style.display = snapY ? 'block' : 'none';
+    el.x = Math.round(x); el.y = Math.round(y);
+  } else {
+    const d = drag.dir; let x = o.x, y = o.y, w = o.w, h = o.h;
+    if (d.includes('e')) w = o.w + dx;
+    if (d.includes('w')) { w = o.w - dx; }
+    if (d.includes('s')) h = o.h + dy;
+    if (d.includes('n')) { h = o.h - dy; }
+    w = Math.max(20, w); h = Math.max(20, h);
+    if (d.length === 2 && (e.shiftKey || el.type === 'image')) h = w * o.h / o.w;
+    if (d.includes('w')) x = o.x + o.w - w;
+    if (d.includes('n')) y = o.y + o.h - h;
+    Object.assign(el, {x:Math.round(x), y:Math.round(y), w:Math.round(w), h:Math.round(h)});
+  }
+  const n = liveNode(el.id); if (n) styleEl(n, el);
+});
+window.addEventListener('pointerup', () => {
+  if (!drag) return;
+  if (drag.moved) { commit(); renderThumbs(); }
+  drag = null;
+  const gv = $('#gv'), gh = $('#gh'); if (gv) gv.style.display = 'none'; if (gh) gh.style.display = 'none';
+});
+stage.addEventListener('dblclick', e => {
+  const n = e.target.closest('.el'); if (n) startEdit(n.dataset.id);
+});
+stage.addEventListener('contextmenu', e => {
+  const n = e.target.closest('.el'); if (!n || n.dataset.id === editingId) return;
+  e.preventDefault(); select(n.dataset.id); openMenu(e.clientX, e.clientY, editItems());
+});
+
+/* ---------- element actions ---------- */
+function addEl(el, edit) {
+  slide().els.push(el); selId = el.id; commit(); renderAll();
+  if (edit) startEdit(el.id);
+}
+function addText() { addEl(textEl('body', 330, 220, 300, 90, 'Type here', 28), true); }
+function addShape(shape) {
+  const t = theme(), sz = shape === 'arrow' ? [260, 140] : shape === 'bubble' ? [280, 180] : [200, 200];
+  addEl(textEl('shape', (W - sz[0]) / 2, (H - sz[1]) / 2, sz[0], sz[1], '', 26,
+    {shape, fill:t.accent, color:'#ffffff', align:'center', valign: shape === 'bubble' ? 'top' : 'middle', bold:true}));
+}
+// Turn a picture file/blob into a small-enough data URL that saves inside the presentation
+function blobToSrc(blob) {
+  return new Promise((ok, fail) => {
+    const fr = new FileReader();
+    fr.onerror = fail;
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = fail;
+      img.onload = () => {
+        let src = fr.result, w = img.naturalWidth, h = img.naturalHeight, max = 1400;
+        if (w > max || h > max || blob.size > 600000) {
+          const k = Math.min(1, max / Math.max(w, h)), c = document.createElement('canvas');
+          c.width = Math.round(w * k); c.height = Math.round(h * k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          src = blob.type === 'image/png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.85);
+          w = c.width; h = c.height;
+        }
+        ok({src, w, h});
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(blob);
+  });
+}
+function placeImage({src, w, h}, credit) {
+  const k2 = Math.min(520 / w, (credit ? 330 : 360) / h, 1), ew = Math.round(w * k2), eh = Math.round(h * k2);
+  const x = Math.round((W - ew) / 2), y = Math.round((H - eh) / 2) - (credit ? 14 : 0);
+  const img = {id:uid(), type:'image', src, x, y, w:ew, h:eh};
+  slide().els.push(img);
+  if (credit) slide().els.push(textEl('credit', x, y + eh + 2, Math.max(ew, 260), 26, credit, 12,
+    {italic:true, padding:0, color: theme().text}));
+  selId = img.id; commit(); renderAll();
+}
+function addImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  blobToSrc(file).then(r => placeImage(r)).catch(() => toast('⚠️ Could not open that picture'));
+}
+async function addImageFromUrl(url, credit) {
+  try {                                   // best: download it so it lives inside the presentation
+    const res = await fetch(url, {mode:'cors'});
+    if (!res.ok) throw 0;
+    const blob = await res.blob();
+    if (!blob.type.startsWith('image/')) throw 0;
+    placeImage(await blobToSrc(blob), credit);
+    return true;
+  } catch {}
+  return new Promise(ok => {              // fallback: link to it (needs internet to show)
+    const img = new Image();
+    img.onload = () => { placeImage({src:url, w:img.naturalWidth, h:img.naturalHeight}, credit);
+      toast('🔗 Picture linked — it needs internet to show'); ok(true); };
+    img.onerror = () => { toast('⚠️ No picture found at that link'); ok(false); };
+    img.src = url;
+  });
+}
+function pictureFromLink() {
+  const url = (prompt('Paste the picture\'s web address (link):\n\nTip: right-click a picture online → "Copy Image Address"') || '').trim();
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url) && !url.startsWith('data:image/')) { toast('⚠️ That doesn\'t look like a web link'); return; }
+  addImageFromUrl(url);
+}
+
+/* ---------- online picture search (Openverse: Flickr, Wikimedia & more; grown-up pictures filtered out) ---------- */
+let searchState = null;
+function openSearch() {
+  endEdit();
+  const bg = document.createElement('div'); bg.className = 'modalbg';
+  bg.innerHTML = `<div class="modal">
+    <div class="top"><span style="font-size:20px">🔍</span>
+      <input id="psq" placeholder="Search pictures… (try: shark, volcano, puppy)" autocomplete="off">
+      <button class="btn go" id="psgo">Search</button><button class="btn x" id="psx" title="Close">✕</button></div>
+    <div class="grid" id="psgrid"><div class="msg">Type what you want a picture of, then press Enter 🙂</div></div>
+    <div class="foot"><label><input type="checkbox" id="pscredit" checked> Put who took it under the picture</label>
+      <span style="margin-left:auto">Free pictures from Openverse (Flickr, Wikimedia &amp; more)</span></div></div>`;
+  document.body.appendChild(bg);
+  const close = () => { bg.remove(); searchState = null; };
+  bg.addEventListener('pointerdown', e => { if (e.target === bg) close(); });
+  bg.querySelector('#psx').onclick = close;
+  bg.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+  const q = bg.querySelector('#psq'), grid = bg.querySelector('#psgrid');
+  const run = () => { if (q.value.trim()) { searchState = {q:q.value.trim(), page:1, grid, close}; grid.innerHTML = ''; loadResults(); } };
+  q.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+  bg.querySelector('#psgo').onclick = run;
+  grid.addEventListener('scroll', () => {
+    if (searchState && !searchState.busy && !searchState.done && grid.scrollTop + grid.clientHeight > grid.scrollHeight - 200) loadResults();
+  });
+  q.focus();
+}
+async function loadResults() {
+  const st = searchState; if (!st) return;
+  st.busy = true;
+  const msg = document.createElement('div'); msg.className = 'msg'; msg.textContent = 'Searching…'; st.grid.appendChild(msg);
+  try {
+    const res = await fetch(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(st.q)}&page=${st.page}&page_size=30&mature=false`);
+    if (!res.ok) throw new Error(res.status);
+    const d = await res.json();
+    if (st !== searchState) return;
+    msg.remove();
+    if (!d.results.length && st.page === 1) { st.grid.innerHTML = '<div class="msg">No pictures found — try different words.</div>'; st.done = true; return; }
+    d.results.forEach(r => {
+      if (r.mature) return;
+      const b = document.createElement('button'); b.className = 'pic';
+      const who = r.creator ? `by ${r.creator}` : '';
+      b.title = `${r.title || 'Picture'} ${who}`.trim();
+      b.innerHTML = `<img loading="lazy" alt=""><span></span>`;
+      b.querySelector('img').src = r.thumbnail;
+      b.querySelector('span').textContent = (r.title || 'Picture') + (who ? ' · ' + who : '');
+      b.onclick = async () => {
+        if (b.classList.contains('loading')) return;
+        b.classList.add('loading');
+        const lic = r.license ? ` (${r.license.toUpperCase()})` : '';
+        const credit = document.getElementById('pscredit').checked ? `Photo: ${r.title || 'picture'}${who ? ' ' + who : ''}${lic}` : '';
+        const okay = await addImageFromUrl(`https://api.openverse.org/v1/images/${r.id}/thumb/?full_size=true`, credit)
+                  || await addImageFromUrl(r.url, credit);
+        b.classList.remove('loading');
+        if (okay && searchState) searchState.close();
+      };
+      st.grid.appendChild(b);
+    });
+    st.page++; st.done = st.page > (d.page_count || 1);
+  } catch (e) {
+    msg.textContent = '⚠️ Couldn\'t search right now. Check the internet and try again (the free search also has a limit of searches per minute).';
+    st.done = true;
+  } finally { st.busy = false; }
+}
+function delEl() { if (!selId) return; slide().els = slide().els.filter(e => e.id !== selId); selId = null; commit(); renderAll(); }
+function dupEl() {
+  const el = selEl(); if (!el) return;
+  addEl({...JSON.parse(JSON.stringify(el)), id:uid(), x:el.x + 20, y:el.y + 20});
+}
+function order(front) {
+  const el = selEl(); if (!el) return;
+  const a = slide().els.filter(e => e !== el); front ? a.push(el) : a.unshift(el);
+  slide().els = a; commit(); renderAll();
+}
+function copyEl() { const el = selEl(); if (el) { clip = JSON.stringify(el); toast('Copied'); } }
+function pasteEl() { if (!clip) return; const el = JSON.parse(clip); addEl({...el, id:uid(), x:el.x + 20, y:el.y + 20}); clip = JSON.stringify({...el, x:el.x + 20, y:el.y + 20}); }
+
+/* ---------- slide actions ---------- */
+function go(i) { endEdit(); cur = Math.max(0, Math.min(i, deck.slides.length - 1)); selId = null; renderAll(); }
+function addSlide(layout) { endEdit(); deck.slides.splice(cur + 1, 0, makeSlide(layout)); cur++; selId = null; commit(); renderAll(); }
+function dupSlide() {
+  const c = JSON.parse(JSON.stringify(slide())); c.id = uid(); c.els.forEach(e => e.id = uid());
+  deck.slides.splice(cur + 1, 0, c); cur++; selId = null; commit(); renderAll();
+}
+function delSlide() {
+  if (deck.slides.length === 1) deck.slides[0] = makeSlide('blank');
+  else { deck.slides.splice(cur, 1); cur = Math.min(cur, deck.slides.length - 1); }
+  selId = null; commit(); renderAll();
+}
+function moveSlide(d) {
+  const j = cur + d; if (j < 0 || j >= deck.slides.length) return;
+  [deck.slides[cur], deck.slides[j]] = [deck.slides[j], deck.slides[cur]]; cur = j; commit(); renderAll();
+}
+function applyTheme(k) {
+  deck.theme = k; const t = THEMES[k];
+  deck.slides.forEach(s => {
+    s.bg = t.bg;
+    s.els.forEach(el => {
+      if (el.type !== 'text') return;
+      if (el.shape === 'none') { el.color = el.role === 'title' ? t.title : t.text; el.font = t.font; }
+      else el.fill = t.accent;
+    });
+  });
+  commit(); renderAll(); toast('Theme: ' + t.name);
+}
+
+/* ---------- menus ---------- */
+let menuEl = null;
+function closeMenu() { if (menuEl) { menuEl.remove(); menuEl = null; } }
+document.addEventListener('pointerdown', e => { if (menuEl && !menuEl.contains(e.target)) closeMenu(); }, true);
+function openMenu(x, y, items, extraNode) {
+  closeMenu();
+  const m = document.createElement('div'); m.className = 'pop';
+  if (extraNode) m.appendChild(extraNode);
+  items.forEach(it => {
+    if (it === '-') { m.appendChild(document.createElement('hr')); return; }
+    const b = document.createElement('button');
+    b.innerHTML = it.label + (it.kbd ? `<span class="kbd">${it.kbd}</span>` : '');
+    if (it.check) b.classList.add('chk');
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.onclick = () => { closeMenu(); it.fn(); };
+    m.appendChild(b);
+  });
+  document.body.appendChild(m); menuEl = m;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(x, innerWidth - r.width - 8) + 'px';
+  m.style.top = Math.min(y, innerHeight - r.height - 8) + 'px';
+}
+function menuBtn(id, itemsFn, extraFn) {
+  const b = $(id);
+  b.addEventListener('click', () => { const r = b.getBoundingClientRect(); openMenu(r.left, r.bottom + 4, itemsFn(), extraFn && extraFn()); });
+}
+const isMac = /Mac/.test(navigator.platform), C = isMac ? '⌘' : 'Ctrl+';
+const layoutItems = () => LAYOUTS.map(([k, l]) => ({label:l, fn:() => addSlide(k)}));
+const slideItems = () => [
+  ...layoutItems(), '-',
+  {label:'⧉ Duplicate slide', kbd:C + 'D', fn:dupSlide},
+  {label:'🗑 Delete slide', kbd:'Del', fn:delSlide},
+  {label:'⬆ Move slide up', fn:() => moveSlide(-1)},
+  {label:'⬇ Move slide down', fn:() => moveSlide(1)}, '-',
+  {label:'🖤 Slideshow edge color…', fn:() => { const i = $('#showBgInput'); i.value = hex(deck.showBg) || '#000000'; i.click(); }},
+  {label:'🎨 Use this background on all slides', fn:() => { const bg = slide().bg; deck.slides.forEach(s => s.bg = bg); commit(); renderAll(); }},
+  '-',
+  ...[['none','No transition'],['fade','Fade transition'],['slidein','Slide-in transition'],['zoom','Zoom transition']]
+     .map(([k, l]) => ({label:'✨ ' + l, check:deck.transition === k, fn:() => { deck.transition = k; commit(); }})),
+];
+const editItems = () => [
+  {label:'↶ Undo', kbd:C + 'Z', fn:undo}, {label:'↷ Redo', kbd:isMac ? '⇧⌘Z' : 'Ctrl+Y', fn:redo}, '-',
+  {label:'📋 Copy', kbd:C + 'C', fn:copyEl}, {label:'📌 Paste', kbd:C + 'V', fn:pasteEl},
+  {label:'⧉ Duplicate', kbd:C + 'D', fn:dupEl}, {label:'🗑 Delete', kbd:'Del', fn:delEl}, '-',
+  {label:'⬆ Bring to front', fn:() => order(true)}, {label:'⬇ Send to back', fn:() => order(false)},
+];
+function shapeGrid() {
+  const g = document.createElement('div'); g.className = 'shapegrid';
+  Object.keys(SHAPES).filter(k => k !== 'none').forEach(k => {
+    const b = document.createElement('button'); b.className = 'btn'; b.title = k;
+    const i = document.createElement('i'); const s = SHAPES[k];
+    i.style.borderRadius = s.radius ? (k === 'ellipse' ? '50%' : '5px') : ''; i.style.clipPath = s.clip || '';
+    b.appendChild(i); b.onclick = () => { closeMenu(); addShape(k); };
+    g.appendChild(b);
+  });
+  return g;
+}
+menuBtn('#mFile', () => [
+  {label:'📄 New presentation', fn:() => { if (confirm('Start a new presentation?\n(Use "Save to computer" first if you want to keep this one.)')) { newDeck(); cur = 0; selId = null; commit(); renderAll(); } }},
+  {label:'📂 Open from computer…', fn:() => $('#openFile').click()},
+  {label:'💾 Save to computer', kbd:C + 'S', fn:saveFile}, '-',
+  {label:'🖨 Print / Save as PDF', kbd:C + 'P', fn:() => window.print()},
+]);
+menuBtn('#mEdit', editItems);
+menuBtn('#mInsert', () => [
+  {label:'<b>T</b>&nbsp; Text box', fn:addText},
+  ...pictureItems(), '-',
+  ...Object.keys(SHAPES).filter(k => k !== 'none').map(k => ({label:'◆ ' + k[0].toUpperCase() + k.slice(1), fn:() => addShape(k)})),
+]);
+menuBtn('#mSlide', slideItems);
+menuBtn('#newSlideBtn', layoutItems);
+menuBtn('#shapeBtn', () => [], shapeGrid);
+menuBtn('#mTheme', () => Object.entries(THEMES).map(([k, t]) => ({
+  label:`<span class="sw" style="background:${t.bg}"></span><span style="font-family:'${t.font}';color:${t.title === '#ffffff' || t.title === '#e8f5e9' ? '#333' : t.title}">${t.name}</span>`,
+  check:deck.theme === k, fn:() => applyTheme(k)})));
+menuBtn('#mHelp', () => [
+  {label:'🖱 Click once = select, click twice = type', fn:() => {}},
+  {label:'↔ Drag the blue dots to resize', fn:() => {}},
+  {label:'⇧ Hold Shift to keep the shape', fn:() => {}},
+  {label:'🧲 Things snap to the middle (Alt = no snap)', fn:() => {}},
+  {label:'🔀 Drag slides on the left to reorder', fn:() => {}},
+  {label:'🗑 Click a slide on the left + Delete = delete it', fn:() => {}},
+  {label:'⌨ Arrow keys nudge (Shift = bigger)', fn:() => {}},
+  {label:'▶ Slideshow: arrows/click, Esc to stop', fn:() => {}},
+]);
+
+/* ---------- toolbar wiring ---------- */
+$('#toolbar').addEventListener('mousedown', e => { if (e.target.closest('button')) e.preventDefault(); });
+$('#undoBtn').onclick = undo; $('#redoBtn').onclick = redo;
+$('#textBtn').onclick = addText;
+const pictureItems = () => [
+  {label:'💻 Upload from computer…', fn:() => $('#imgFile').click()},
+  {label:'🔍 Search pictures online…', fn:openSearch},
+  {label:'🔗 Picture from a link…', fn:pictureFromLink},
+];
+menuBtn('#imgBtn', pictureItems);
+$('#imgFile').onchange = e => { addImageFile(e.target.files[0]); e.target.value = ''; };
+FONTS.forEach(f => { const o = document.createElement('option'); o.value = o.textContent = f; o.style.fontFamily = f; $('#fontSel').appendChild(o); });
+$('#fontSel').onchange = e => applyProp('font', e.target.value);
+$('#fontSize').onchange = e => { const v = Math.max(6, Math.min(300, +e.target.value || 24)); applyProp('fontSize', v); };
+const bump = d => { const el = selEl(); if (el) applyProp('fontSize', Math.max(6, Math.min(300, el.fontSize + d * (el.fontSize >= 40 ? 6 : 2)))); };
+$('#sizeDown').onclick = () => bump(-1); $('#sizeUp').onclick = () => bump(1);
+$('#boldBtn').onclick = () => { const el = selEl(); if (el) applyProp('bold', !el.bold); };
+$('#italicBtn').onclick = () => { const el = selEl(); if (el) applyProp('italic', !el.italic); };
+$('#underBtn').onclick = () => { const el = selEl(); if (el) applyProp('underline', !el.underline); };
+$('#alignL').onclick = () => applyProp('align', 'left');
+$('#alignC').onclick = () => applyProp('align', 'center');
+$('#alignR').onclick = () => applyProp('align', 'right');
+$('#valignBtn').onclick = () => { const el = selEl(); if (el) applyProp('valign', {top:'middle', middle:'bottom', bottom:'top'}[el.valign] || 'top'); };
+$('#textColor').oninput = e => applyProp('color', e.target.value, true);
+$('#textColor').onchange = e => applyProp('color', e.target.value);
+$('#fillColor').oninput = e => applyProp('fill', e.target.value, true);
+$('#fillColor').onchange = e => applyProp('fill', e.target.value);
+$('#noFillBtn').onclick = () => applyProp('fill', 'transparent');
+$('#frontBtn').onclick = () => order(true); $('#backBtn').onclick = () => order(false);
+$('#delBtn').onclick = delEl;
+$('#bgColor').oninput = e => { slide().bg = e.target.value; stage.style.background = e.target.value; $('#bgColorBar').style.background = e.target.value; };
+$('#bgColor').onchange = e => { slide().bg = e.target.value; commit(); renderAll(); };
+$('#deckTitle').onchange = e => { deck.title = e.target.value.trim() || 'Untitled presentation'; commit(); renderAll(); };
+$('#deckTitle').onkeydown = e => { if (e.key === 'Enter') e.target.blur(); };
+let notesTimer;
+$('#notes').oninput = e => { slide().notes = e.target.value; clearTimeout(notesTimer); notesTimer = setTimeout(commit, 600); };
+$('#presentBtn').onclick = () => present(cur);
+$('#showBgInput').onchange = e => { deck.showBg = e.target.value; commit(); toast('Slideshow edges are now this color — press ▶ Slideshow to see'); };
+
+/* ---------- 🔗 share: send the slide show to someone on Gmail ---------- */
+const safeName = () => (deck.title || 'presentation').replace(/[\\/:*?"<>|]/g, '').trim() || 'presentation';
+// a stand-alone web page that plays the slide show in any browser (no editor, no ads)
+function buildShowFile() {
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const data = JSON.stringify({slides:deck.slides.map(s => ({bg:s.bg, els:s.els})), showBg:deck.showBg || '#000',
+    transition:deck.transition || 'fade', shapes:SHAPES}).replace(/</g, '\\u003c');
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(deck.title || 'Slide show')}</title><style>
+html,body{margin:0;height:100%;overflow:hidden;font-family:Arial,sans-serif}
+#show{position:fixed;inset:0;cursor:pointer;user-select:none}
+.slide{position:absolute;width:960px;height:540px;transform-origin:0 0;overflow:hidden;background:#fff}
+.el{position:absolute}.el .bg{position:absolute;inset:0}
+.el .txt{position:absolute;inset:0;padding:6px 10px;display:flex;flex-direction:column;overflow-wrap:anywhere;line-height:1.2}
+.el img{width:100%;height:100%;display:block;object-fit:fill}
+.fade{animation:fadeIn .5s ease}.slidein{animation:slideIn .5s ease}.zoom{animation:zoomIn .45s ease}
+@keyframes fadeIn{from{opacity:0}}@keyframes slideIn{from{opacity:0;translate:120px 0}}@keyframes zoomIn{from{opacity:0;scale:.85}}
+#count{position:fixed;right:16px;bottom:12px;color:#fffc;text-shadow:0 1px 3px #000;font-size:14px;pointer-events:none}
+#end,#start{position:fixed;inset:0;display:grid;place-items:center;color:#fff;text-shadow:0 1px 4px #000;font-size:20px;text-align:center}
+#start{background:#000c;z-index:5}#start b{font-size:30px;display:block;margin-bottom:10px}
+#start button{margin-top:18px;font-size:18px;font-weight:700;border:0;border-radius:24px;padding:12px 28px;background:#f4a100;color:#fff;cursor:pointer}
+</style></head><body><div id="show"></div><div id="count"></div>
+<div id="start"><div><b>${esc(deck.title || 'Slide show')}</b>Click or press → to go to the next slide<br>← goes back<br><button>▶ Start slide show</button></div></div>
+<script>
+const D=${data},W=960,H=540,show=document.getElementById('show'),cnt=document.getElementById('count');let i=0;
+show.style.background=D.showBg;
+function node(el){const d=document.createElement('div');d.className='el';
+ Object.assign(d.style,{left:el.x+'px',top:el.y+'px',width:el.w+'px',height:el.h+'px'});
+ if(el.type==='image'){const m=document.createElement('img');m.src=el.src;m.alt='';d.appendChild(m);return d;}
+ const s=D.shapes[el.shape]||{},bg=document.createElement('div'),t=document.createElement('div');bg.className='bg';t.className='txt';t.innerHTML=el.text||'';
+ Object.assign(bg.style,{background:el.fill||'transparent',borderRadius:s.radius||'',clipPath:s.clip||''});
+ Object.assign(d.style,{fontSize:el.fontSize+'px',color:el.color,fontFamily:'"'+el.font+'", sans-serif',fontWeight:el.bold?'700':'400',
+  fontStyle:el.italic?'italic':'normal',textDecoration:el.underline?'underline':'none',textAlign:el.align});
+ t.style.justifyContent={top:'flex-start',middle:'center',bottom:'flex-end'}[el.valign]||'flex-start';d.append(bg,t);return d;}
+function draw(anim){show.innerHTML='';const n=D.slides.length;
+ if(i>=n){show.innerHTML='<div id="end">The end! 🎉<br><small>Press ← to go back</small></div>';cnt.textContent='';return;}
+ const sl=document.createElement('div');sl.className='slide'+(anim&&D.transition!=='none'?' '+D.transition:'');
+ sl.style.background=D.slides[i].bg;D.slides[i].els.forEach(e=>sl.appendChild(node(e)));
+ const k=Math.min(innerWidth/W,innerHeight/H);sl.style.transform='scale('+k+')';
+ sl.style.left=(innerWidth-W*k)/2+'px';sl.style.top=(innerHeight-H*k)/2+'px';show.appendChild(sl);cnt.textContent=(i+1)+' / '+n;}
+function step(d){const j=i+d;if(j<0||j>D.slides.length)return;i=j;draw(true);}
+show.onclick=()=>step(1);show.oncontextmenu=e=>{e.preventDefault();step(-1);};
+addEventListener('keydown',e=>{if(['ArrowRight','ArrowDown',' ','PageDown','Enter'].includes(e.key)){e.preventDefault();step(1);}
+ if(['ArrowLeft','ArrowUp','PageUp','Backspace'].includes(e.key)){e.preventDefault();step(-1);}});
+addEventListener('resize',()=>draw(false));
+document.querySelector('#start button').onclick=e=>{e.stopPropagation();document.getElementById('start').remove();
+ document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});};
+draw(false);
+<\/script></body></html>`;
+}
+function openShare() {
+  endEdit();
+  const m = smallModal('🔗 Share with Gmail', `<div class="shf">
+      <label>Send to (their Gmail address)</label><input id="shTo" type="email" placeholder="friend@gmail.com" autocomplete="email">
+      <label style="margin-top:6px">Message</label><textarea id="shMsg">Hi! I made a slide show called "${(deck.title || 'My presentation').replace(/[<>&"]/g, '')}" in Slide Studio. Open the file I attached to watch it! 🎉</textarea></div>
+    <div class="shtip">When you press <b>Open Gmail</b>:<br>1. Your slide show is saved to <b>Downloads</b> as a file that plays in any web browser.<br>2. Gmail opens with the email already written.<br>3. Drag the file from Downloads into the email (or click 📎) and press <b>Send</b>.</div>`, '📧 Open Gmail');
+  const to = m.querySelector('#shTo'), ok = m.querySelector('[data-ok]');
+  setTimeout(() => to.focus(), 50);
+  to.oninput = () => to.classList.remove('bad');
+  to.onkeydown = e => { if (e.key === 'Enter') ok.click(); };
+  ok.onclick = () => {
+    const addr = to.value.trim();
+    if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(addr)) { to.classList.add('bad'); to.focus(); toast('⚠️ Type the person\'s email, like friend@gmail.com'); return; }
+    const fname = safeName() + ' - slide show.html';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buildShowFile()], {type:'text/html'}));
+    a.download = fname; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    const body = m.querySelector('#shMsg').value + '\n\n(Attached: ' + fname + ' — double-click it to watch the slide show.)';
+    const url = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(addr) +
+      '&su=' + encodeURIComponent('Check out my slide show: ' + (deck.title || 'My presentation')) + '&body=' + encodeURIComponent(body);
+    window.open(url, '_blank', 'noopener');
+    m.remove();
+    toast('📧 Gmail is open — drag "' + fname + '" from Downloads into the email, then Send');
+  };
+}
+$('#shareBtn').onclick = openShare;
+
+/* ---------- files ---------- */
+function saveFile() {
+  const blob = new Blob([JSON.stringify(deck)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = (deck.title || 'presentation').replace(/[\\/:*?"<>|]/g, '') + '.slides.json';
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast('Saved to your Downloads 💾');
+}
+$('#openFile').onchange = e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  f.text().then(t => {
+    try { const d = JSON.parse(t); if (!Array.isArray(d.slides)) throw 0; deck = d; cur = 0; selId = null; commit(); renderAll(); toast('Opened ' + deck.title); }
+    catch { toast('⚠️ That file isn\'t a Slide Studio presentation'); }
+  });
+};
+$('#wrap').addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); });
+$('#wrap').addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) { e.preventDefault(); addImageFile(f); } });
+document.addEventListener('paste', e => {
+  if (editingId || e.target.closest('input,textarea')) return;
+  const item = [...e.clipboardData.items].find(i => i.type.startsWith('image/'));
+  if (item) { e.preventDefault(); addImageFile(item.getAsFile()); }
+  else if (clip) { e.preventDefault(); pasteEl(); }
+});
+window.addEventListener('beforeprint', () => {
+  const p = $('#printArea'); p.innerHTML = '';
+  deck.slides.forEach(s => { const d = document.createElement('div'); d.className = 'slide'; fillSlide(d, s); p.appendChild(d); });
+});
+window.addEventListener('afterprint', () => $('#printArea').innerHTML = '');
+
+/* ---------- 🎤 magic words (voice changes slides) ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const voiceCfg = () => (deck.voice ||= {on:true, next:['hot chocolate'], back:[]});
+const norm = t => ' ' + t.toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+const splitWords = t => t.split(/\n|,/).map(w => norm(w).trim()).filter(Boolean);
+let rec = null, recWanted = false, recOnHeard = null, lastFire = 0, firedAt = new Map();
+function matchWord(text, list) { const n = norm(text); return list.find(w => n.includes(' ' + w + ' ')); }
+function startListening(onText) {
+  if (!SR) { toast('⚠️ This browser can\'t listen — use Chrome'); return false; }
+  stopListening();
+  recWanted = true; recOnHeard = onText; firedAt = new Map();
+  rec = new SR(); rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US';
+  rec.onresult = e => {
+    for (let i = e.resultIndex; i < e.results.length; i++) recOnHeard && recOnHeard(e.results[i][0].transcript, i, e.results[i].isFinal);
+  };
+  rec.onerror = e => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      recWanted = false;
+      toast(location.protocol === 'file:' ? '🎤 Mic blocked — open Slide Studio with the Desktop "Slide Studio" launcher' : '🎤 Mic blocked — allow the microphone in the browser');
+      const d = $('#micDot'); d.textContent = '🎤 mic blocked'; d.classList.add('off');
+    }
+  };
+  rec.onend = () => { if (recWanted) { firedAt = new Map(); try { rec.start(); } catch {} } };
+  try { rec.start(); } catch {}
+  return true;
+}
+function stopListening() { recWanted = false; recOnHeard = null; if (rec) { try { rec.abort(); } catch {} rec = null; } }
+// Words that move on from slide i: the slide's own words, or the every-slide words if it has none
+const wordsFor = i => { const sl = deck.slides[i]; return sl && sl.magic && sl.magic.length ? sl.magic : voiceCfg().next; };
+const anyMagic = () => { const v = voiceCfg(); return v.next.length || v.back.length || deck.slides.some(x => x.magic && x.magic.length); };
+function heardInShow(text, idx) {
+  const v = voiceCfg(), now = Date.now();
+  if (now - lastFire < 1200) return;                           // one word = one slide
+  const n = norm(text), cut = firedAt.get(idx) || 0, tail = ' ' + n.slice(cut);   // only words said after the last one used
+  let dir = 0, w = matchWord(tail, wordsFor(showIdx));
+  if (w) dir = 1; else if ((w = matchWord(tail, v.back))) dir = -1;
+  if (!dir) return;
+  firedAt.set(idx, Math.max(0, n.length - 1)); lastFire = now;
+  const d = $('#micDot');
+  d.textContent = '🎤 heard it!'; d.classList.add('heard');
+  setTimeout(() => { d.classList.remove('heard'); d.textContent = '🎤 listening'; }, 1200);
+  if (dir === 1 && showIdx >= deck.slides.length - 1) return;  // don't fall off the end by voice
+  showStep(dir);
+}
+const plain = html => { const d = document.createElement('div'); d.innerHTML = html || ''; return d.textContent.trim(); };
+const slideName = sl => { const t = sl.els.find(e => e.type === 'text' && plain(e.text)); return t ? plain(t.text).slice(0, 40) : '(no words on it)'; };
+function syncMagicBar() {
+  const sl = slide(), inp = $('#slideMagic'), has = !!(sl.magic && sl.magic.length);
+  if (document.activeElement !== inp) inp.value = (sl.magic || []).join(', ');
+  $('#magicBar').classList.toggle('has', has);
+  const every = voiceCfg().next;
+  $('#magicHint').textContent = has ? '✅ only this word works here' : every.length ? `uses: ${every.join(', ')}` : '';
+}
+$('#slideMagic').addEventListener('change', e => {
+  slide().magic = splitWords(e.target.value);
+  const v = voiceCfg();
+  if (slide().magic.length && !v.on) { v.on = true; toast('🎤 Magic words turned on'); }
+  commit(); renderThumbs(); syncMagicBar(); syncMicBtn();
+});
+$('#slideMagic').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+function openMagicWords() {
+  endEdit(); const v = voiceCfg();
+  const bg = document.createElement('div'); bg.className = 'modalbg';
+  bg.innerHTML = `<div class="modal" style="height:auto;max-height:90vh;width:min(560px,94vw)">
+    <div class="top"><b style="font-size:17px;flex:1">🎤 Magic words</b><button class="btn x" title="Close">✕</button></div>
+    <div class="mw">
+      <label class="row"><input type="checkbox" id="mwOn"> Listen for magic words during the slideshow</label>
+      <h3>➡️ Every-slide words (go to the NEXT slide)</h3>
+      <p>These work on any slide that doesn't have its own word. One per line or split with commas.</p>
+      <textarea id="mwNext"></textarea>
+      <h3>⬅️ Go BACK a slide when I say… <span style="font-weight:400;color:var(--muted)">(optional)</span></h3>
+      <textarea id="mwBack" style="height:60px"></textarea>
+      <h3>🎯 Each slide's own magic word</h3>
+      <p>Give a slide its own word and ONLY that word moves on from it. Leave it empty to use the every-slide words.</p>
+      <div class="slist" id="mwSlides"></div>
+      <h3>🧪 Test it</h3>
+      <button class="btn go" id="mwTestBtn">🎤 Start test</button>
+      <div id="mwTest">Press "Start test" and say one of your words.</div>
+      ${SR ? '' : '<p style="color:#b71c1c">⚠️ This browser can\'t listen. Open Slide Studio in Google Chrome.</p>'}
+    </div>
+    <div class="foot"><span>Tip: pick words you won't say by accident while presenting.</span>
+      <button class="btn go" id="mwSave" style="margin-left:auto">Save</button></div></div>`;
+  document.body.appendChild(bg);
+  const $$ = q => bg.querySelector(q);
+  $$('#mwOn').checked = v.on; $$('#mwNext').value = v.next.join('\n'); $$('#mwBack').value = v.back.join('\n');
+  deck.slides.forEach((sl, i) => {
+    const lab = document.createElement('span'); lab.textContent = `Slide ${i + 1}: ${slideName(sl)}`; lab.title = lab.textContent;
+    const inp = document.createElement('input'); inp.dataset.i = i; inp.value = (sl.magic || []).join(', ');
+    inp.placeholder = 'every-slide words';
+    $$('#mwSlides').append(lab, inp);
+  });
+  let testing = false;
+  const close = () => { if (testing) stopListening(); bg.remove(); };
+  $$('.x').onclick = close;
+  bg.addEventListener('pointerdown', e => { if (e.target === bg) close(); });
+  bg.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+  $$('#mwTestBtn').onclick = () => {
+    if (testing) { stopListening(); testing = false; $$('#mwTestBtn').textContent = '🎤 Start test'; return; }
+    const per = [...bg.querySelectorAll('#mwSlides input')].flatMap(x => splitWords(x.value).map(w => [w, +x.dataset.i + 1]));
+    const nx = splitWords($$('#mwNext').value), bk = splitWords($$('#mwBack').value), out = $$('#mwTest');
+    if (startListening((text) => {
+      const n = matchWord(text, nx), b = !n && matchWord(text, bk);
+      const ps = !n && !b && per.find(([w]) => matchWord(text, [w]));
+      out.innerHTML = n ? `✅ Heard <b>"${n}"</b> → NEXT slide` : b ? `✅ Heard <b>"${b}"</b> → BACK a slide`
+                    : ps ? `✅ Heard <b>"${ps[0]}"</b> → moves on from slide ${ps[1]}`
+                        : `👂 I hear: <i>${text.replace(/</g, '&lt;')}</i>`;
+    })) { testing = true; $$('#mwTestBtn').textContent = '⏹ Stop test'; out.textContent = '👂 Listening… say a magic word'; }
+  };
+  $$('#mwSave').onclick = () => {
+    v.on = $$('#mwOn').checked; v.next = splitWords($$('#mwNext').value); v.back = splitWords($$('#mwBack').value);
+    bg.querySelectorAll('#mwSlides input').forEach(x => { const sl = deck.slides[+x.dataset.i]; if (sl) sl.magic = splitWords(x.value); });
+    if (v.on && !anyMagic()) v.on = false;
+    commit(); syncMicBtn(); renderAll(); close();
+    toast(v.on ? '🎤 Saved! Your magic words work in the slideshow' : '🎤 Magic words are off');
+  };
+}
+function syncMicBtn() { const b = $('#micBtn'); if (b) b.classList.toggle('on', !!voiceCfg().on); }
+$('#micBtn').onclick = openMagicWords;
+
+/* ---------- slideshow ---------- */
+let showIdx = 0;
+const show = $('#show');
+function present(from) {
+  endEdit(); showIdx = from; show.hidden = false; show.style.background = deck.showBg || '#000';
+  document.documentElement.requestFullscreen?.().catch(() => {});
+  drawShow(true);
+  const v = voiceCfg(), d = $('#micDot');
+  if (v.on && anyMagic()) {
+    d.hidden = false; d.classList.remove('off', 'heard'); d.textContent = '🎤 listening';
+    startListening(heardInShow);
+  } else d.hidden = true;
+}
+function drawShow(animate) {
+  const inner = $('#showInner'); inner.innerHTML = '';
+  const n = deck.slides.length;
+  if (showIdx >= n) {
+    inner.innerHTML = '<div id="showEnd">End of slideshow — click to exit</div>';
+    $('#showCount').textContent = ''; return;
+  }
+  const sl = document.createElement('div');
+  sl.className = 'slide' + (animate && deck.transition !== 'none' ? ' ' + deck.transition : '');
+  fillSlide(sl, deck.slides[showIdx]);
+  const k = Math.min(innerWidth / W, innerHeight / H);
+  sl.style.transform = `scale(${k})`;
+  sl.style.left = (innerWidth - W * k) / 2 + 'px'; sl.style.top = (innerHeight - H * k) / 2 + 'px';
+  inner.appendChild(sl);
+  $('#showCount').textContent = `${showIdx + 1} / ${n}`;
+}
+function showStep(d) {
+  const n = deck.slides.length, j = showIdx + d;
+  if (j > n) return endShow();
+  if (j < 0) return;
+  showIdx = j; drawShow(true);
+}
+function endShow() {
+  if (show.hidden) return;
+  show.hidden = true; stopListening(); $('#micDot').hidden = true;
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  if (showIdx < deck.slides.length) go(showIdx);
+}
+show.addEventListener('click', () => showStep(1));
+show.addEventListener('contextmenu', e => { e.preventDefault(); showStep(-1); });
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) endShow(); });
+window.addEventListener('resize', () => { if (!show.hidden) drawShow(false); });
+
+/* ---------- keyboard ---------- */
+document.addEventListener('keydown', e => {
+  const mod = e.metaKey || e.ctrlKey, k = e.key;
+  if (!show.hidden) {
+    if (['ArrowRight','ArrowDown',' ','PageDown','Enter'].includes(k)) { e.preventDefault(); showStep(1); }
+    else if (['ArrowLeft','ArrowUp','PageUp','Backspace'].includes(k)) { e.preventDefault(); showStep(-1); }
+    else if (k === 'Escape') endShow();
+    else if (k === 'Home') { showIdx = 0; drawShow(true); }
+    else if (k === 'End') { showIdx = deck.slides.length - 1; drawShow(true); }
+    return;
+  }
+  if (mod && k.toLowerCase() === 's') { e.preventDefault(); saveFile(); return; }
+  if (mod && k === 'Enter') { e.preventDefault(); present(cur); return; }
+  if (editingId) {
+    if (k === 'Escape') { e.preventDefault(); endEdit(); }
+    else if (mod && ['b','i','u'].includes(k.toLowerCase())) {
+      e.preventDefault(); const el = selEl(), p = {b:'bold', i:'italic', u:'underline'}[k.toLowerCase()];
+      applyProp(p, !el[p], true);
+    }
+    return;
+  }
+  if (e.target.closest('input,textarea,select')) return;
+  if (mod && k.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && k.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+  if (mod && k.toLowerCase() === 'd') { e.preventDefault(); selId ? dupEl() : dupSlide(); return; }
+  if (mod && k.toLowerCase() === 'c') { if (selId) { e.preventDefault(); copyEl(); } return; }
+  if (mod && k.toLowerCase() === 'm') { e.preventDefault(); addSlide('content'); return; }
+  if (mod && ['b','i','u'].includes(k.toLowerCase()) && selEl() && selEl().type !== 'image') {
+    e.preventDefault(); const el = selEl(), p = {b:'bold', i:'italic', u:'underline'}[k.toLowerCase()]; applyProp(p, !el[p]); return;
+  }
+  const el = selEl();
+  if ((k === 'Delete' || k === 'Backspace') && !el && thumbFocus) {
+    e.preventDefault(); delSlide(); $('#sidebar').classList.add('focus');
+    toast(`🗑 Slide deleted — ${C}Z brings it back`); return;
+  }
+  if ((k === 'Delete' || k === 'Backspace') && el) { e.preventDefault(); delEl(); return; }
+  if (k === 'Escape') { select(null); return; }
+  if (k === 'Enter' && el && el.type !== 'image') { e.preventDefault(); startEdit(el.id); return; }
+  if (k.startsWith('Arrow')) {
+    e.preventDefault();
+    if (el) {
+      const s = e.shiftKey ? 10 : 1;
+      if (k === 'ArrowLeft') el.x -= s; if (k === 'ArrowRight') el.x += s;
+      if (k === 'ArrowUp') el.y -= s; if (k === 'ArrowDown') el.y += s;
+      const n = liveNode(el.id); if (n) styleEl(n, el);
+      clearTimeout(nudgeTimer); nudgeTimer = setTimeout(() => { commit(); renderThumbs(); }, 300);
+    } else if (k === 'ArrowUp' || k === 'ArrowLeft') go(cur - 1);
+    else go(cur + 1);
+  }
+});
+let nudgeTimer;
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------- 💰 plans, ads & donate ---------- */
+const PLANS = [
+  {id:'monthly',               name:'Monthly',                price:10,    per:'month', school:false, adfree:false},
+  {id:'yearly',                name:'Yearly',                 price:100,   per:'year',  school:false, adfree:false},
+  {id:'adfree-monthly',        name:'Ad Free Monthly',        price:12,    per:'month', school:false, adfree:true},
+  {id:'adfree-yearly',         name:'Ad Free Yearly',         price:120,   per:'year',  school:false, adfree:true},
+  {id:'school-monthly',        name:'School Monthly',         price:1000,  per:'month', school:true,  adfree:false},
+  {id:'school-yearly',         name:'School Yearly',          price:10000, per:'year',  school:true,  adfree:false},
+  {id:'adfree-school-monthly', name:'Ad Free School Monthly', price:1100,  per:'month', school:true,  adfree:true},
+  {id:'adfree-school-yearly',  name:'Ad Free School Yearly',  price:11000, per:'year',  school:true,  adfree:true},
+];
+// 💳 REAL MONEY: a grown-up makes Stripe Payment Links and pastes them here.
+// Each plan link's "after payment" address must be this page + ?paid=<plan id>  (e.g. ...slide-studio.html?paid=monthly)
+// Leave a link empty = TEST MODE for that plan (nobody is charged).
+const PAY = {
+  'monthly':'', 'yearly':'', 'adfree-monthly':'', 'adfree-yearly':'',
+  'school-monthly':'', 'school-yearly':'', 'adfree-school-monthly':'', 'adfree-school-yearly':'',
+  donate:'',   // a Stripe Payment Link where people choose how much to give
+};
+const PLAN_KEY = 'slideStudio.plan';
+const money = n => '$' + n.toLocaleString('en-US');
+let plan = null, pwPer = 'month', adTimer = null, adIdx = 0;
+try { plan = JSON.parse(localStorage.getItem(PLAN_KEY)); } catch {}
+const planInfo = id => PLANS.find(x => x.id === id);
+const activePlan = () => plan && planInfo(plan.id) && !(plan.until && Date.now() > plan.until) ? plan : null;
+function setPlan(p) {
+  plan = p;
+  try { p ? localStorage.setItem(PLAN_KEY, JSON.stringify(p)) : localStorage.removeItem(PLAN_KEY); } catch {}
+  applyPlan();
+}
+function applyPlan() {
+  const p = activePlan(), info = p && planInfo(p.id), chip = $('#planChip');
+  chip.hidden = !info;
+  if (info) chip.textContent = '⭐ ' + info.name + (p.school ? ' · ' + p.school : '');
+  const ads = !!info && !info.adfree;
+  ads ? startAds() : stopAds();
+  if (!info) showPaywall(false); else $('#paywall').hidden = true;
+}
+function showPaywall(manage) {
+  endEdit();
+  const p = activePlan();
+  if (p) pwPer = planInfo(p.id).per;
+  $('#pwSub').textContent = p ? 'Change your plan' : plan ? '⏰ Your plan ended — pick a plan to keep making slides' : 'Pick a plan to start making slides';
+  $('#pwClose').hidden = !(manage && p); $('#pwCancel').hidden = !(manage && p);
+  const test = PLANS.some(x => !PAY[x.id]);
+  $('#pwNote').textContent = test ? '🧪 Test mode — no real money is charged yet' : '🔒 Payments are handled safely by Stripe';
+  renderPlans();
+  $('#paywall').hidden = false;
+}
+function renderPlans() {
+  document.querySelectorAll('.pwtoggle button').forEach(b => b.classList.toggle('on', b.dataset.per === pwPer));
+  const g = $('#pwGrid'); g.innerHTML = '';
+  const mine = activePlan();
+  PLANS.filter(x => x.per === pwPer).forEach(x => {
+    const monthly = PLANS.find(m => m.per === 'month' && m.school === x.school && m.adfree === x.adfree);
+    const save = x.per === 'year' ? monthly.price * 12 - x.price : 0;
+    const isMine = mine && mine.id === x.id, best = !x.school && x.adfree;
+    const c = document.createElement('div');
+    c.className = 'card' + (isMine ? ' mine' : best ? ' best' : '');
+    c.innerHTML = `${isMine ? '<span class="badge">YOUR PLAN</span>' : best ? '<span class="badge">MOST POPULAR</span>' : ''}
+      <div style="font-size:26px">${x.school ? '🏫' : '🙂'}${x.adfree ? '✨' : ''}</div>
+      <h3>${x.name}</h3>
+      <div class="price">${money(x.price)} <small>/ ${x.per}</small></div>
+      <div class="save">${save ? 'Save ' + money(save) + ' a year' : ''}</div>
+      <ul>
+        <li>✅ Every Slide Studio feature</li>
+        <li>✅ Pictures online, themes, 🎤 magic words</li>
+        <li>${x.school ? '✅ Whole school — unlimited students &amp; teachers' : '✅ For 1 person'}</li>
+        <li>${x.adfree ? '✅ No ads ✨' : '📢 Shows full-screen ads'}</li>
+      </ul>
+      <button class="get"${isMine ? ' disabled' : ''}>${isMine ? '✓ You have this' : mine ? 'Switch to this' : 'Get ' + x.name}</button>`;
+    c.querySelector('.get').onclick = () => choosePlan(x.id);
+    g.appendChild(c);
+  });
+}
+document.querySelectorAll('.pwtoggle button').forEach(b => b.onclick = () => { pwPer = b.dataset.per; renderPlans(); });
+function choosePlan(id) {
+  const x = planInfo(id); let school = '';
+  if (x.school) {
+    school = (prompt('What is the name of the school?') || '').trim();
+    if (!school) return;
+  }
+  if (PAY[id]) {                                     // real payment through Stripe
+    try { localStorage.setItem('slideStudio.pendingSchool', school); } catch {}
+    location.href = PAY[id]; return;
+  }
+  smallModal('🧪 Test mode', `<p>No real money is charged yet — a grown-up needs to connect payments first.</p>
+    <p>Get <b>${x.name}</b>${school ? ' for <b>' + school.replace(/</g, '&lt;') + '</b>' : ''} for <b>${money(x.price)} / ${x.per}</b>?</p>`,
+    'Get plan', () => grantPlan(id, school));
+}
+function grantPlan(id, school) {
+  const x = planInfo(id), d = new Date();
+  x.per === 'month' ? d.setMonth(d.getMonth() + 1) : d.setFullYear(d.getFullYear() + 1);
+  setPlan({id, school, start:Date.now(), until:d.getTime(), test:!PAY[id]});
+  toast(`⭐ You have ${x.name}! Have fun making slides`);
+}
+$('#planChip').onclick = () => showPaywall(true);
+$('#pwClose').onclick = () => { if (activePlan()) $('#paywall').hidden = true; };
+$('#pwCancel').onclick = () => smallModal('Cancel your plan?', '<p>You won\'t be able to make slides until you pick a plan again. Your slides stay saved.</p>',
+  'Yes, cancel it', () => { setPlan(null); toast('Your plan is cancelled'); });
+// keep the app locked while the plans screen is up
+document.addEventListener('keydown', e => {
+  if (!$('#paywall').hidden && !e.target.closest('.modalbg')) e.stopImmediatePropagation();
+}, true);
+
+function smallModal(title, html, okText, onOk) {
+  const bg = document.createElement('div'); bg.className = 'modalbg';
+  bg.innerHTML = `<div class="modal" style="height:auto;width:min(460px,94vw)">
+    <div class="top"><b style="font-size:17px;flex:1">${title}</b><button class="btn x" title="Close">✕</button></div>
+    <div class="mw">${html}</div>
+    <div class="foot"><button class="btn" data-no style="margin-left:auto">Not now</button><button class="btn go" data-ok>${okText}</button></div></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  bg.querySelector('.x').onclick = close; bg.querySelector('[data-no]').onclick = close;
+  bg.querySelector('[data-ok]').onclick = () => { close(); onOk && onOk(); };
+  bg.addEventListener('pointerdown', e => { if (e.target === bg) close(); });
+  return bg;
+}
+
+// 📢 the 2 ads (only on plans without "Ad Free"; never in the slideshow)
+const ADS = [
+  {cls:'ad-donate', ico:'💛', title:'Donate If You Like My Apps And Games', sub:'Every bit helps me make more apps and games!',
+   more:'<p class="fa-more">🎮 New games &nbsp;·&nbsp; 📱 New apps &nbsp;·&nbsp; ✨ New features</p>', btn:'💛 Donate', fn:() => openDonate()},
+  {cls:'ad-box', ico:'🎩⚡', title:'Electrical Box, Cards, and Button', sub:'A magic trick invention!',
+   more:`<p class="fa-more">🃏 Playing cards with <b>real little screens</b> — they change their face, switch their back color, or turn <b>see-through</b><br>
+         📦 A box with a see-through window, an automatic lid and a <b>card launcher</b><br>🔘 A control panel of buttons runs it all</p>`,
+   btn:'Coming soon! 😎', fn:() => openBoxAd()},
+  {cls:'ad-sky', ico:'🏝️', title:'My SkyBlock', sub:'My NEW SkyBlock game for Minecraft!',
+   more:`<p class="fa-more">🏝️ Your <b>own island</b> in the sky &nbsp;·&nbsp; 🏙️ Warp to the <b>Hub</b><br>
+         ⛏️ Skills &amp; <b>minions</b> &nbsp;·&nbsp; 🐾 Pets &nbsp;·&nbsp; ⚔️ Slayer bosses<br>
+         💰 Bazaar, Auction House &amp; Bank &nbsp;·&nbsp; 🤝 Co-op with a friend</p>`,
+   small:'Needs Minecraft and the Mod Launcher', btn:'▶ Play it', fn:() => { location.href = 'mcmod://my-skyblock'; }},
+];
+const AD_EVERY = 2 * 60 * 1000, AD_WAIT = 5;          // a full-screen ad every 2 minutes, Close unlocks after 5 seconds
+const adOpen = () => !$('#fullAd').hidden;
+const canShowAd = () => show.hidden && $('#paywall').hidden && !editingId && !drag && !document.querySelector('.modalbg') && !adOpen();
+function adTick() {
+  if (!canShowAd()) { adTimer = setTimeout(adTick, 10000); return; }   // busy? try again in 10 seconds
+  showFullAd();
+  adTimer = setTimeout(adTick, AD_EVERY);
+}
+function showFullAd() {
+  const a = ADS[adIdx++ % ADS.length], f = $('#fullAd');
+  closeMenu();
+  f.className = 'fullad ' + a.cls;
+  f.innerHTML = `<span class="fa-tag">AD</span><button class="fa-close" disabled>Close in ${AD_WAIT}</button>
+    <div class="fa-body"><div class="fa-ico">${a.ico}</div><h1>${a.title}</h1><p class="fa-sub">${a.sub}</p>${a.more || ''}
+    <button class="fa-go">${a.btn}</button>${a.small ? `<div class="fa-small">${a.small}</div>` : ''}</div>`;
+  f.hidden = false;
+  f.querySelector('.fa-go').onclick = a.fn;
+  const c = f.querySelector('.fa-close'); let n = AD_WAIT;
+  const iv = setInterval(() => {
+    if (f.hidden) return clearInterval(iv);
+    if (--n <= 0) { clearInterval(iv); c.disabled = false; c.textContent = '✕ Close'; }
+    else c.textContent = `Close in ${n}`;
+  }, 1000);
+  c.onclick = () => { if (!c.disabled) f.hidden = true; };
+}
+function startAds() { if (!adTimer) adTimer = setTimeout(adTick, 1500); }
+function stopAds() { clearTimeout(adTimer); adTimer = null; $('#fullAd').hidden = true; }
+// while an ad is up, keys don't reach the app (Esc closes it once Close is unlocked)
+document.addEventListener('keydown', e => {
+  if (!adOpen() || e.target.closest('.modalbg')) return;
+  const c = $('#fullAd .fa-close');
+  if (e.key === 'Escape' && c && !c.disabled) $('#fullAd').hidden = true;
+  e.stopImmediatePropagation(); e.preventDefault();
+}, true);
+function openSkyAd() {
+  smallModal('🏝️ My SkyBlock', `
+    <p style="font-size:15px">My <b>new SkyBlock game</b> for Minecraft!</p>
+    <p>🏝️ Get your <b>own island</b> floating in the sky, then warp to the <b>Hub</b>.</p>
+    <p>⛏️ Level up skills, collect items, and build <b>minions</b> that work for you.</p>
+    <p>🐾 Pets, ⚔️ slayer bosses, 💰 the Bazaar, Auction House and a Bank.</p>
+    <p>🤝 Play with a friend on a co-op island.</p>
+    <p style="color:var(--muted);font-size:12px">Needs Minecraft and the Mod Launcher.</p>`,
+    'Play it ▶', () => { location.href = 'mcmod://my-skyblock'; });
+}
+function openBoxAd() {
+  smallModal('🎩⚡ Electrical Box, Cards, and Button', `
+    <p style="font-size:15px">A magic trick invention!</p>
+    <p>🃏 Playing cards with <b>real little screens</b> that can change their face, switch their back color, or even turn <b>see-through</b>.</p>
+    <p>📦 A box with a see-through window, an automatic lid, and a <b>card launcher</b> that flips the top card out of the box.</p>
+    <p>🔘 A control panel of buttons runs it all.</p>
+    <p><b>Coming soon!</b></p>`, 'Cool! 😎');
+}
+
+// 💛 Donate — just giving money, you don't get anything extra
+function openDonate() {
+  let amt = 5;
+  const bg = smallModal('💛 Donate', `
+    <p>Thank you! This is just a gift to help me make more apps and games — you don't get anything extra for it.</p>
+    ${PAY.donate ? '' : `<div class="amts">${[1, 2, 5, 10, 20].map(n => `<button data-amt="${n}"${n === amt ? ' class="on"' : ''}>${money(n)}</button>`).join('')}</div>
+    <label class="row">Other amount: $ <input class="money" type="number" min="1" step="1" placeholder="any amount"></label>`}
+    <p style="color:var(--muted);font-size:12px">${PAY.donate ? '🔒 You\'ll choose how much on the safe Stripe page.' : '🧪 Test mode — no real money is sent yet. A grown-up needs to connect payments first.'}</p>`,
+    'Donate 💛', () => {
+      if (PAY.donate) { window.open(PAY.donate, '_blank', 'noopener'); return; }
+      const other = +bg.querySelector('.money').value;
+      toast(`💛 Thank you for donating ${money(other > 0 ? Math.round(other) : amt)}! (test mode — no real money)`);
+    });
+  bg.querySelectorAll('[data-amt]').forEach(b => b.onclick = () => {
+    amt = +b.dataset.amt; bg.querySelector('.money').value = '';
+    bg.querySelectorAll('[data-amt]').forEach(x => x.classList.toggle('on', x === b));
+  });
+}
+$('#donateBtn').onclick = openDonate;
+$('#pwDonate').onclick = openDonate;
+
+// coming back from a real Stripe payment: ?paid=<plan id>
+(() => {
+  const q = new URLSearchParams(location.search), paid = q.get('paid');
+  if (paid && planInfo(paid)) {
+    let school = ''; try { school = localStorage.getItem('slideStudio.pendingSchool') || ''; localStorage.removeItem('slideStudio.pendingSchool'); } catch {}
+    grantPlan(paid, school);
+    history.replaceState(null, '', location.pathname);
+  }
+})();
+
+/* ---------- start ---------- */
+try { const j = localStorage.getItem(KEY); if (j) { deck = JSON.parse(j); if (!Array.isArray(deck.slides) || !deck.slides.length) throw 0; } else newDeck(); }
+catch { newDeck(); }
+commit(); fitStage(); renderAll(); applyPlan();
+</script>
+</body>
+</html>

@@ -959,8 +959,28 @@ function openShare() {
   const m = smallModal('🔗 Share with Gmail', `<div class="shf">
       <label>Send to (their Gmail address)</label><input id="shTo" type="email" placeholder="friend@gmail.com" autocomplete="email">
       <label style="margin-top:6px">Message</label><textarea id="shMsg">Hi! I made a slide show called "${(deck.title || 'My presentation').replace(/[<>&"]/g, '')}" in Slide Studio. Open the file I attached to watch it! 🎉</textarea></div>
+    <div class="shtip" id="shAuto" hidden><b>📤 Send with file attached</b> opens your device's share menu with the slide show <b>already attached</b>. Pick <b>Gmail</b> (or Mail), then press Send.</div>
     <div class="shtip">When you press <b>Open Gmail</b>:<br>1. Your slide show is saved to <b>Downloads</b> as a file that plays in any web browser.<br>2. Gmail opens with the email already written.<br>3. Drag the file from Downloads into the email (or click 📎) and press <b>Send</b>.</div>`, '📧 Open Gmail');
   const to = m.querySelector('#shTo'), ok = m.querySelector('[data-ok]');
+  const showFile = () => new File([buildShowFile()], safeName() + ' - slide show.html', {type:'text/html'});
+  let canAttach = false;
+  try { canAttach = !!(navigator.canShare && navigator.canShare({files:[new File(['x'], 't.html', {type:'text/html'})]})); } catch {}
+  if (canAttach) {
+    m.querySelector('#shAuto').hidden = false;
+    const att = document.createElement('button'); att.className = 'btn go'; att.textContent = '📤 Send with file attached';
+    ok.before(att); ok.classList.remove('go'); ok.textContent = '📧 Gmail website';
+    att.onclick = async () => {
+      const f = showFile(), msg = m.querySelector('#shMsg').value, addr = to.value.trim();
+      try {
+        await navigator.share({files:[f], title:'Check out my slide show: ' + (deck.title || 'My presentation'),
+          text:(addr ? 'To: ' + addr + '\n\n' : '') + msg});
+        m.remove(); toast('📤 Sent to the share menu — press Send in your email app');
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;          // they closed the share menu
+        toast('⚠️ The share menu didn\'t work here — use 📧 Gmail website instead');
+      }
+    };
+  }
   setTimeout(() => to.focus(), 50);
   to.oninput = () => to.classList.remove('bad');
   to.onkeydown = e => { if (e.key === 'Enter') ok.click(); };

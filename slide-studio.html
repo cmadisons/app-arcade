@@ -1196,8 +1196,28 @@ const voiceCfg = () => (deck.voice ||= {on:true, next:['hot chocolate'], back:[]
 // words -> plain letters: no accents (voilà = voila), numbers the same as number words (3 = three / trois)
 const NUMS = {en:['zero','one','two','three','four','five','six','seven','eight','nine','ten'],
               fr:['zero','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix']};
+let curLang = 'en-US';                       // the language we're listening in right now
+// 🇫🇷 Auto: words that give away French magic words (accents are checked too)
+const FR_HINTS = new Set(['voila','magie','magique','disparais','disparait','reviens','revient','trois','deux','quatre','cinq','comme',
+  'baguette','bonjour','merci','oui','hop','et','le','les','une','avec','pour','tour','carte','cartes','attention','regardez','voici']);
+function detectLang(texts) {
+  let fr = 0, en = 0;
+  texts.join('\n').split(/\n|,/).map(x => x.trim()).filter(Boolean).forEach(line => {
+    const plainLine = line.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const french = /[àâçéèêëîïôûùüÿœæ]/i.test(line) || plainLine.split(/[^a-z']+/).some(w => FR_HINTS.has(w));
+    french ? fr++ : en++;
+  });
+  return fr > en ? 'fr-FR' : 'en-US';
+}
+const allMagicTexts = () => { const v = voiceCfg(); return [...v.next, ...v.back, ...deck.slides.flatMap(x => x.magic || [])]; };
+const pickLang = (choice, texts) => (choice === 'en-US' || choice === 'fr-FR') ? choice : detectLang(texts);
+const LANG_NAME = {'en-US':'English 🇺🇸', 'fr-FR':'French 🇫🇷'};
+// when listening in English, French words often come out as English look-alikes — count those too
+const SOUND_ALIKES = [[/ (viola|wallah|walla|wala|vwala|voilah|voyla|wa la|va la|vwa la) /g, ' voila '],
+  [/ (hoopla|hoop la|whoopla|opla|oop la|hop law|hop lah) /g, ' hop la '], [/ (a voila|eh voila|ay voila) /g, ' et voila '],
+  [/ (abra cadabra|abracadabara|abra kadabra) /g, ' abracadabra ']];
 const norm = t => {
-  const lang = (deck && deck.voice && deck.voice.lang || 'en-US').slice(0, 2), nums = NUMS[lang] || NUMS.en;
+  const lang = curLang.slice(0, 2), nums = NUMS[lang] || NUMS.en;
   let n = String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[’`]/g, "'").replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim();
   n = n.split(' ').map(w => /^\d+$/.test(w) && +w <= 10 ? nums[+w] : (lang === 'fr' && w === 'une' ? 'un' : w)).join(' ');
@@ -1206,12 +1226,16 @@ const norm = t => {
 const splitWords = t => t.split(/\n|,/).map(w => norm(w).trim()).filter(Boolean);
 const splitLines = t => t.split(/\n/).map(w => norm(w).trim()).filter(Boolean);   // big boxes: one line = one word or phrase (commas OK inside)
 let rec = null, recWanted = false, recOnHeard = null, lastFire = 0, firedAt = new Map();
-function matchWord(text, list) { const n = norm(text); return list.find(w => n.includes(' ' + w + ' ')); }
-function startListening(onText) {
+function matchWord(text, list) {
+  let n = norm(text);
+  if (curLang.startsWith('en')) for (let k = 0; k < 2; k++) SOUND_ALIKES.forEach(([re, to]) => { n = n.replace(re, to); });
+  return list.find(w => n.includes(' ' + w + ' '));
+}
+function startListening(onText, lang) {
   if (!SR) { toast('⚠️ This browser can\'t listen — use Chrome'); return false; }
   stopListening();
   recWanted = true; recOnHeard = onText; firedAt = new Map();
-  rec = new SR(); rec.continuous = true; rec.interimResults = true; rec.lang = voiceCfg().lang || 'en-US';
+  rec = new SR(); rec.continuous = true; rec.interimResults = true; curLang = lang || curLang; rec.lang = curLang;
   rec.onresult = e => {
     for (let i = e.resultIndex; i < e.results.length; i++) recOnHeard && recOnHeard(e.results[i][0].transcript, i, e.results[i].isFinal);
   };
@@ -1268,8 +1292,8 @@ function openMagicWords() {
     <div class="mw">
       <label class="row"><input type="checkbox" id="mwOn"> Listen for magic words during the slideshow</label>
       <label class="row">👂 Listen in: <select id="mwLang" style="font:inherit;padding:4px 8px;border:1px solid var(--line);border-radius:6px">
-        <option value="en-US">English</option><option value="fr-FR">Français (French)</option></select>
-        <span style="color:var(--muted);font-size:12px">pick the language your magic words are in</span></label>
+        <option value="auto">Auto (French if my words are French)</option><option value="en-US">English</option><option value="fr-FR">Français (French)</option></select>
+        <span id="mwLangNow" style="color:var(--muted);font-size:12px"></span></label>
       <h3>➡️ Every-slide words (go to the NEXT slide)</h3>
       <p>These work on any slide that doesn't have its own word. Add as many as you want: put <b>each word or phrase on its own line</b>. Phrases with more than one word work too, like <b>hot chocolate</b>, <b>et voilà</b> or <b>une, deux, trois, magie</b>.</p>
       <textarea id="mwNext"></textarea>
@@ -1287,14 +1311,21 @@ function openMagicWords() {
       <button class="btn go" id="mwSave" style="margin-left:auto">Save</button></div></div>`;
   document.body.appendChild(bg);
   const $$ = q => bg.querySelector(q);
-  $$('#mwOn').checked = v.on; $$('#mwLang').value = v.lang || 'en-US';
-  $$('#mwLang').onchange = () => { v.lang = $$('#mwLang').value; if (testing) { stopListening(); testing = false; $$('#mwTestBtn').click(); } }; $$('#mwNext').value = v.next.join('\n'); $$('#mwBack').value = v.back.join('\n');
+  $$('#mwOn').checked = v.on; $$('#mwLang').value = v.lang || 'auto';
+  const boxTexts = () => [$$('#mwNext').value, $$('#mwBack').value, ...[...bg.querySelectorAll('#mwSlides input')].map(x => x.value)];
+  const boxLang = () => pickLang($$('#mwLang').value, boxTexts());
+  const showLangNow = () => { $$('#mwLangNow').textContent = 'listening in ' + LANG_NAME[boxLang()]; };
+  const relisten = () => { if (testing) { stopListening(); testing = false; $$('#mwTestBtn').click(); } };
+  $$('#mwLang').onchange = () => { showLangNow(); relisten(); };
+  bg.addEventListener('input', e => { if (e.target.matches('textarea, #mwSlides input')) showLangNow(); });
+  bg.addEventListener('change', e => { if (e.target.matches('textarea, #mwSlides input')) relisten(); }); $$('#mwNext').value = v.next.join('\n'); $$('#mwBack').value = v.back.join('\n');
   deck.slides.forEach((sl, i) => {
     const lab = document.createElement('span'); lab.textContent = `Slide ${i + 1}: ${slideName(sl)}`; lab.title = lab.textContent;
     const inp = document.createElement('input'); inp.dataset.i = i; inp.value = (sl.magic || []).join(', ');
     inp.placeholder = 'every-slide words';
     $$('#mwSlides').append(lab, inp);
   });
+  showLangNow();
   let testing = false;
   const close = () => { if (testing) stopListening(); bg.remove(); };
   $$('.x').onclick = close;
@@ -1302,6 +1333,7 @@ function openMagicWords() {
   bg.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
   $$('#mwTestBtn').onclick = () => {
     if (testing) { stopListening(); testing = false; $$('#mwTestBtn').textContent = '🎤 Start test'; return; }
+    curLang = boxLang(); showLangNow();
     const per = [...bg.querySelectorAll('#mwSlides input')].flatMap(x => splitWords(x.value).map(w => [w, +x.dataset.i + 1]));
     const nx = splitLines($$('#mwNext').value), bk = splitLines($$('#mwBack').value), out = $$('#mwTest');
     if (startListening((text) => {
@@ -1310,10 +1342,10 @@ function openMagicWords() {
       out.innerHTML = n ? `✅ Heard <b>"${n}"</b> → NEXT slide` : b ? `✅ Heard <b>"${b}"</b> → BACK a slide`
                     : ps ? `✅ Heard <b>"${ps[0]}"</b> → moves on from slide ${ps[1]}`
                         : `👂 I hear: <i>${text.replace(/</g, '&lt;')}</i>`;
-    })) { testing = true; $$('#mwTestBtn').textContent = '⏹ Stop test'; out.textContent = '👂 Listening… say a magic word'; }
+    }, curLang)) { testing = true; $$('#mwTestBtn').textContent = '⏹ Stop test'; out.textContent = '👂 Listening in ' + LANG_NAME[curLang] + '… say a magic word'; }
   };
   $$('#mwSave').onclick = () => {
-    v.on = $$('#mwOn').checked; v.lang = $$('#mwLang').value; v.next = splitLines($$('#mwNext').value); v.back = splitLines($$('#mwBack').value);
+    v.on = $$('#mwOn').checked; v.lang = $$('#mwLang').value; curLang = boxLang(); v.next = splitLines($$('#mwNext').value); v.back = splitLines($$('#mwBack').value);
     bg.querySelectorAll('#mwSlides input').forEach(x => { const sl = deck.slides[+x.dataset.i]; if (sl) sl.magic = splitWords(x.value); });
     if (v.on && !anyMagic()) v.on = false;
     commit(); syncMicBtn(); renderAll(); close();
@@ -1332,8 +1364,10 @@ function present(from) {
   drawShow(true);
   const v = voiceCfg(), d = $('#micDot');
   if (v.on && anyMagic()) {
-    d.hidden = false; d.classList.remove('off', 'heard'); d.textContent = '🎤 listening';
-    startListening(heardInShow);
+    d.hidden = false; d.classList.remove('off', 'heard');
+    curLang = pickLang(v.lang, allMagicTexts());
+    d.textContent = '🎤 listening' + (curLang === 'fr-FR' ? ' 🇫🇷' : '');
+    startListening(heardInShow, curLang);
   } else d.hidden = true;
 }
 function drawShow(animate) {

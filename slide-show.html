@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slide show</title>
+<!-- Slide Studio link player: the whole slide show lives in the link after # (squished with deflate + base64url).
+     Made by Slide Studio's 🔗 Send a link. Everything from the link is cleaned before it is shown. -->
+<style>
+html,body{margin:0;height:100%;overflow:hidden;font-family:Arial,sans-serif;background:#000}
+#show{position:fixed;inset:0;cursor:pointer;user-select:none;-webkit-user-select:none}
+.slide{position:absolute;width:960px;height:540px;transform-origin:0 0;overflow:hidden;background:#fff}
+.el{position:absolute}.el .bg{position:absolute;inset:0}
+.el .txt{position:absolute;inset:0;padding:6px 10px;display:flex;flex-direction:column;overflow-wrap:anywhere;line-height:1.2}
+.el img{width:100%;height:100%;display:block;object-fit:fill}
+.fade{animation:fadeIn .5s ease}.slidein{animation:slideIn .5s ease}.zoom{animation:zoomIn .45s ease}
+@keyframes fadeIn{from{opacity:0}}@keyframes slideIn{from{opacity:0;translate:120px 0}}@keyframes zoomIn{from{opacity:0;scale:.85}}
+#count{position:fixed;right:16px;bottom:12px;color:#fffc;text-shadow:0 1px 3px #000;font-size:14px;pointer-events:none}
+#end,#start,#oops{position:fixed;inset:0;display:grid;place-items:center;color:#fff;text-shadow:0 1px 4px #000;font-size:20px;text-align:center;padding:20px}
+#start{background:#000c;z-index:5}#start b,#oops b{font-size:30px;display:block;margin-bottom:10px}
+#start button{margin-top:18px;font-size:18px;font-weight:700;border:0;border-radius:24px;padding:12px 28px;background:#f4a100;color:#fff;cursor:pointer}
+#made{position:fixed;left:14px;bottom:10px;font-size:12px;color:#fff9;z-index:6}#made a{color:#fffc}
+</style></head><body>
+<div id="show"></div><div id="count"></div>
+<div id="made">Made with <a href="slide-studio.html" target="_blank" rel="noopener">Slide Studio</a></div>
+<script>
+const W = 960, H = 540;
+const SHAPES = {
+  none:{}, rect:{}, rounded:{radius:'18px'}, ellipse:{radius:'50%'},
+  triangle:{clip:'polygon(50% 0,100% 100%,0 100%)'},
+  diamond:{clip:'polygon(50% 0,100% 50%,50% 100%,0 50%)'},
+  star:{clip:'polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)'},
+  arrow:{clip:'polygon(0 30%,62% 30%,62% 0,100% 50%,62% 100%,62% 70%,0 70%)'},
+  hexagon:{clip:'polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)'},
+  pentagon:{clip:'polygon(50% 0,100% 38%,82% 100%,18% 100%,0 38%)'},
+  bubble:{clip:'polygon(0 0,100% 0,100% 75%,40% 75%,20% 100%,22% 75%,0 75%)'},
+  cross:{clip:'polygon(35% 0,65% 0,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0 65%,0 35%,35% 35%)'},
+};
+const show = document.getElementById('show'), cnt = document.getElementById('count');
+let D = null, i = 0;
+
+/* ---- safety: a link can hold anything, so only plain formatting gets through ---- */
+const OK_TAGS = new Set(['B','STRONG','I','EM','U','BR','DIV','P','SPAN','FONT','UL','OL','LI','SUB','SUP','S','STRIKE']);
+const badCss = v => /url\s*\(|expression|javascript:|@import|behavior/i.test(String(v));
+const css = v => (typeof v === 'string' && !badCss(v)) ? v.slice(0, 400) : '';
+const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
+function cleanHTML(html) {
+  const doc = new DOMParser().parseFromString('<div>' + String(html || '') + '</div>', 'text/html');
+  const walk = n => [...n.childNodes].forEach(c => {
+    if (c.nodeType === 3) return;
+    if (c.nodeType !== 1 || !OK_TAGS.has(c.tagName)) {
+      if (c.nodeType === 1 && !['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','TEMPLATE'].includes(c.tagName)) { walk(c); c.replaceWith(...c.childNodes); }
+      else c.remove();
+      return;
+    }
+    [...c.attributes].forEach(a => {
+      const keep = (a.name === 'style' && !badCss(a.value)) || (c.tagName === 'FONT' && ['color','face','size'].includes(a.name) && !badCss(a.value));
+      if (!keep) c.removeAttribute(a.name);
+    });
+    walk(c);
+  });
+  const root = doc.body.firstChild; walk(root); return root.innerHTML;
+}
+const safeSrc = s => (typeof s === 'string' && /^(https?:\/\/|data:image\/(png|jpe?g|gif|webp);base64,)/i.test(s)) ? s : '';
+
+function node(el) {
+  const d = document.createElement('div'); d.className = 'el';
+  Object.assign(d.style, {left:num(el.x) + 'px', top:num(el.y) + 'px', width:num(el.w, 100) + 'px', height:num(el.h, 50) + 'px'});
+  if (el.type === 'image') {
+    const m = document.createElement('img'); m.alt = ''; const src = safeSrc(el.src);
+    if (src) m.src = src; d.appendChild(m); return d;
+  }
+  const s = SHAPES[el.shape] || {}, bg = document.createElement('div'), t = document.createElement('div');
+  bg.className = 'bg'; t.className = 'txt'; t.innerHTML = cleanHTML(el.text);
+  Object.assign(bg.style, {background:css(el.fill) || 'transparent', borderRadius:s.radius || '', clipPath:s.clip || ''});
+  Object.assign(d.style, {fontSize:num(el.fontSize, 24) + 'px', color:css(el.color), fontFamily:'"' + css(el.font).replace(/"/g, '') + '", sans-serif',
+    fontWeight:el.bold ? '700' : '400', fontStyle:el.italic ? 'italic' : 'normal', textDecoration:el.underline ? 'underline' : 'none',
+    textAlign:['left','center','right','justify'].includes(el.align) ? el.align : 'left'});
+  t.style.justifyContent = {top:'flex-start', middle:'center', bottom:'flex-end'}[el.valign] || 'flex-start';
+  d.append(bg, t); return d;
+}
+function draw(anim) {
+  show.innerHTML = ''; const n = D.slides.length;
+  if (i >= n) { show.innerHTML = '<div id="end">The end! 🎉<br><small>Press ← to go back</small></div>'; cnt.textContent = ''; return; }
+  const sl = document.createElement('div'), sd = D.slides[i];
+  sl.className = 'slide' + (anim && ['fade','slidein','zoom'].includes(D.transition) ? ' ' + D.transition : '');
+  sl.style.background = css(sd.bg) || '#fff';
+  (Array.isArray(sd.els) ? sd.els : []).forEach(e => e && sl.appendChild(node(e)));
+  const k = Math.min(innerWidth / W, innerHeight / H);
+  sl.style.transform = 'scale(' + k + ')'; sl.style.left = (innerWidth - W * k) / 2 + 'px'; sl.style.top = (innerHeight - H * k) / 2 + 'px';
+  show.appendChild(sl); cnt.textContent = (i + 1) + ' / ' + n;
+}
+function step(d) { const j = i + d; if (j < 0 || j > D.slides.length) return; i = j; draw(true); }
+
+async function unpack(code) {
+  const b64 = code.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64 + '==='.slice((b64.length + 3) % 4));
+  const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return JSON.parse(await new Response(stream).text());
+}
+function oops(msg) {
+  document.body.insertAdjacentHTML('beforeend', '<div id="oops"><div><b>😕 Can\'t open this slide show</b>' + msg + '</div></div>');
+}
+(async () => {
+  const m = location.hash.match(/[#&]d=([A-Za-z0-9_-]+)/);
+  if (!m) return oops('This link doesn\'t have a slide show in it.<br>Ask the person who sent it to send the whole link again.');
+  try { D = await unpack(m[1]); if (!D || !Array.isArray(D.slides) || !D.slides.length) throw 0; }
+  catch { return oops('The link got cut off or broken.<br>Ask the person who sent it to send it again.'); }
+  const title = String(D.title || 'Slide show').slice(0, 120);
+  document.title = title;
+  show.style.background = css(D.showBg) || '#000';
+  const st = document.createElement('div'); st.id = 'start';
+  st.innerHTML = '<div><b></b>Click or press → to go to the next slide<br>← goes back<br><button>▶ Start slide show</button></div>';
+  st.querySelector('b').textContent = title;                       // textContent = never runs as code
+  document.body.appendChild(st);
+  st.querySelector('button').onclick = e => { e.stopPropagation(); st.remove();
+    document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => {}); };
+  show.onclick = () => step(1);
+  show.oncontextmenu = e => { e.preventDefault(); step(-1); };
+  addEventListener('keydown', e => {
+    if (['ArrowRight','ArrowDown',' ','PageDown','Enter'].includes(e.key)) { e.preventDefault(); step(1); }
+    if (['ArrowLeft','ArrowUp','PageUp','Backspace'].includes(e.key)) { e.preventDefault(); step(-1); }
+  });
+  addEventListener('resize', () => draw(false));
+  draw(false);
+})();
+</script>
+</body></html>

@@ -954,17 +954,54 @@ document.querySelector('#start button').onclick=e=>{e.stopPropagation();document
 draw(false);
 <\/script></body></html>`;
 }
+// 🔗 link version: the whole slide show is squished into the link after # (nothing stored on a server)
+const LINK_PLAYER = 'https://cmadisons.github.io/app-arcade/slide-show.html';
+const MAX_GMAIL_URL = 7500, MAX_LINK = 1500000;
+async function makeShowLink() {
+  const data = {title:deck.title || 'My presentation', showBg:deck.showBg || '#000', transition:deck.transition || 'fade',
+    slides:deck.slides.map(s => ({bg:s.bg, els:s.els}))};
+  const stream = new Blob([JSON.stringify(data)]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+  let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return LINK_PLAYER + '#d=' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function gmailURL(addr, subject, body) {
+  return 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(addr) + '&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+}
 function openShare() {
   endEdit();
   const m = smallModal('🔗 Share with Gmail', `<div class="shf">
       <label>Send to (their Gmail address)</label><input id="shTo" type="email" placeholder="friend@gmail.com" autocomplete="email">
       <label style="margin-top:6px">Message</label><textarea id="shMsg">Hi! I made a slide show called "${(deck.title || 'My presentation').replace(/[<>&"]/g, '')}" in Slide Studio. Open the file I attached to watch it! 🎉</textarea></div>
+    <div class="shtip"><b>🔗 Send a link</b> (easiest): Gmail opens with a link in the email. Your friend taps it and the slide show plays on any phone or computer, with nothing to download.</div>
     <div class="shtip" id="shAuto" hidden><b>📤 Send with file attached</b> opens your device's share menu with the slide show <b>already attached</b>. Pick <b>Gmail</b> (or Mail), then press Send.</div>
     <div class="shtip">When you press <b>Open Gmail</b>:<br>1. Your slide show is saved to <b>Downloads</b> as a file that plays in any web browser.<br>2. Gmail opens with the email already written.<br>3. Drag the file from Downloads into the email (or click 📎) and press <b>Send</b>.</div>`, '📧 Open Gmail');
   const to = m.querySelector('#shTo'), ok = m.querySelector('[data-ok]');
   const showFile = () => new File([buildShowFile()], safeName() + ' - slide show.html', {type:'text/html'});
   let canAttach = false;
   try { canAttach = !!(navigator.canShare && navigator.canShare({files:[new File(['x'], 't.html', {type:'text/html'})]})); } catch {}
+  m.querySelector('.modal').style.width = 'min(640px,94vw)';
+  const lk = document.createElement('button'); lk.className = 'btn go'; lk.textContent = '🔗 Send a link';
+  ok.before(lk);
+  lk.onclick = async () => {
+    const addr = to.value.trim();
+    if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(addr)) { to.classList.add('bad'); to.focus(); toast('⚠️ Type the person\'s email, like friend@gmail.com'); return; }
+    lk.disabled = true; lk.textContent = '⏳ Making link…';
+    let link;
+    try { link = await makeShowLink(); } catch { lk.disabled = false; lk.textContent = '🔗 Send a link'; toast('⚠️ This browser can\'t make links — try 📧 Gmail website'); return; }
+    if (link.length > MAX_LINK) { lk.disabled = false; lk.textContent = '🔗 Send a link'; toast('⚠️ Your pictures make this slide show too big for a link — use 📧 Gmail website (file) instead'); return; }
+    try { await navigator.clipboard.writeText(link); } catch {}
+    const subject = 'Check out my slide show: ' + (deck.title || 'My presentation');
+    const msg = m.querySelector('#shMsg').value.replace(/Open the file I attached to watch it!/, 'Tap this link to watch it!');
+    let url = gmailURL(addr, subject, msg + '\n\n' + link);
+    if (url.length <= MAX_GMAIL_URL) {
+      window.open(url, '_blank', 'noopener'); m.remove();
+      toast('📧 Gmail is open with the link in it — just press Send!');
+    } else {                        // too long to put in the Gmail address bar → it's on the clipboard, paste it in
+      window.open(gmailURL(addr, subject, msg + '\n\n👉 (paste the link here)'), '_blank', 'noopener'); m.remove();
+      smallModal('🔗 Your link is copied!', `<div class="shtip" style="margin:0">Your slide show has pictures, so the link is too long for Gmail to fill in by itself.<br><br>In the Gmail email, click on <b>"(paste the link here)"</b>, delete it, and press <b>${isMac ? '⌘' : 'Ctrl'} + V</b> to paste the link. Then press <b>Send</b>.</div>`, 'Got it');
+    }
+  };
   if (canAttach) {
     m.querySelector('#shAuto').hidden = false;
     const att = document.createElement('button'); att.className = 'btn go'; att.textContent = '📤 Send with file attached';
